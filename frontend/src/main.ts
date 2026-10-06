@@ -2,6 +2,7 @@ import './style.css';
 import { EventsEmit, EventsOn } from '../wailsjs/runtime/runtime';
 import {
   IsDir,
+  OpenLink,
   PickFiles,
   PickFolder,
   ReadFile,
@@ -12,7 +13,7 @@ import {
 } from '../wailsjs/go/main/App';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle } from './editors';
 import { showDiff, Resolution } from './diffview';
-import { basename, dirname } from './paths';
+import { basename, dirname, resolveLink } from './paths';
 import { documentCss, renderBody, renderStandalone } from './render';
 import { Tree } from './tree';
 
@@ -213,7 +214,7 @@ async function mountEditor(scroll?: number): Promise<void> {
     handle =
       tab.view === 'source'
         ? createSourceEditor(host, tab.content, isDark(), onChange)
-        : await createWysiwygEditor(host, tab.content, tab.path, onChange);
+        : await createWysiwygEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href));
   } catch (e) {
     toast('Could not open editor: ' + e);
     return;
@@ -266,6 +267,21 @@ async function openFile(path: string): Promise<void> {
     await mountEditor();
   } catch (e) {
     toast(`Could not open ${basename(path)}: ${e}`);
+  }
+}
+
+/** Ctrl+Click on a link: Markdown files open in a tab, anything else in its default app. */
+async function followLink(tab: Tab, href: string): Promise<void> {
+  const target = resolveLink(dirname(tab.path), href);
+  if (!target) return;
+  if (target.kind === 'local' && /\.(md|markdown)$/i.test(target.path)) {
+    await openFile(target.path);
+    return;
+  }
+  try {
+    await OpenLink(target.kind === 'web' ? target.url : target.path);
+  } catch (e) {
+    toast(`Could not open ${href}: ${e}`);
   }
 }
 
@@ -491,6 +507,15 @@ window.addEventListener(
 const tree = new Tree($('tree'), $('sidebar-title'), (p) => void openFile(p));
 
 EventsOn('open-paths', (paths: string[]) => void openPaths(paths));
+
+// Backstop: no link anywhere in the app may open a popup window or navigate the app window.
+// The editor handles the links it knows about before this runs.
+window.open = () => null;
+for (const type of ['click', 'auxclick'] as const) {
+  document.addEventListener(type, (e) => {
+    if ((e.target as Element).closest?.('a[href]')) e.preventDefault();
+  });
+}
 applyTheme(false);
 renderChrome();
 void StartupPaths().then(openPaths);

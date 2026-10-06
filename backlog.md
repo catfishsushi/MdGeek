@@ -2,12 +2,12 @@
 
 Items in priority order. Work them top to bottom.
 
-## 1. Formatting toolbar in WYSIWYG mode
+## 1. Formatting toolbar in WYSIWYG mode (done)
 
 Add a toolbar shown in WYSIWYG mode with common formatting buttons (for example: bold, italic,
 strikethrough, headings, bulleted and numbered lists, task list, link, code, quote, table).
 
-## 2. Clickable links in WYSIWYG mode
+## 2. Clickable links in WYSIWYG mode (done)
 
 Clicking a link in WYSIWYG mode should open it in a new window (the system's default browser for web
 links), not navigate the app's own window.

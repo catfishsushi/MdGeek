@@ -120,11 +120,75 @@ export function detectBullet(text: string): '-' | '*' | '+' {
   return '-';
 }
 
+/** The anchor name GitHub gives a heading: "Hello, World!" becomes "hello-world". */
+export function headingSlug(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .replace(/\s/g, '-');
+}
+
+/** A "#section" link scrolls to the heading with that anchor name, in the same window. */
+function scrollToHeading(parent: HTMLElement, anchor: string): void {
+  let wanted = anchor;
+  try {
+    wanted = decodeURIComponent(anchor);
+  } catch {
+    // keep as is
+  }
+  wanted = wanted.toLowerCase();
+  const headings = parent.querySelectorAll<HTMLElement>('.ProseMirror :is(h1, h2, h3, h4, h5, h6)');
+  const hit = Array.from(headings).find((h) => headingSlug(h.textContent ?? '') === wanted);
+  hit?.scrollIntoView({ block: 'start' });
+}
+
+// Links open with Ctrl+Click, as in Word or VS Code. A plain click only places the cursor, so the
+// link text can still be edited. The webview's own link handling is always blocked, so the app
+// window never navigates away.
+// Crepe's hover box for a link also shows the address as a link meant to open in a new tab.
+// That one opens on a plain click, since clicking it is clearly a request to open.
+function watchLinks(parent: HTMLElement, onLink: (href: string) => void): void {
+  const linkAt = (e: Event) => (e.target as Element).closest<HTMLAnchorElement>('.ProseMirror a[href]');
+  const previewAt = (e: Event) => (e.target as Element).closest<HTMLAnchorElement>('.link-preview a[href]');
+  const follow = (href: string) => {
+    if (href.startsWith('#')) scrollToHeading(parent, href.slice(1));
+    else onLink(href);
+  };
+  parent.addEventListener('click', (e) => {
+    const preview = previewAt(e);
+    if (preview) {
+      e.preventDefault();
+      e.stopPropagation();
+      follow(preview.getAttribute('href') ?? '');
+      return;
+    }
+    const a = linkAt(e);
+    if (!a) return;
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      e.stopPropagation();
+      follow(a.getAttribute('href') ?? '');
+    }
+  }, true);
+  // Middle-click would also try to open the link in the webview.
+  parent.addEventListener('auxclick', (e) => {
+    if (linkAt(e) || previewAt(e)) e.preventDefault();
+  }, true);
+  // The hover text goes on the container, not the link, because ProseMirror owns the link
+  // element and would treat a changed attribute as an edit.
+  parent.addEventListener('mouseover', (e) => {
+    const a = linkAt(e);
+    parent.title = a ? `${a.getAttribute('href')}\nCtrl+Click to open` : '';
+  });
+}
+
 export async function createWysiwygEditor(
   parent: HTMLElement,
   text: string,
   filePath: string,
   onChange: (text: string) => void,
+  onLink: (href: string) => void,
 ): Promise<EditorHandle> {
   const base = dirname(filePath);
   const crepe = new Crepe({
@@ -155,6 +219,7 @@ export async function createWysiwygEditor(
   await crepe.create();
   ready = true;
   labelTopBar(parent);
+  watchLinks(parent, onLink);
 
   return {
     destroy: () => {

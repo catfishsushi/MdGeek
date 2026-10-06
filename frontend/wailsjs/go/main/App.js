@@ -10,6 +10,10 @@ export function ListDir(arg1) {
   return window['go']['main']['App']['ListDir'](arg1);
 }
 
+export function OpenLink(arg1) {
+  return window['go']['main']['App']['OpenLink'](arg1);
+}
+
 export function PickFiles() {
   return window['go']['main']['App']['PickFiles']();
 }

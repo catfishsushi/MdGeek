@@ -48,3 +48,26 @@ export function resolveLocal(baseDir: string, src: string): string {
   const abs = isAbsolute(decoded) ? normalize(decoded) : normalize(baseDir + '/' + decoded);
   return '/localfile?p=' + encodeURIComponent(abs);
 }
+
+export type LinkTarget = { kind: 'web'; url: string } | { kind: 'local'; path: string };
+
+/**
+ * Works out where a link in a Markdown file points. Relative links are taken from the file's
+ * folder. Returns null for links within the same page ("#heading") and for unknown schemes.
+ */
+export function resolveLink(baseDir: string, href: string): LinkTarget | null {
+  if (/^(https?|mailto):/i.test(href)) return { kind: 'web', url: href };
+  let p = href;
+  if (/^file:/i.test(p)) p = p.replace(/^file:\/*/i, '/').replace(/^\/([A-Za-z]:)/, '$1');
+  else if (/^[a-z][a-z0-9+.-]*:/i.test(p) && !/^[A-Za-z]:[\\/]/.test(p)) return null;
+  p = p.replace(/[?#].*$/, ''); // a "#section" or "?query" part isn't part of the file name
+  if (p === '') return null;
+  try {
+    p = decodeURIComponent(p);
+  } catch {
+    // keep as is
+  }
+  const abs = isAbsolute(p) ? normalize(p) : normalize(baseDir + '/' + p);
+  // Windows paths go back to backslashes so they match paths from the file tree and dialogs.
+  return { kind: 'local', path: /^[A-Za-z]:/.test(abs) ? abs.replace(/\//g, '\\') : abs };
+}
