@@ -1,5 +1,5 @@
 import './style.css';
-import { EventsEmit, EventsOn } from '../wailsjs/runtime/runtime';
+import { EventsEmit, EventsOn, OnFileDrop } from '../wailsjs/runtime/runtime';
 import {
   IsDir,
   OpenLink,
@@ -13,9 +13,9 @@ import {
 } from '../wailsjs/go/main/App';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle } from './editors';
 import { showDiff, Resolution } from './diffview';
-import { basename, dirname, resolveLink } from './paths';
+import { basename, dirname, isMarkdownPath, resolveLink } from './paths';
 import { documentCss, renderBody, renderStandalone } from './render';
-import { Tree } from './tree';
+import { Tree, TreeItem } from './tree';
 
 type View = 'wysiwyg' | 'source';
 type ThemeSetting = 'auto' | 'light' | 'dark';
@@ -262,7 +262,7 @@ async function openFile(path: string): Promise<void> {
       saving: false,
     };
     tabs.push(tab);
-    if (!tree.rootPath) void tree.setRoot(dirname(path));
+    if (tree.isEmpty) void tree.setRoot(dirname(path));
     active = tab;
     await mountEditor();
   } catch (e) {
@@ -274,7 +274,7 @@ async function openFile(path: string): Promise<void> {
 async function followLink(tab: Tab, href: string): Promise<void> {
   const target = resolveLink(dirname(tab.path), href);
   if (!target) return;
-  if (target.kind === 'local' && /\.(md|markdown)$/i.test(target.path)) {
+  if (target.kind === 'local' && isMarkdownPath(target.path)) {
     await openFile(target.path);
     return;
   }
@@ -290,6 +290,19 @@ async function openPaths(paths: string[]): Promise<void> {
     if (await IsDir(p)) await tree.setRoot(p);
     else await openFile(p);
   }
+}
+
+/** Files and folders dropped on the left pane are listed there. Only Markdown files can be listed. */
+async function addToSidebar(paths: string[]): Promise<void> {
+  const items: TreeItem[] = [];
+  let skipped = 0;
+  for (const p of paths) {
+    const isDir = await IsDir(p);
+    if (isDir || isMarkdownPath(p)) items.push({ path: p, isDir });
+    else skipped++;
+  }
+  await tree.add(items);
+  if (skipped) toast(`Skipped ${skipped} file${skipped > 1 ? 's' : ''}: only Markdown files and folders can be listed.`);
 }
 
 async function closeTab(tab: Tab): Promise<void> {
@@ -507,6 +520,21 @@ window.addEventListener(
 const tree = new Tree($('tree'), $('sidebar-title'), (p) => void openFile(p));
 
 EventsOn('open-paths', (paths: string[]) => void openPaths(paths));
+
+// Files dropped from File Explorer: on the left pane they're listed there, anywhere else they open.
+// The x and y are page coordinates, so the page can tell which part of the window got the drop.
+const sidebar = $('sidebar');
+OnFileDrop((x, y, paths) => {
+  sidebar.classList.remove('drop-over');
+  if (document.elementFromPoint(x, y)?.closest('#sidebar')) void addToSidebar(paths);
+  else void openPaths(paths);
+}, false);
+sidebar.addEventListener('dragover', (e) => {
+  if (e.dataTransfer?.types.includes('Files')) sidebar.classList.add('drop-over');
+});
+sidebar.addEventListener('dragleave', (e) => {
+  if (!sidebar.contains(e.relatedTarget as Node | null)) sidebar.classList.remove('drop-over');
+});
 
 // Backstop: no link anywhere in the app may open a popup window or navigate the app window.
 // The editor handles the links it knows about before this runs.

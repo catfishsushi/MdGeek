@@ -12,7 +12,7 @@ strikethrough, headings, bulleted and numbered lists, task list, link, code, quo
 Clicking a link in WYSIWYG mode should open it in a new window (the system's default browser for web
 links), not navigate the app's own window.
 
-## 3. Drag and drop files from File Explorer into the left pane
+## 3. Drag and drop files from File Explorer into the left pane (done)
 
 Dropping files from File Explorer onto the left pane (sidebar file tree) should add them there.
 

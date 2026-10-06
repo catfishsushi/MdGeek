@@ -71,3 +71,13 @@ export function resolveLink(baseDir: string, href: string): LinkTarget | null {
   // Windows paths go back to backslashes so they match paths from the file tree and dialogs.
   return { kind: 'local', path: /^[A-Za-z]:/.test(abs) ? abs.replace(/\//g, '\\') : abs };
 }
+
+/** True for the file types MdGeek edits. Matches isMarkdown in app.go. */
+export function isMarkdownPath(p: string): boolean {
+  return /\.(md|markdown)$/i.test(p);
+}
+
+/** Whether two paths name the same file. Windows paths ignore case, as Windows does. */
+export function samePath(a: string, b: string): boolean {
+  return /^[A-Za-z]:/.test(a) ? a.toLowerCase() === b.toLowerCase() : a === b;
+}

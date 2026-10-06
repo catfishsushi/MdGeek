@@ -108,7 +108,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 .node:hover { background: var(--bg-hover); }
 .node.active { background: var(--bg-active); }
 .node .twisty { width: 12px; color: var(--fg-muted); font-size: 10px; text-align: center; }
-.node .label { overflow: hidden; text-overflow: ellipsis; }
+.node .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.node .remove { visibility: hidden; border: none; background: none; padding: 0 4px; color: var(--fg-muted); }
+.node:hover .remove, .node .remove:focus-visible { visibility: visible; }
+.node .remove:hover { background: var(--bg-hover); color: var(--fg); }
+#sidebar.drop-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
 
 #content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 
