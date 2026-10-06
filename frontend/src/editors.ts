@@ -8,6 +8,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { Crepe } from '@milkdown/crepe';
+import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import crepeCommon from '@milkdown/crepe/theme/common/style.css?inline';
 import crepeLight from '@milkdown/crepe/theme/frame.css?inline';
 import crepeDark from '@milkdown/crepe/theme/frame-dark.css?inline';
@@ -73,6 +74,52 @@ export function createSourceEditor(
   };
 }
 
+// Crepe's formatting toolbar buttons are icons only. These names, in the order Crepe draws the
+// buttons, become hover text and screen-reader labels.
+const TOP_BAR_LABELS = [
+  'Bold (Ctrl+B)',
+  'Italic (Ctrl+I)',
+  'Strikethrough',
+  'Inline code',
+  'Bulleted list',
+  'Numbered list',
+  'Task list',
+  'Link',
+  'Image',
+  'Table',
+  'Code block',
+  'Quote',
+  'Divider',
+];
+
+function labelTopBar(parent: HTMLElement): void {
+  const buttons = parent.querySelectorAll<HTMLElement>('.milkdown-top-bar .top-bar-item');
+  // If a Crepe update changes the buttons, skip labeling rather than put wrong names on them.
+  if (buttons.length !== TOP_BAR_LABELS.length) return;
+  buttons.forEach((b, i) => {
+    b.title = TOP_BAR_LABELS[i];
+    b.setAttribute('aria-label', TOP_BAR_LABELS[i]);
+  });
+  const heading = parent.querySelector<HTMLElement>('.milkdown-top-bar .top-bar-heading-button');
+  heading?.setAttribute('title', 'Paragraph or heading');
+}
+
+/**
+ * The bullet character (`-`, `*` or `+`) the file's lists already use, so saving does not swap it.
+ * Milkdown otherwise writes `*` for every bullet. Files with no bullet list get `-`.
+ */
+export function detectBullet(text: string): '-' | '*' | '+' {
+  let inCode = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) inCode = !inCode;
+    if (inCode) continue;
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) continue; // a divider like "* * *", not a list
+    const m = /^\s*([-*+])\s/.exec(line);
+    if (m) return m[1] as '-' | '*' | '+';
+  }
+  return '-';
+}
+
 export async function createWysiwygEditor(
   parent: HTMLElement,
   text: string,
@@ -85,13 +132,18 @@ export async function createWysiwygEditor(
     defaultValue: text,
     features: {
       [Crepe.Feature.Latex]: false,
-      [Crepe.Feature.TopBar]: false,
+      [Crepe.Feature.TopBar]: true, // the formatting toolbar; Crepe leaves it off by default
       [Crepe.Feature.AI]: false,
     },
     featureConfigs: {
       // Show images that the file refers to by relative path.
       [Crepe.Feature.ImageBlock]: { proxyDomURL: (url: string) => resolveLocal(base, url) },
     },
+  });
+
+  const bullet = detectBullet(text);
+  crepe.editor.config((ctx) => {
+    ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet }));
   });
 
   let ready = false;
@@ -102,6 +154,7 @@ export async function createWysiwygEditor(
   });
   await crepe.create();
   ready = true;
+  labelTopBar(parent);
 
   return {
     destroy: () => {
