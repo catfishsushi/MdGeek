@@ -12,7 +12,8 @@ import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import crepeCommon from '@milkdown/crepe/theme/common/style.css?inline';
 import crepeLight from '@milkdown/crepe/theme/frame.css?inline';
 import crepeDark from '@milkdown/crepe/theme/frame-dark.css?inline';
-import { dirname, resolveLocal } from './paths';
+import { backend } from './backend';
+import { dirname, localImagePath } from './paths';
 
 export interface EditorHandle {
   destroy(): void;
@@ -201,7 +202,12 @@ export async function createWysiwygEditor(
     },
     featureConfigs: {
       // Show images that the file refers to by relative path.
-      [Crepe.Feature.ImageBlock]: { proxyDomURL: (url: string) => resolveLocal(base, url) },
+      [Crepe.Feature.ImageBlock]: {
+        proxyDomURL: (url: string) => {
+          const local = localImagePath(base, url);
+          return local === null ? url : backend.imageUrl(local);
+        },
+      },
     },
   });
 

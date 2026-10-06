@@ -1,11 +1,10 @@
 // The sidebar file tree. Folders load their contents when first expanded.
 // It shows either one opened folder's contents, or a list of files and folders dropped onto it.
-import { ListDir } from '../wailsjs/go/main/App';
-import { main } from '../wailsjs/go/models';
+import { backend, Entry } from './backend';
 import { basename, isInside, samePath } from './paths';
 
 export type TreeItem = { path: string; isDir: boolean };
-type Node = Pick<main.Entry, 'name' | 'path' | 'isDir'>;
+type Node = Pick<Entry, 'name' | 'path' | 'isDir'>;
 
 export class Tree {
   private roots: TreeItem[] = [];
@@ -103,9 +102,9 @@ export class Tree {
   }
 
   private async fill(parent: HTMLElement, dir: string, depth: number): Promise<void> {
-    let entries: main.Entry[];
+    let entries: Entry[];
     try {
-      entries = await ListDir(dir);
+      entries = await backend.listDir(dir);
     } catch (e) {
       const msg = document.createElement('div');
       msg.className = 'tree-empty';

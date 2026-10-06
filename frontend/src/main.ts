@@ -1,22 +1,9 @@
 import './style.css';
-import { EventsEmit, EventsOn, OnFileDrop } from '../wailsjs/runtime/runtime';
-import {
-  IsDir,
-  OpenLink,
-  PickFiles,
-  PickFolder,
-  GetSetting,
-  ReadFile,
-  SaveExport,
-  SetSetting,
-  StartupPaths,
-  StatFile,
-  WriteFile,
-} from '../wailsjs/go/main/App';
+import { backend } from './backend';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle } from './editors';
 import { showDiff, Resolution } from './diffview';
 import { basename, dirname, isMarkdownPath, resolveLink } from './paths';
-import { documentCss, renderBody, renderStandalone } from './render';
+import { documentCss, renderPrintable, renderStandalone } from './render';
 import { Tree, TreeItem } from './tree';
 
 type View = 'wysiwyg' | 'source';
@@ -77,7 +64,7 @@ const THEME_NAMES: Record<ThemeSetting, string> = {
 };
 const isTheme = (v: string): v is ThemeSetting => (THEME_ORDER as string[]).includes(v);
 
-// Light until the saved choice arrives from the settings file (see loadSavedTheme).
+// Light until the saved choice arrives from the saved settings (see loadSavedTheme).
 let themeSetting: ThemeSetting = 'light';
 
 // SciFi is built on the dark theme, Author and School on the light one: the editors use those
@@ -96,14 +83,14 @@ function applyTheme(remount: boolean): void {
 
 themeSelect.addEventListener('change', () => {
   themeSetting = themeSelect.value as ThemeSetting;
-  SetSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
+  backend.setSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
   applyTheme(true);
 });
 
-/** Applies the theme saved in the settings file, if any. Runs before any file is opened. */
+/** Applies the theme saved in the settings, if any. Runs before any file is opened. */
 async function loadSavedTheme(): Promise<void> {
   try {
-    const saved = await GetSetting('theme');
+    const saved = await backend.getSetting('theme');
     if (isTheme(saved)) themeSetting = saved;
   } catch {
     // no saved theme; keep the default
@@ -269,7 +256,7 @@ async function openFile(path: string): Promise<void> {
     return;
   }
   try {
-    const data = await ReadFile(path);
+    const data = await backend.readFile(path);
     const tab: Tab = {
       path,
       content: data.content,
@@ -298,7 +285,7 @@ async function followLink(tab: Tab, href: string): Promise<void> {
     return;
   }
   try {
-    await OpenLink(target.kind === 'web' ? target.url : target.path);
+    await backend.openLink(target.kind === 'web' ? target.url : target.path);
   } catch (e) {
     toast(`Could not open ${href}: ${e}`);
   }
@@ -307,7 +294,7 @@ async function followLink(tab: Tab, href: string): Promise<void> {
 /** Folders replace what the left pane shows. Files open in tabs and are listed in the pane unless already shown there. */
 async function openPaths(paths: string[]): Promise<void> {
   for (const p of paths) {
-    if (await IsDir(p)) {
+    if (await backend.isDir(p)) {
       await tree.setRoot(p);
     } else {
       await openFile(p);
@@ -322,7 +309,7 @@ async function addToSidebar(paths: string[]): Promise<void> {
   const items: TreeItem[] = [];
   let skipped = 0;
   for (const p of paths) {
-    const isDir = await IsDir(p);
+    const isDir = await backend.isDir(p);
     if (isDir || isMarkdownPath(p)) items.push({ path: p, isDir });
     else skipped++;
   }
@@ -370,7 +357,7 @@ async function saveNow(tab: Tab): Promise<void> {
     // Make sure nobody else changed the file since we last looked.
     let diskTime: number | null = null;
     try {
-      diskTime = await StatFile(tab.path);
+      diskTime = await backend.statFile(tab.path);
     } catch {
       // The file was deleted; saving will recreate it.
     }
@@ -379,7 +366,7 @@ async function saveNow(tab: Tab): Promise<void> {
       return;
     }
     const content = tab.content;
-    tab.modTime = await WriteFile(tab.path, content);
+    tab.modTime = await backend.writeFile(tab.path, content);
     tab.savedContent = content;
   } catch (e) {
     toast(`Could not save ${basename(tab.path)}: ${e}`);
@@ -393,7 +380,7 @@ async function saveNow(tab: Tab): Promise<void> {
 async function handleDiskChange(tab: Tab): Promise<void> {
   let disk;
   try {
-    disk = await ReadFile(tab.path);
+    disk = await backend.readFile(tab.path);
   } catch {
     return; // deleted or unreadable; leave the tab as is
   }
@@ -446,7 +433,7 @@ async function pollDisk(): Promise<void> {
   for (const tab of tabs) {
     if (tab.saving || tab.conflict) continue;
     try {
-      const mt = await StatFile(tab.path);
+      const mt = await backend.statFile(tab.path);
       if (mt !== tab.modTime && !tab.saving) await handleDiskChange(tab);
     } catch {
       // file missing right now; ignore
@@ -461,20 +448,16 @@ async function flushAll(): Promise<void> {
 }
 window.addEventListener('blur', () => void flushAll());
 
-// The Go side holds the window open until we have saved everything.
-EventsOn('request-close', async () => {
-  await flushAll();
-  EventsEmit('close-ready');
-});
+backend.onClose(flushAll, () => tabs.some(isDirty));
 
 // ---------- export ----------
 
 async function exportHtml(): Promise<void> {
   if (!active) return;
   const name = basename(active.path).replace(/\.(md|markdown)$/i, '');
-  const html = renderStandalone(active.content, active.path, name);
+  const html = renderStandalone(active.content, name);
   try {
-    const saved = await SaveExport(name + '.html', html);
+    const saved = await backend.saveExport(name + '.html', html);
     if (saved) toast('Exported to ' + saved);
   } catch (e) {
     toast('Export failed: ' + e);
@@ -484,7 +467,7 @@ async function exportHtml(): Promise<void> {
 async function exportPdf(): Promise<void> {
   if (!active) return;
   const root = $('print-root');
-  root.innerHTML = `<style>${documentCss}</style>` + renderBody(active.content, active.path, true);
+  root.innerHTML = `<style>${documentCss}</style>` + (await renderPrintable(active.content, active.path));
   // Wait for images so they appear in the PDF (but not forever).
   const images = Array.from(root.querySelectorAll('img'));
   await Promise.race([
@@ -498,12 +481,24 @@ async function exportPdf(): Promise<void> {
 // ---------- toolbar, keys, startup ----------
 
 async function pickFiles(): Promise<void> {
-  const paths = await PickFiles();
-  if (paths?.length) await openPaths(paths);
+  let paths: string[];
+  try {
+    paths = await backend.pickFiles();
+  } catch (e) {
+    toast('Could not open: ' + e);
+    return;
+  }
+  if (paths.length) await openPaths(paths);
 }
 
 async function pickFolder(): Promise<void> {
-  const dir = await PickFolder();
+  let dir: string;
+  try {
+    dir = await backend.pickFolder();
+  } catch (e) {
+    toast('Could not open: ' + e);
+    return;
+  }
   if (dir) await tree.setRoot(dir);
 }
 
@@ -544,16 +539,16 @@ window.addEventListener(
 
 const tree = new Tree($('tree'), $('sidebar-title'), (p) => void openFile(p));
 
-EventsOn('open-paths', (paths: string[]) => void openPaths(paths));
+backend.onOpenPaths((paths) => void openPaths(paths));
 
 // Files dropped from File Explorer: on the left pane they're listed there, anywhere else they open.
 // The x and y are page coordinates, so the page can tell which part of the window got the drop.
 const sidebar = $('sidebar');
-OnFileDrop((x, y, paths) => {
+backend.onFileDrop((x, y, paths) => {
   sidebar.classList.remove('drop-over');
   if (document.elementFromPoint(x, y)?.closest('#sidebar')) void addToSidebar(paths);
   else void openPaths(paths);
-}, false);
+});
 sidebar.addEventListener('dragover', (e) => {
   if (e.dataTransfer?.types.includes('Files')) sidebar.classList.add('drop-over');
 });
@@ -571,4 +566,4 @@ for (const type of ['click', 'auxclick'] as const) {
 }
 applyTheme(false);
 renderChrome();
-void loadSavedTheme().then(() => StartupPaths().then(openPaths));
+void loadSavedTheme().then(() => backend.startupPaths().then(openPaths));

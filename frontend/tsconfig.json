@@ -5,7 +5,9 @@
     "module": "ESNext",
     "lib": [
       "ESNext",
-      "DOM"
+      "DOM",
+      "DOM.Iterable",
+      "DOM.AsyncIterable"
     ],
     "moduleResolution": "Node",
     "strict": true,

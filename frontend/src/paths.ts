@@ -34,19 +34,18 @@ const isRemote = (s: string) => /^([a-z][a-z0-9+.-]*:)?\/\//i.test(s) || /^(data
 const isAbsolute = (s: string) => s.startsWith('/') || /^[A-Za-z]:[\\/]/.test(s);
 
 /**
- * Turns an image link found in a Markdown file into a URL the app can load.
- * Web and data: links are left alone. Local paths go through the Go /localfile handler.
+ * Works out which local file an image link in a Markdown file points to, taking relative links
+ * from the file's folder. Returns null for web and data: links, which load as they are.
  */
-export function resolveLocal(baseDir: string, src: string): string {
-  if (isRemote(src)) return src;
+export function localImagePath(baseDir: string, src: string): string | null {
+  if (isRemote(src)) return null;
   let decoded = src;
   try {
     decoded = decodeURIComponent(src);
   } catch {
     // keep as is
   }
-  const abs = isAbsolute(decoded) ? normalize(decoded) : normalize(baseDir + '/' + decoded);
-  return '/localfile?p=' + encodeURIComponent(abs);
+  return isAbsolute(decoded) ? normalize(decoded) : normalize(baseDir + '/' + decoded);
 }
 
 export type LinkTarget = { kind: 'web'; url: string } | { kind: 'local'; path: string };
