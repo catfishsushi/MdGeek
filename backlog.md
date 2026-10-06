@@ -29,3 +29,16 @@ Suggested behavior:
 - Opening a **folder** shows the folder and its subfolders (what happens now).
 
 Open to a more standard approach if this one is unusual. Talk it through first.
+
+## 5. "SciFi" theme
+
+A theme with the feel of sci-fi movie and game interfaces. Inspiration:
+https://www.sitepoint.com/14-top-sci-fi-designs-to-inspire-your-next-interface/
+
+Readability comes first. Styled interfaces like these can be hard to read, so:
+
+- Keep body text plain and high-contrast (meet WCAG AA contrast, 4.5:1 for normal text).
+- Put the sci-fi styling in the frame (borders, panels, toolbar, sidebar, tabs), not in the text
+  being edited.
+- Keep animation subtle, and turn it off when the OS "reduce motion" setting is on.
+- It is an option alongside light and dark, never the default.
