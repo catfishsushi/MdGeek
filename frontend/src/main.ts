@@ -262,7 +262,6 @@ async function openFile(path: string): Promise<void> {
       saving: false,
     };
     tabs.push(tab);
-    if (tree.isEmpty) void tree.setRoot(dirname(path));
     active = tab;
     await mountEditor();
   } catch (e) {
@@ -285,10 +284,16 @@ async function followLink(tab: Tab, href: string): Promise<void> {
   }
 }
 
+/** Folders replace what the left pane shows. Files open in tabs and are listed in the pane unless already shown there. */
 async function openPaths(paths: string[]): Promise<void> {
   for (const p of paths) {
-    if (await IsDir(p)) await tree.setRoot(p);
-    else await openFile(p);
+    if (await IsDir(p)) {
+      await tree.setRoot(p);
+    } else {
+      await openFile(p);
+      const opened = tabs.some((t) => t.path === p);
+      if (opened && isMarkdownPath(p) && !tree.shows(p)) await tree.add([{ path: p, isDir: false }]);
+    }
   }
 }
 

@@ -16,7 +16,7 @@ links), not navigate the app's own window.
 
 Dropping files from File Explorer onto the left pane (sidebar file tree) should add them there.
 
-## 4. Discuss: what the left pane shows when opening a file vs. a folder
+## 4. Discuss: what the left pane shows when opening a file vs. a folder (done)
 
 **Discuss before building. Not until we reach this step.**
 

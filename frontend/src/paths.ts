@@ -81,3 +81,10 @@ export function isMarkdownPath(p: string): boolean {
 export function samePath(a: string, b: string): boolean {
   return /^[A-Za-z]:/.test(a) ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
+
+/** Whether a path is the folder itself or anywhere inside it. */
+export function isInside(p: string, dir: string): boolean {
+  const a = normalize(p), b = normalize(dir);
+  const fold = /^[A-Za-z]:/.test(a) ? (s: string) => s.toLowerCase() : (s: string) => s;
+  return fold(a) === fold(b) || fold(a).startsWith(fold(b.endsWith('/') ? b : b + '/'));
+}

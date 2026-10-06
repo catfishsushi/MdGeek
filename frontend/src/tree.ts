@@ -2,7 +2,7 @@
 // It shows either one opened folder's contents, or a list of files and folders dropped onto it.
 import { ListDir } from '../wailsjs/go/main/App';
 import { main } from '../wailsjs/go/models';
-import { basename, samePath } from './paths';
+import { basename, isInside, samePath } from './paths';
 
 export type TreeItem = { path: string; isDir: boolean };
 type Node = Pick<main.Entry, 'name' | 'path' | 'isDir'>;
@@ -38,6 +38,11 @@ export class Tree {
     for (const it of fresh) if (it.isDir) this.expanded.add(it.path);
     this.roots.push(...fresh);
     await this.refresh();
+  }
+
+  /** Whether the path is already in the pane, listed itself or inside a listed folder. */
+  shows(path: string): boolean {
+    return this.roots.some((r) => (r.isDir ? isInside(path, r.path) : samePath(r.path, path)));
   }
 
   private async remove(path: string): Promise<void> {
