@@ -9,5 +9,28 @@
   "author": {
     "name": "catfishsushi",
     "email": "42792811+catfishsushi@users.noreply.github.com"
+  },
+  "info": {
+    "companyName": "MdGeek",
+    "productName": "MdGeek",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright \u00a9 2026",
+    "comments": "Markdown editor",
+    "fileAssociations": [
+      {
+        "ext": "md",
+        "name": "MdGeek.Markdown",
+        "description": "Markdown Document",
+        "iconName": "appicon",
+        "role": "Editor"
+      },
+      {
+        "ext": "markdown",
+        "name": "MdGeek.Markdown",
+        "description": "Markdown Document",
+        "iconName": "appicon",
+        "role": "Editor"
+      }
+    ]
   }
 }

@@ -62,18 +62,31 @@ A desktop app for viewing and editing Markdown (.md) files on Windows and Linux.
 - Does autosave overwrite the file silently, or keep a backup/undo history?
 - Which Linux packaging: AppImage, .deb, or both?
 
-## Status (first build)
+## Status (updated 2026-10-06)
 
-Built and smoke-tested on Windows: tabs, file tree, WYSIWYG and source views, "Open with" and
-second-launch-opens-a-tab, themes, and the GFM/code/table rendering.
+### Done
+- First version built and committed (git commit `2240369`): tabs, file tree, WYSIWYG and source views,
+  autosave, conflict banner with diff, themes, HTML/PDF export, single-instance "open in new tab".
+- Smoke-tested on Windows: opening a file, tabs, tree, GFM/code/table rendering, second launch opening a
+  tab, closing the window.
+- Windows installer built and tested: `build/bin/MdGeek-amd64-installer.exe`. Registers `.md` and
+  `.markdown` for "Open with". Config is in `wails.json` (`info` section).
+- Hand-tested on Windows (2026-10-06): installer, "Open with", and the features listed as untested
+  in the first build.
 
-Written but not yet tested by hand: conflict banner and diff review, tab drag-reordering,
-HTML/PDF export, drag-and-drop of files, and everything on Linux.
+### Next steps
+- Feature work is tracked in `backlog.md`.
+- Linux: a `.desktop` file with `text/markdown`, packaging (AppImage and/or .deb), and a test build.
 
-Known gaps:
+### Known gaps
 - Switching tabs or views recreates the editor, so undo history does not survive a switch.
 - The conflict dialog offers keep mine / take disk, not a line-by-line merge.
 - Exported HTML keeps image paths as written, so images only show if it is saved next to them.
 - The file tree does not notice new files until refreshed.
-- No Windows installer or file-type registration yet (needs NSIS); no Linux .desktop file yet.
 - `npm audit` reports 4 low-severity issues in Milkdown's LaTeX dependency, a feature that is turned off.
+
+### How to build
+- Needs Go, Node, and the Wails CLI (`C:\Users\Ted\go\bin\wails.exe`, not on PATH).
+- NSIS is installed at `C:\Program Files (x86)\NSIS`; add it to PATH for the installer build.
+- Build: `wails build` (exe only) or `wails build -nsis` (exe plus installer).
+- If the build fails with "memory allocation ... failed", the PC is low on memory; close apps and retry.
