@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>MdGeek</title>
+</head>
+<body>
+<div id="app">
+    <header id="toolbar">
+        <button id="btn-open-file" title="Open file (Ctrl+O)">Open file</button>
+        <button id="btn-open-folder" title="Open folder (Ctrl+Shift+O)">Open folder</button>
+        <span class="spacer"></span>
+        <div id="view-toggle" class="segmented" title="Switch view (Ctrl+E)">
+            <button data-view="wysiwyg">WYSIWYG</button>
+            <button data-view="source">Source</button>
+        </div>
+        <span class="spacer"></span>
+        <button id="btn-export-html" title="Export as HTML">Export HTML</button>
+        <button id="btn-export-pdf" title="Export as PDF (opens the print dialog)">Export PDF</button>
+        <button id="btn-theme" title="Theme">Theme: auto</button>
+    </header>
+    <div id="main">
+        <aside id="sidebar">
+            <div id="sidebar-head">
+                <span id="sidebar-title">No folder open</span>
+                <button id="btn-refresh" title="Refresh">&#x21bb;</button>
+            </div>
+            <div id="tree"></div>
+        </aside>
+        <section id="content">
+            <div id="tabs" role="tablist"></div>
+            <div id="banner" hidden></div>
+            <div id="editor"></div>
+            <div id="empty">
+                <p>Open a Markdown file or folder to begin.</p>
+                <p class="hint">You can also drop files here.</p>
+            </div>
+        </section>
+    </div>
+    <div id="toast" hidden></div>
+    <div id="modal" hidden></div>
+</div>
+<div id="print-root"></div>
+<script src="./src/main.ts" type="module"></script>
+</body>
+</html>
