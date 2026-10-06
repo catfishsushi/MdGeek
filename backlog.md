@@ -30,7 +30,7 @@ Suggested behavior:
 
 Open to a more standard approach if this one is unusual. Talk it through first.
 
-## 5. "SciFi" theme
+## 5. "SciFi" theme (done)
 
 A theme with the feel of sci-fi movie and game interfaces. Inspiration:
 https://www.sitepoint.com/14-top-sci-fi-designs-to-inspire-your-next-interface/

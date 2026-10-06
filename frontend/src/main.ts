@@ -5,8 +5,10 @@ import {
   OpenLink,
   PickFiles,
   PickFolder,
+  GetSetting,
   ReadFile,
   SaveExport,
+  SetSetting,
   StartupPaths,
   StatFile,
   WriteFile,
@@ -18,7 +20,7 @@ import { documentCss, renderBody, renderStandalone } from './render';
 import { Tree, TreeItem } from './tree';
 
 type View = 'wysiwyg' | 'source';
-type ThemeSetting = 'auto' | 'light' | 'dark';
+type ThemeSetting = 'light' | 'dark' | 'scifi' | 'author' | 'school';
 
 interface Tab {
   path: string;
@@ -29,6 +31,7 @@ interface Tab {
   conflict: { disk: string; diskModTime: number } | null;
   saveTimer: number | null;
   saving: boolean;
+  color: number; // which tab color the School theme gives it; stays put when tabs move
 }
 
 const AUTOSAVE_MS = 800;
@@ -47,6 +50,8 @@ let active: Tab | null = null;
 let editor: EditorHandle | null = null;
 let mountToken = 0;
 let defaultView: View = 'wysiwyg';
+let nextTabColor = 0;
+const TAB_COLORS = 6; // matches the colors in style.css
 
 const isDirty = (t: Tab) => t.content !== t.savedContent;
 
@@ -62,36 +67,49 @@ function toast(msg: string): void {
 
 // ---------- theme ----------
 
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-let themeSetting: ThemeSetting = 'auto';
-try {
-  const saved = localStorage.getItem('theme');
-  if (saved === 'light' || saved === 'dark' || saved === 'auto') themeSetting = saved;
-} catch {
-  // storage unavailable; keep the default
-}
+const THEME_ORDER: ThemeSetting[] = ['light', 'dark', 'scifi', 'author', 'school'];
+const THEME_NAMES: Record<ThemeSetting, string> = {
+  light: 'Light',
+  dark: 'Dark',
+  scifi: 'SciFi',
+  author: 'Author',
+  school: 'School',
+};
+const isTheme = (v: string): v is ThemeSetting => (THEME_ORDER as string[]).includes(v);
 
-const isDark = () => (themeSetting === 'auto' ? darkQuery.matches : themeSetting === 'dark');
+// Light until the saved choice arrives from the settings file (see loadSavedTheme).
+let themeSetting: ThemeSetting = 'light';
+
+// SciFi is built on the dark theme, Author and School on the light one: the editors use those
+// styles and style.css recolors the rest.
+const isDark = () => themeSetting === 'dark' || themeSetting === 'scifi';
+
+const themeSelect = $<HTMLSelectElement>('theme-select');
+for (const t of THEME_ORDER) themeSelect.add(new Option(THEME_NAMES[t], t));
 
 function applyTheme(remount: boolean): void {
-  document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
+  document.documentElement.dataset.theme = themeSetting;
   applyCrepeTheme(isDark());
-  $('btn-theme').textContent = 'Theme: ' + themeSetting;
+  themeSelect.value = themeSetting;
   if (remount) void mountEditor(editor?.getScroll());
 }
 
-$('btn-theme').addEventListener('click', () => {
-  themeSetting = themeSetting === 'auto' ? 'light' : themeSetting === 'light' ? 'dark' : 'auto';
-  try {
-    localStorage.setItem('theme', themeSetting);
-  } catch {
-    // ignore
-  }
+themeSelect.addEventListener('change', () => {
+  themeSetting = themeSelect.value as ThemeSetting;
+  SetSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
   applyTheme(true);
 });
-darkQuery.addEventListener('change', () => {
-  if (themeSetting === 'auto') applyTheme(true);
-});
+
+/** Applies the theme saved in the settings file, if any. Runs before any file is opened. */
+async function loadSavedTheme(): Promise<void> {
+  try {
+    const saved = await GetSetting('theme');
+    if (isTheme(saved)) themeSetting = saved;
+  } catch {
+    // no saved theme; keep the default
+  }
+  applyTheme(false);
+}
 
 // ---------- tabs and editor ----------
 
@@ -100,6 +118,7 @@ function renderTabs(): void {
   for (const tab of tabs) {
     const el = document.createElement('div');
     el.className = 'tab' + (tab === active ? ' active' : '');
+    el.dataset.color = String(tab.color);
     el.title = tab.path;
     el.draggable = true;
 
@@ -259,6 +278,7 @@ async function openFile(path: string): Promise<void> {
       view: defaultView,
       conflict: null,
       saveTimer: null,
+      color: nextTabColor++ % TAB_COLORS,
       saving: false,
     };
     tabs.push(tab);
@@ -551,4 +571,4 @@ for (const type of ['click', 'auxclick'] as const) {
 }
 applyTheme(false);
 renderChrome();
-void StartupPaths().then(openPaths);
+void loadSavedTheme().then(() => StartupPaths().then(openPaths));

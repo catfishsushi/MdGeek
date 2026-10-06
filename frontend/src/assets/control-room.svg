@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <!-- Background for the SciFi theme: a dim starship control room. It sits blurred and faded behind
+       the editor, so shapes are bold and simple. Replace this file, or change the url() in style.css
+       to point at a PNG or JPG, to use a different picture. -->
+  <defs>
+    <linearGradient id="room" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#050a12"/>
+      <stop offset="0.55" stop-color="#0a1a2a"/>
+      <stop offset="1" stop-color="#03070c"/>
+    </linearGradient>
+    <radialGradient id="space" cx="0.5" cy="0.45" r="0.7">
+      <stop offset="0" stop-color="#0f2f4a"/>
+      <stop offset="1" stop-color="#020611"/>
+    </radialGradient>
+    <radialGradient id="planet" cx="0.35" cy="0.3" r="0.75">
+      <stop offset="0" stop-color="#4fb3d9"/>
+      <stop offset="0.6" stop-color="#1b5b80"/>
+      <stop offset="1" stop-color="#06213a"/>
+    </radialGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a6f8a"/>
+      <stop offset="1" stop-color="#0b3346"/>
+    </linearGradient>
+    <linearGradient id="screenWarm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a5a1a"/>
+      <stop offset="1" stop-color="#3a2508"/>
+    </linearGradient>
+    <linearGradient id="console" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16303f"/>
+      <stop offset="1" stop-color="#060e15"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#33d6ec" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#33d6ec" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="floor" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M0 0H80M0 0V80" stroke="#1d4a5e" stroke-width="2" fill="none"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#room)"/>
+
+  <!-- Big viewport window with a planet -->
+  <path d="M380 90 H1220 L1300 420 H300 Z" fill="url(#space)" stroke="#2b6b82" stroke-width="10"/>
+  <g fill="#cfefff">
+    <circle cx="430" cy="160" r="2"/><circle cx="520" cy="250" r="1.5"/><circle cx="610" cy="130" r="2.5"/>
+    <circle cx="700" cy="300" r="1.5"/><circle cx="760" cy="180" r="2"/><circle cx="900" cy="140" r="1.5"/>
+    <circle cx="980" cy="260" r="2"/><circle cx="1080" cy="170" r="2.5"/><circle cx="1150" cy="330" r="1.5"/>
+    <circle cx="460" cy="360" r="2"/><circle cx="1210" cy="230" r="1.5"/><circle cx="840" cy="370" r="2"/>
+  </g>
+  <circle cx="1010" cy="470" r="230" fill="url(#planet)"/>
+  <ellipse cx="1010" cy="470" rx="360" ry="40" fill="none" stroke="#7fd8ee" stroke-opacity="0.35" stroke-width="6" transform="rotate(-12 1010 470)"/>
+  <!-- Window struts -->
+  <path d="M800 90 V420 M590 90 L560 420 M1010 90 L1040 420" stroke="#2b6b82" stroke-width="8"/>
+  <path d="M300 420 H1300" stroke="#33d6ec" stroke-width="3" stroke-opacity="0.7"/>
+
+  <!-- Side walls with monitor banks -->
+  <path d="M0 0 H380 L300 420 L240 700 H0 Z" fill="#081521"/>
+  <path d="M1600 0 H1220 L1300 420 L1360 700 H1600 Z" fill="#081521"/>
+  <g stroke="#33d6ec" stroke-opacity="0.5" stroke-width="2">
+    <path d="M40 120 L300 150 L280 300 L30 290 Z" fill="url(#screen)"/>
+    <path d="M30 330 L275 335 L255 470 L20 480 Z" fill="url(#screenWarm)"/>
+    <path d="M1560 120 L1300 150 L1320 300 L1570 290 Z" fill="url(#screen)"/>
+    <path d="M1570 330 L1325 335 L1345 470 L1580 480 Z" fill="url(#screen)"/>
+  </g>
+  <!-- Readout lines on the side screens -->
+  <g stroke="#bff4ff" stroke-opacity="0.6" stroke-width="5" stroke-linecap="round">
+    <path d="M70 170 H220 M70 200 H180 M70 230 H240 M70 260 H150"/>
+    <path d="M1340 170 H1500 M1380 200 H1520 M1340 230 H1460"/>
+    <path d="M1360 380 L1400 360 L1440 400 L1480 350 L1530 390" fill="none"/>
+  </g>
+  <g stroke="#ffd08a" stroke-opacity="0.6" stroke-width="5" stroke-linecap="round">
+    <path d="M60 370 H200 M60 400 H150 M60 430 H230"/>
+  </g>
+
+  <!-- Floor with a perspective grid -->
+  <path d="M240 700 L300 420 H1300 L1360 700 Z" fill="#06111b"/>
+  <path d="M0 700 H1600 V1000 H0 Z" fill="url(#floor)" opacity="0.6"/>
+  <g stroke="#1d4a5e" stroke-width="2" opacity="0.7">
+    <path d="M800 420 L800 1000 M700 420 L500 1000 M600 420 L200 1000 M500 420 L-100 1000 M900 420 L1100 1000 M1000 420 L1400 1000 M1100 420 L1700 1000"/>
+    <path d="M300 470 H1300 M270 560 H1330 M240 700 H1360"/>
+  </g>
+
+  <!-- Central command console -->
+  <ellipse cx="800" cy="640" rx="420" ry="70" fill="url(#glow)"/>
+  <path d="M420 600 Q800 520 1180 600 L1240 760 Q800 690 360 760 Z" fill="url(#console)" stroke="#33d6ec" stroke-opacity="0.6" stroke-width="3"/>
+  <g stroke="#33d6ec" stroke-opacity="0.55" stroke-width="2">
+    <path d="M500 610 L640 590 L650 650 L500 670 Z" fill="url(#screen)"/>
+    <path d="M700 580 H900 L905 640 H695 Z" fill="url(#screen)"/>
+    <path d="M960 590 L1100 610 L1100 670 L950 650 Z" fill="url(#screenWarm)"/>
+  </g>
+  <g fill="#33d6ec">
+    <circle cx="470" cy="700" r="6"/><circle cx="500" cy="700" r="6" fill="#e0a326"/><circle cx="530" cy="700" r="6"/>
+    <circle cx="1070" cy="700" r="6"/><circle cx="1100" cy="700" r="6" fill="#ff5d73"/><circle cx="1130" cy="700" r="6"/>
+  </g>
+
+  <!-- Chairs (silhouettes) -->
+  <g fill="#03070c">
+    <path d="M560 760 Q600 700 640 760 L650 860 H550 Z"/>
+    <path d="M760 740 Q800 670 840 740 L855 860 H745 Z"/>
+    <path d="M960 760 Q1000 700 1040 760 L1050 860 H950 Z"/>
+  </g>
+
+  <!-- Ceiling light strips -->
+  <g stroke="#33d6ec" stroke-width="6" stroke-linecap="round" opacity="0.5">
+    <path d="M420 50 H1180"/>
+    <path d="M120 20 L360 60 M1480 20 L1240 60"/>
+  </g>
+</svg>
