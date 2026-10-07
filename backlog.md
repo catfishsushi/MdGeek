@@ -42,3 +42,17 @@ Readability comes first. Styled interfaces like these can be hard to read, so:
   being edited.
 - Keep animation subtle, and turn it off when the OS "reduce motion" setting is on.
 - It is an option alongside light and dark, never the default.
+
+## 6. Make MdGeek open source (FOSS)
+
+Decided 2026-10-06 to do this later, not before the first push to GitHub. To do:
+
+- Add a `LICENSE` file. MIT is the likely pick: 211 of 222 dependencies use it, and every dependency
+  license (MIT, BSD, ISC, Apache-2.0, PSF-2.0, MPL-2.0/Apache-2.0) is compatible with it.
+- Confirm where `frontend/src/assets/control-room.png` came from and that it may be shared; otherwise
+  use the hand-made `control-room.svg` instead.
+- Replace `README.md` (still the Wails template text) with what MdGeek is, how to install and build
+  it, and its license.
+- Name the owner in `wails.json` `"copyright"` (now just "Copyright © 2026").
+- Optional: a `THIRD_PARTY_NOTICES.txt` for the bundled libraries, `SECURITY.md`, `CONTRIBUTING.md`,
+  and deciding whether working notes (`REQUIREMENTS.md`, `backlog.md`, `.claude/`) stay public.
