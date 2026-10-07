@@ -5,6 +5,7 @@
 // made-up top-level path ("/notes" for a folder called notes) and everything inside it is reached
 // by walking down from that handle ("/notes/sub/todo.md").
 import type { Backend, Entry } from './index';
+import { NeedsPermission } from './errors';
 
 type Handle = FileSystemFileHandle | FileSystemDirectoryHandle;
 
@@ -68,12 +69,14 @@ async function lookupFile(path: string): Promise<FileSystemFileHandle> {
   return h;
 }
 
-/** Asks for permission to save, if the browser hasn't given it yet. */
+/**
+ * Asks for permission to save, if the browser hasn't given it yet. The browser only shows that prompt
+ * right after a click, so a save that runs on its own (autosave) can fail here with NeedsPermission.
+ */
 async function ensureWritable(h: Handle): Promise<void> {
   if ((await h.queryPermission({ mode: 'readwrite' })) === 'granted') return;
-  if ((await h.requestPermission({ mode: 'readwrite' })) !== 'granted') {
-    throw new Error('the browser was not allowed to save here');
-  }
+  const state = await h.requestPermission({ mode: 'readwrite' }).catch(() => 'prompt' as const);
+  if (state !== 'granted') throw new NeedsPermission();
 }
 
 /** The file to save to. A file deleted since it was opened is created again, as the desktop app does. */
@@ -102,7 +105,7 @@ function setting(key: string): string {
 }
 
 export const webBackend: Backend = {
-  // A page has no command line. (An installed web app could receive files through launchQueue.)
+  // A page has no command line. Files from File Explorer arrive through onOpenPaths instead.
   startupPaths: async () => [],
 
   async listDir(dir) {
@@ -228,8 +231,15 @@ export const webBackend: Backend = {
     });
   },
 
-  onOpenPaths() {
-    // Nothing sends files to an open browser tab.
+  // The installed app is registered for .md files (manifest.webmanifest). Files opened with it from
+  // File Explorer arrive here, both at startup and while it's already open.
+  onOpenPaths(fn) {
+    window.launchQueue?.setConsumer(async ({ files }) => {
+      if (!files.length) return;
+      const paths: string[] = [];
+      for (const h of files) paths.push(await register(h as Handle));
+      fn(paths);
+    });
   },
 
   onFileDrop(fn) {
@@ -259,6 +269,17 @@ export const webBackend: Backend = {
       },
       true,
     );
+  },
+
+  async allowSaving(path) {
+    const h = await fileForWrite(path).catch(() => null);
+    if (!h) return false;
+    try {
+      await ensureWritable(h);
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   onUpdateReady(fn) {

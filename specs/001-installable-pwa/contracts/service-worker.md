@@ -44,7 +44,12 @@ rememberedItems(): Promise<TreeItem[]>;
 rememberItems(items: TreeItem[]): Promise<void>;
 /** A new version is downloaded and waiting; apply() switches to it and reloads. Desktop: never called. */
 onUpdateReady(fn: (apply: () => void) => void): void;
+/** Asks (from a click) for permission to save this file. Saves throw NeedsPermission when needed. */
+allowSaving(path: string): Promise<boolean>;
 ```
+
+`NeedsPermission` lives in `frontend/src/backend/errors.ts`. When a save throws it, `main.ts` pauses
+autosave for that tab and shows a banner with an Allow button that calls `allowSaving`.
 
 Besides the update message, the web backend asks the browser to check for a new version once an hour,
 since an app left open for days would otherwise only see updates when restarted.

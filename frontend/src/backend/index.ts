@@ -51,6 +51,11 @@ export interface Backend {
    * so save everything first. The desktop app never calls this.
    */
   onUpdateReady(fn: (apply: () => void) => void): void;
+  /**
+   * Asks for permission to save this file. Must run from a click. Returns whether it was given.
+   * Saves throw NeedsPermission (./errors) when this is needed.
+   */
+  allowSaving(path: string): Promise<boolean>;
 }
 
 // Vite replaces import.meta.env.MODE with a fixed string at build time, so each build keeps only one.

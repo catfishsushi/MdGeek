@@ -1,5 +1,6 @@
 import './style.css';
 import { backend } from './backend';
+import { NeedsPermission } from './backend/errors';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle } from './editors';
 import { showDiff, Resolution } from './diffview';
 import { basename, dirname, isMarkdownPath, resolveLink } from './paths';
@@ -18,6 +19,7 @@ interface Tab {
   conflict: { disk: string; diskModTime: number } | null;
   saveTimer: number | null;
   saving: boolean;
+  needsPermission: boolean; // the browser must be asked, from a click, before this file can be saved
   color: number; // which tab color the School theme gives it; stays put when tabs move
 }
 
@@ -174,6 +176,10 @@ function renderTabs(): void {
 function renderBanner(): void {
   bannerEl.replaceChildren();
   const tab = active;
+  if (tab?.needsPermission && !tab.conflict) {
+    renderPermissionBanner(tab);
+    return;
+  }
   if (!tab || !tab.conflict) {
     bannerEl.hidden = true;
     return;
@@ -193,6 +199,26 @@ function renderBanner(): void {
     b.addEventListener('click', fn);
     bannerEl.appendChild(b);
   }
+  bannerEl.hidden = false;
+}
+
+/** A file opened from File Explorer (or a remembered folder) needs the user's OK before it can be saved. */
+function renderPermissionBanner(tab: Tab): void {
+  const msg = document.createElement('span');
+  msg.className = 'msg';
+  msg.textContent = `MdGeek needs permission to save ${basename(tab.path)}. Your edits are kept until then.`;
+  const allow = document.createElement('button');
+  allow.textContent = 'Allow';
+  allow.addEventListener('click', async () => {
+    if (!(await backend.allowSaving(tab.path))) {
+      toast('Saving was not allowed. Click Allow to ask again.');
+      return;
+    }
+    tab.needsPermission = false;
+    renderBanner();
+    await saveNow(tab);
+  });
+  bannerEl.append(msg, allow);
   bannerEl.hidden = false;
 }
 
@@ -278,6 +304,7 @@ async function openFile(path: string): Promise<void> {
       saveTimer: null,
       color: nextTabColor++ % TAB_COLORS,
       saving: false,
+      needsPermission: false,
     };
     tabs.push(tab);
     active = tab;
@@ -354,7 +381,7 @@ function onEdit(tab: Tab, text: string): void {
   tab.content = text;
   if (wasDirty !== isDirty(tab)) renderTabs();
   if (tab.saveTimer !== null) window.clearTimeout(tab.saveTimer);
-  if (!tab.conflict) tab.saveTimer = window.setTimeout(() => void saveNow(tab), AUTOSAVE_MS);
+  if (!tab.conflict && !tab.needsPermission) tab.saveTimer = window.setTimeout(() => void saveNow(tab), AUTOSAVE_MS);
 }
 
 async function saveNow(tab: Tab): Promise<void> {
@@ -362,7 +389,7 @@ async function saveNow(tab: Tab): Promise<void> {
     window.clearTimeout(tab.saveTimer);
     tab.saveTimer = null;
   }
-  if (tab.conflict || tab.saving || !isDirty(tab)) return;
+  if (tab.conflict || tab.needsPermission || tab.saving || !isDirty(tab)) return;
   tab.saving = true;
   try {
     // Make sure nobody else changed the file since we last looked.
@@ -380,7 +407,12 @@ async function saveNow(tab: Tab): Promise<void> {
     tab.modTime = await backend.writeFile(tab.path, content);
     tab.savedContent = content;
   } catch (e) {
-    toast(`Could not save ${basename(tab.path)}: ${e}`);
+    if (e instanceof NeedsPermission) {
+      tab.needsPermission = true;
+      renderBanner();
+    } else {
+      toast(`Could not save ${basename(tab.path)}: ${e}`);
+    }
   } finally {
     tab.saving = false;
     renderTabs();

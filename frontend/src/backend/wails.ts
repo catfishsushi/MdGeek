@@ -34,4 +34,5 @@ export const wailsBackend: Backend = {
   },
   // The desktop app is updated by installing a new version.
   onUpdateReady() {},
+  allowSaving: async () => true,
 };
