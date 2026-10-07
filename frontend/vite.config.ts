@@ -24,7 +24,9 @@ function installable(): Plugin {
     ],
     closeBundle() {
       const out = resolve(__dirname, 'dist-web');
-      const html = readFileSync(resolve(out, 'index.html'));
+      const htmlPath = resolve(out, 'index.html');
+      writeFileSync(htmlPath, addContentSecurityPolicy(readFileSync(htmlPath, 'utf8')));
+      const html = readFileSync(htmlPath);
       const version = createHash('sha256').update(html).digest('hex').slice(0, 8);
       const swPath = resolve(out, 'sw.js');
       const sw = readFileSync(swPath, 'utf8');
@@ -32,6 +34,29 @@ function installable(): Plugin {
       writeFileSync(swPath, sw.replaceAll('__VERSION__', version));
     },
   };
+}
+
+/**
+ * Adds a Content-Security-Policy to the page, so a script slipped into a document can't run. GitHub
+ * Pages can't send it as a header, so it goes in a <meta> tag. The app's one inline script is allowed
+ * by its hash; inline styles are allowed because the editors set them; fonts come as data: URLs.
+ */
+function addContentSecurityPolicy(html: string): string {
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script/gi)].map((m) => m[1]);
+  if (scripts.length !== 1) throw new Error(`expected one inline script in index.html, found ${scripts.length}`);
+  const hash = createHash('sha256').update(scripts[0]).digest('base64');
+  const policy = [
+    "default-src 'self'",
+    `script-src 'self' 'sha256-${hash}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ');
+  return html.replace('<head>', `<head>\n  <meta http-equiv="Content-Security-Policy" content="${policy}">`);
 }
 
 export default defineConfig(({ mode }) =>

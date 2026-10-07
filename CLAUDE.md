@@ -18,7 +18,9 @@ specs/               # spec-kit feature specs
 ## Commands
 
 - Desktop app: `wails build` (repo root)
-- Browser build: `cd frontend; npm run build:web` (writes `frontend/dist-web/`)
+- Browser build: `cd frontend; npm run build:web` (writes `frontend/dist-web/`); `npm run preview:web`
+  serves it at http://localhost:4173 (installing and offline use work there without HTTPS)
+- Wails isn't on the PATH here: run it as `~/go/bin/wails.exe build`
 - No automated tests or linter yet; `npm run build` runs `tsc` type checks.
 
 ## Code Style

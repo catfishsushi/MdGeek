@@ -628,6 +628,13 @@ for (const type of ['click', 'auxclick'] as const) {
     if ((e.target as Element).closest?.('a[href]')) e.preventDefault();
   });
 }
+// The browser version needs the File System Access API, which only Edge and Chrome on a computer have.
+if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
+  emptyEl.querySelector('p')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
+  emptyEl.querySelector('.hint')?.remove();
+  for (const id of ['btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
+}
+
 applyTheme(false);
 renderChrome();
 void loadSavedTheme()

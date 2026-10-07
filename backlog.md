@@ -51,8 +51,16 @@ Decided 2026-10-06 to do this later, not before the first push to GitHub. To do:
   license (MIT, BSD, ISC, Apache-2.0, PSF-2.0, MPL-2.0/Apache-2.0) is compatible with it.
 - Confirm where `frontend/src/assets/control-room.png` came from and that it may be shared; otherwise
   use the hand-made `control-room.svg` instead.
-- Replace `README.md` (still the Wails template text) with what MdGeek is, how to install and build
-  it, and its license.
+- Finish `README.md`: it now describes MdGeek, the browser version, and building, but still ends with
+  Wails template text and has no license section.
 - Name the owner in `wails.json` `"copyright"` (now just "Copyright © 2026").
 - Optional: a `THIRD_PARTY_NOTICES.txt` for the bundled libraries, `SECURITY.md`, `CONTRIBUTING.md`,
   and deciding whether working notes (`REQUIREMENTS.md`, `backlog.md`, `.claude/`) stay public.
+
+## 7. Bug: images without a title break the WYSIWYG view
+
+Found 2026-10-06 while testing the installable browser version (it happens with and without that
+feature's security policy, so it was already there). A Markdown image with no title, such as
+`![pic](https://example.com/a.png)`, doesn't show in WYSIWYG view, and the console shows
+`RangeError: Expected value of type string for attribute caption on type image-block, got null`
+from the editor (Milkdown Crepe's image block). Source view is fine. Not yet checked in the desktop app.
