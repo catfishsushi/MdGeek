@@ -203,6 +203,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   z-index: 50;
 }
 #toast[hidden] { display: none; }
+#toast button { margin-left: 8px; }
 
 #modal {
   position: fixed;

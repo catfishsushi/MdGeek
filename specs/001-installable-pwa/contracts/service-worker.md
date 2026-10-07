@@ -34,7 +34,7 @@ registration.waiting appears (or an "installed" state change on registration.ins
 
 ## Backend interface changes
 
-`frontend/src/backend/index.ts` `Backend` gains two methods. The desktop (Wails) backend implements
+`frontend/src/backend/index.ts` `Backend` gains these methods. The desktop (Wails) backend implements
 them as "nothing remembered" and a change with no effect, so the desktop app is unchanged (FR-010).
 
 ```ts
@@ -42,7 +42,12 @@ them as "nothing remembered" and a change with no effect, so the desktop app is 
 rememberedItems(): Promise<TreeItem[]>;
 /** Saves the left pane's top-level items for next session. */
 rememberItems(items: TreeItem[]): Promise<void>;
+/** A new version is downloaded and waiting; apply() switches to it and reloads. Desktop: never called. */
+onUpdateReady(fn: (apply: () => void) => void): void;
 ```
+
+Besides the update message, the web backend asks the browser to check for a new version once an hour,
+since an app left open for days would otherwise only see updates when restarted.
 
 `onOpenPaths` in the web backend now receives files from `launchQueue` (File Explorer "Open with").
 Its signature doesn't change.

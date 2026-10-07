@@ -45,11 +45,22 @@ const isDirty = (t: Tab) => t.content !== t.savedContent;
 // ---------- small helpers ----------
 
 let toastTimer: number | undefined;
-function toast(msg: string): void {
+/** Shows a short message. With an action, it shows a button too and stays until clicked. */
+function toast(msg: string, action?: { label: string; run: () => void }): void {
   toastEl.textContent = msg;
-  toastEl.hidden = false;
   window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (toastEl.hidden = true), 3500);
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.addEventListener('click', () => {
+      toastEl.hidden = true;
+      action.run();
+    });
+    toastEl.append(' ', b);
+  } else {
+    toastTimer = window.setTimeout(() => (toastEl.hidden = true), 3500);
+  }
+  toastEl.hidden = false;
 }
 
 // ---------- theme ----------
@@ -449,6 +460,22 @@ async function flushAll(): Promise<void> {
 window.addEventListener('blur', () => void flushAll());
 
 backend.onClose(flushAll, () => tabs.some(isDirty));
+
+// A new version of the browser app is ready. Switching reloads the page, so save everything first and
+// stay on this version if anything couldn't be saved.
+backend.onUpdateReady((apply) =>
+  toast('A new version of MdGeek is ready.', {
+    label: 'Reload',
+    run: async () => {
+      await flushAll();
+      if (tabs.some(isDirty)) {
+        toast("Couldn't save everything, so MdGeek didn't reload.");
+        return;
+      }
+      apply();
+    },
+  }),
+);
 
 // ---------- export ----------
 

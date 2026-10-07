@@ -32,4 +32,6 @@ export const wailsBackend: Backend = {
   onFileDrop(fn) {
     OnFileDrop(fn, false);
   },
+  // The desktop app is updated by installing a new version.
+  onUpdateReady() {},
 };

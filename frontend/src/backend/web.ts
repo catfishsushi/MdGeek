@@ -15,7 +15,7 @@ const openWindow = window.open.bind(window);
  * The service worker that lets MdGeek be installed and run offline. Browsers only allow one on https
  * or localhost, so it's skipped when index.html is opened straight from disk.
  */
-export const swRegistration: Promise<ServiceWorkerRegistration | null> =
+const swRegistration: Promise<ServiceWorkerRegistration | null> =
   'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')
     ? navigator.serviceWorker.register('./sw.js', { scope: './' }).catch((e) => {
         console.warn('MdGeek: could not set up offline use', e);
@@ -259,5 +259,29 @@ export const webBackend: Backend = {
       },
       true,
     );
+  },
+
+  onUpdateReady(fn) {
+    void swRegistration.then((reg) => {
+      if (!reg) return;
+      // Only an update if a version is already running; the very first install needs no reload.
+      const offer = (worker: ServiceWorker) => {
+        if (!navigator.serviceWorker.controller) return;
+        fn(() => {
+          navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+          worker.postMessage({ type: 'activate-now' });
+        });
+      };
+      if (reg.waiting) offer(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        worker?.addEventListener('statechange', () => {
+          if (worker.state === 'installed') offer(worker);
+        });
+      });
+      // The browser checks for a new version when the app starts. An app left open for days would
+      // miss it, so check again every hour.
+      window.setInterval(() => void reg.update().catch(() => undefined), 60 * 60 * 1000);
+    });
   },
 };

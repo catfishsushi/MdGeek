@@ -46,6 +46,11 @@ export interface Backend {
   onOpenPaths(fn: (paths: string[]) => void): void;
   /** Files dropped onto the window from File Explorer, with the page position of the drop. */
   onFileDrop(fn: (x: number, y: number, paths: string[]) => void): void;
+  /**
+   * A new version of the app is downloaded and waiting. apply() switches to it and reloads the page,
+   * so save everything first. The desktop app never calls this.
+   */
+  onUpdateReady(fn: (apply: () => void) => void): void;
 }
 
 // Vite replaces import.meta.env.MODE with a fixed string at build time, so each build keeps only one.

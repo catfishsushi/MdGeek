@@ -25,6 +25,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Sent by the page when the user clicks Reload in the "new version" message, after saving.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'activate-now') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
