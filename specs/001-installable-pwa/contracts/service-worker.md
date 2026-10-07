@@ -38,10 +38,10 @@ registration.waiting appears (or an "installed" state change on registration.ins
 them as "nothing remembered" and a change with no effect, so the desktop app is unchanged (FR-010).
 
 ```ts
-/** The left pane's top-level items from last session, in order. [] if none or not supported. */
-rememberedItems(): Promise<TreeItem[]>;
-/** Saves the left pane's top-level items for next session. */
-rememberItems(items: TreeItem[]): Promise<void>;
+/** The left pane's top-level files and folders from last session, in order. [] if none. */
+rememberedItems(): Promise<{ path: string; isDir: boolean }[]>;
+/** Saves the left pane's top-level files and folders for next session. */
+rememberItems(items: { path: string; isDir: boolean }[]): Promise<void>;
 /** A new version is downloaded and waiting; apply() switches to it and reloads. Desktop: never called. */
 onUpdateReady(fn: (apply: () => void) => void): void;
 /** Asks (from a click) for permission to save this file. Saves throw NeedsPermission when needed. */

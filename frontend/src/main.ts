@@ -596,7 +596,12 @@ window.addEventListener(
   true,
 );
 
-const tree = new Tree($('tree'), $('sidebar-title'), (p) => void openFile(p));
+const tree = new Tree(
+  $('tree'),
+  $('sidebar-title'),
+  (p) => void openFile(p),
+  (items) => void backend.rememberItems(items),
+);
 
 backend.onOpenPaths((paths) => void openPaths(paths));
 
@@ -625,4 +630,9 @@ for (const type of ['click', 'auxclick'] as const) {
 }
 applyTheme(false);
 renderChrome();
-void loadSavedTheme().then(() => backend.startupPaths().then(openPaths));
+void loadSavedTheme()
+  .then(async () => {
+    const items = await backend.rememberedItems();
+    if (items.length) await tree.restore(items);
+  })
+  .then(() => backend.startupPaths().then(openPaths));

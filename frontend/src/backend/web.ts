@@ -5,7 +5,8 @@
 // made-up top-level path ("/notes" for a folder called notes) and everything inside it is reached
 // by walking down from that handle ("/notes/sub/todo.md").
 import type { Backend, Entry } from './index';
-import { NeedsPermission } from './errors';
+import { NeedsPermission, NoAccess } from './errors';
+import { loadHandles, saveHandles } from './handle-store';
 
 type Handle = FileSystemFileHandle | FileSystemDirectoryHandle;
 
@@ -27,6 +28,9 @@ const swRegistration: Promise<ServiceWorkerRegistration | null> =
 /** Picked and dropped items, by the top-level name they were given. */
 const roots = new Map<string, Handle>();
 
+/** Every path register() handed out, with its handle, so the left pane can be saved without lookups. */
+const registered = new Map<string, Handle>();
+
 const isMarkdown = (name: string) => /\.(md|markdown)$/i.test(name);
 const isCancel = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
@@ -36,11 +40,17 @@ function segments(path: string): string[] {
 
 /** Gives a picked or dropped item a top-level path, or returns the one it already has. */
 async function register(handle: Handle): Promise<string> {
+  const path = await pathFor(handle);
+  registered.set(path, handle);
+  return path;
+}
+
+async function pathFor(handle: Handle): Promise<string> {
   for (const [name, h] of roots) {
     if (await h.isSameEntry(handle)) return '/' + name;
     // A file inside a folder that's already open gets its path inside that folder.
     if (h.kind === 'directory') {
-      const inner = await h.resolve(handle);
+      const inner = await h.resolve(handle).catch(() => null);
       if (inner) return ['', name, ...inner].join('/');
     }
   }
@@ -50,11 +60,22 @@ async function register(handle: Handle): Promise<string> {
   return '/' + name;
 }
 
+/**
+ * Makes sure the browser lets MdGeek read this picked or dropped item. After a restart it has to ask
+ * again, which only works right after a click, so this throws NoAccess when it can't ask.
+ */
+async function ensureReadable(h: Handle): Promise<void> {
+  if ((await h.queryPermission({ mode: 'read' })) === 'granted') return;
+  const state = await h.requestPermission({ mode: 'read' }).catch(() => 'prompt' as const);
+  if (state !== 'granted') throw new NoAccess(h.name);
+}
+
 /** Finds the handle for a path. Throws "not found" if anything along the way doesn't exist. */
 async function lookup(path: string): Promise<Handle> {
   const [first, ...rest] = segments(path);
   let h = first === undefined ? undefined : roots.get(first);
   if (!h) throw new Error('file not found');
+  await ensureReadable(h);
   for (const seg of rest) {
     if (h.kind !== 'directory') throw new Error('file not found');
     if (seg === '..') throw new Error('file not found');
@@ -77,6 +98,18 @@ async function ensureWritable(h: Handle): Promise<void> {
   if ((await h.queryPermission({ mode: 'readwrite' })) === 'granted') return;
   const state = await h.requestPermission({ mode: 'readwrite' }).catch(() => 'prompt' as const);
   if (state !== 'granted') throw new NeedsPermission();
+}
+
+/** Whether a remembered item was deleted or moved. Only checkable once the browser allows access. */
+async function isGone(h: Handle): Promise<boolean> {
+  if ((await h.queryPermission({ mode: 'read' })) !== 'granted') return false;
+  try {
+    if (h.kind === 'file') await h.getFile();
+    else await h.entries().next();
+    return false;
+  } catch (e) {
+    return e instanceof DOMException && e.name === 'NotFoundError';
+  }
 }
 
 /** The file to save to. A file deleted since it was opened is created again, as the desktop app does. */
@@ -280,6 +313,26 @@ export const webBackend: Backend = {
     } catch {
       return false;
     }
+  },
+
+  async rememberedItems() {
+    const items: { path: string; isDir: boolean }[] = [];
+    let dropped = false;
+    for (const h of (await loadHandles()) as Handle[]) {
+      // Deleted or moved since last time: quietly left out.
+      if (await isGone(h)) {
+        dropped = true;
+        continue;
+      }
+      items.push({ path: await register(h), isDir: h.kind === 'directory' });
+    }
+    if (dropped) await this.rememberItems(items);
+    return items;
+  },
+
+  async rememberItems(items) {
+    const handles = items.map((it) => registered.get(it.path)).filter((h): h is Handle => !!h);
+    await saveHandles(handles);
   },
 
   onUpdateReady(fn) {

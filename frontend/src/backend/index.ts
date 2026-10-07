@@ -56,6 +56,10 @@ export interface Backend {
    * Saves throw NeedsPermission (./errors) when this is needed.
    */
   allowSaving(path: string): Promise<boolean>;
+  /** The left pane's top-level files and folders from last session, in order. [] if none. */
+  rememberedItems(): Promise<{ path: string; isDir: boolean }[]>;
+  /** Saves the left pane's top-level files and folders for next session. */
+  rememberItems(items: { path: string; isDir: boolean }[]): Promise<void>;
 }
 
 // Vite replaces import.meta.env.MODE with a fixed string at build time, so each build keeps only one.

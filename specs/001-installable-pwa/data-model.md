@@ -9,12 +9,10 @@ All data stays in the user's browser on their own PC. Nothing is sent to a serve
 The left pane's top-level files and folders, saved so they can be listed again next session (FR-006).
 
 **Where**: IndexedDB database `mdgeek`, object store `handles`, one record under the key `sidebar`.
-The value is an ordered list:
-
-| Field    | Type                                             | Notes                                                                                         |
-|----------|--------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| `name`   | string                                           | The top-level name used in paths (`notes` → `/notes`), including any `(2)` suffix.            |
-| `handle` | `FileSystemFileHandle` or `FileSystemDirectoryHandle` | Saved as-is; IndexedDB can store handles. Kind (file or folder) comes from `handle.kind`. |
+The value is an ordered list of `FileSystemFileHandle` / `FileSystemDirectoryHandle` objects, saved
+as-is (IndexedDB can store handles). File or folder comes from `handle.kind`. Paths aren't saved: on
+start each handle goes through `register()` again and gets a fresh path, the same way a newly
+picked item does.
 
 **Rules**:
 - The list order matches the left pane order.
@@ -22,8 +20,8 @@ The value is an ordered list:
 - Saved every time the tree's top-level list changes (open folder, add, remove). Writes are small.
 - On start, a record whose handle can't be found (deleted or moved) is dropped and the list saved
   again without it.
-- A record whose permission is `prompt` is kept and shown collapsed; access is asked for on the
-  user's first click into it.
+- A record whose permission is `prompt` is kept. A folder shows an "Allow access to …" button (or
+  starts collapsed in a list); access is asked for on the user's first click.
 - If IndexedDB is blocked or fails, the app starts with an empty pane, as today, and shows no error.
 
 **Lifecycle**:

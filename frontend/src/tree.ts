@@ -1,6 +1,7 @@
 // The sidebar file tree. Folders load their contents when first expanded.
 // It shows either one opened folder's contents, or a list of files and folders dropped onto it.
 import { backend, Entry } from './backend';
+import { NoAccess } from './backend/errors';
 import { basename, isInside, samePath } from './paths';
 
 export type TreeItem = { path: string; isDir: boolean };
@@ -15,6 +16,8 @@ export class Tree {
     private container: HTMLElement,
     private titleEl: HTMLElement,
     private onOpenFile: (path: string) => void,
+    /** Called when the top-level list changes, so it can be remembered for next time. */
+    private onRootsChange: (items: TreeItem[]) => void = () => {},
   ) {}
 
   get isEmpty(): boolean {
@@ -25,6 +28,17 @@ export class Tree {
   async setRoot(path: string): Promise<void> {
     this.roots = [{ path, isDir: true }];
     this.expanded.clear();
+    this.onRootsChange(this.roots.slice());
+    await this.refresh();
+  }
+
+  /**
+   * Lists last session's items, ahead of anything already listed. Folders start collapsed, since the
+   * browser may need a click to allow access again.
+   */
+  async restore(items: TreeItem[]): Promise<void> {
+    const fresh = items.filter((it) => !this.roots.some((r) => samePath(r.path, it.path)));
+    this.roots = [...fresh, ...this.roots];
     await this.refresh();
   }
 
@@ -36,6 +50,7 @@ export class Tree {
     if (this.isSingleFolder()) this.expanded.add(this.roots[0].path);
     for (const it of fresh) if (it.isDir) this.expanded.add(it.path);
     this.roots.push(...fresh);
+    this.onRootsChange(this.roots.slice());
     await this.refresh();
   }
 
@@ -46,6 +61,7 @@ export class Tree {
 
   private async remove(path: string): Promise<void> {
     this.roots = this.roots.filter((r) => r.path !== path);
+    this.onRootsChange(this.roots.slice());
     await this.refresh();
   }
 
@@ -108,7 +124,18 @@ export class Tree {
     } catch (e) {
       const msg = document.createElement('div');
       msg.className = 'tree-empty';
-      msg.textContent = String(e);
+      if (e instanceof NoAccess) {
+        // The click is what lets the browser show its "allow access" prompt.
+        const ask = document.createElement('button');
+        ask.textContent = `Allow access to ${basename(dir) || dir}`;
+        ask.addEventListener('click', () => {
+          parent.replaceChildren();
+          void this.fill(parent, dir, depth);
+        });
+        msg.append(ask);
+      } else {
+        msg.textContent = String(e);
+      }
       parent.appendChild(msg);
       return;
     }
