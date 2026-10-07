@@ -100,9 +100,8 @@ build doesn't ship a manifest or service worker.
 ## Phases
 
 ### Phase 0: Research — done
-All open questions resolved in [research.md](./research.md). One item needs your input before the
-publishing step only: the repo has no GitHub remote yet, and free GitHub Pages needs a public repo
-(R6).
+All open questions resolved in [research.md](./research.md). Hosting: a public GitHub repo with
+GitHub Pages (R6). The repo still has to be created and pushed before the publishing step.
 
 ### Phase 1: Design — done
 [data-model.md](./data-model.md), [contracts/](./contracts/), [quickstart.md](./quickstart.md).
@@ -114,7 +113,7 @@ publishing step only: the repo has no GitHub remote yet, and free GitHub Pages n
 3. Unsupported-browser message and CSP meta (edge cases, R7, R8).
 4. File Explorer launches and the save-permission banner (Story 3).
 5. Remembered left pane (Story 4).
-6. GitHub Pages workflow (needs the repo decision in R6).
+6. Create the public GitHub repo (after a secrets scan of the history), then add the GitHub Pages workflow.
 
 ## Complexity Tracking
 

@@ -117,11 +117,9 @@ official `upload-pages-artifact` and `deploy-pages` actions.
 **Rationale**: It's GitHub's own recommended way to publish a built site, and builds happen on
 every merge with nothing to remember.
 
-**Open item for you (not a blocker for planning)**: this repo has no GitHub remote yet
-(`git remote -v` is empty, and `catfishsushi/MdGeek` doesn't exist). GitHub Pages is free only for
-public repos; a private repo needs a paid plan (GitHub Pro). Choices: make the repo public, publish
-only the built files to a separate public repo, or use a host that serves private repos for free,
-such as Cloudflare Pages or Netlify. This only affects the last task (publishing).
+**Repo decision (2026-10-06)**: The repo will be public on GitHub (`catfishsushi/MdGeek`, not
+created yet), which makes GitHub Pages free. Before the first push, scan the history for secrets,
+since every past commit becomes public.
 
 ## R7. Security on a static host
 
