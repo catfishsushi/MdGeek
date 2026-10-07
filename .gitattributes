@@ -1,0 +1,2 @@
+# Bash scripts (spec-kit) must keep Unix line endings, or Git Bash fails on the extra carriage return.
+*.sh text eol=lf

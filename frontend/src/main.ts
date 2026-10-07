@@ -1,23 +1,14 @@
 import './style.css';
-import { EventsEmit, EventsOn } from '../wailsjs/runtime/runtime';
-import {
-  IsDir,
-  PickFiles,
-  PickFolder,
-  ReadFile,
-  SaveExport,
-  StartupPaths,
-  StatFile,
-  WriteFile,
-} from '../wailsjs/go/main/App';
+import { backend } from './backend';
+import { NeedsPermission } from './backend/errors';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle } from './editors';
 import { showDiff, Resolution } from './diffview';
-import { basename, dirname } from './paths';
-import { documentCss, renderBody, renderStandalone } from './render';
-import { Tree } from './tree';
+import { basename, dirname, isMarkdownPath, resolveLink } from './paths';
+import { documentCss, renderPrintable, renderStandalone } from './render';
+import { Tree, TreeItem } from './tree';
 
 type View = 'wysiwyg' | 'source';
-type ThemeSetting = 'auto' | 'light' | 'dark';
+type ThemeSetting = 'light' | 'dark' | 'scifi' | 'author' | 'school';
 
 interface Tab {
   path: string;
@@ -28,6 +19,8 @@ interface Tab {
   conflict: { disk: string; diskModTime: number } | null;
   saveTimer: number | null;
   saving: boolean;
+  needsPermission: boolean; // the browser must be asked, from a click, before this file can be saved
+  color: number; // which tab color the School theme gives it; stays put when tabs move
 }
 
 const AUTOSAVE_MS = 800;
@@ -46,51 +39,77 @@ let active: Tab | null = null;
 let editor: EditorHandle | null = null;
 let mountToken = 0;
 let defaultView: View = 'wysiwyg';
+let nextTabColor = 0;
+const TAB_COLORS = 6; // matches the colors in style.css
 
 const isDirty = (t: Tab) => t.content !== t.savedContent;
 
 // ---------- small helpers ----------
 
 let toastTimer: number | undefined;
-function toast(msg: string): void {
+/** Shows a short message. With an action, it shows a button too and stays until clicked. */
+function toast(msg: string, action?: { label: string; run: () => void }): void {
   toastEl.textContent = msg;
-  toastEl.hidden = false;
   window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (toastEl.hidden = true), 3500);
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.addEventListener('click', () => {
+      toastEl.hidden = true;
+      action.run();
+    });
+    toastEl.append(' ', b);
+  } else {
+    toastTimer = window.setTimeout(() => (toastEl.hidden = true), 3500);
+  }
+  toastEl.hidden = false;
 }
 
 // ---------- theme ----------
 
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-let themeSetting: ThemeSetting = 'auto';
-try {
-  const saved = localStorage.getItem('theme');
-  if (saved === 'light' || saved === 'dark' || saved === 'auto') themeSetting = saved;
-} catch {
-  // storage unavailable; keep the default
-}
+const THEME_ORDER: ThemeSetting[] = ['light', 'dark', 'scifi', 'author', 'school'];
+const THEME_NAMES: Record<ThemeSetting, string> = {
+  light: 'Light',
+  dark: 'Dark',
+  scifi: 'SciFi',
+  author: 'Author',
+  school: 'School',
+};
+const isTheme = (v: string): v is ThemeSetting => (THEME_ORDER as string[]).includes(v);
 
-const isDark = () => (themeSetting === 'auto' ? darkQuery.matches : themeSetting === 'dark');
+// Light until the saved choice arrives from the saved settings (see loadSavedTheme).
+let themeSetting: ThemeSetting = 'light';
+
+// SciFi is built on the dark theme, Author and School on the light one: the editors use those
+// styles and style.css recolors the rest.
+const isDark = () => themeSetting === 'dark' || themeSetting === 'scifi';
+
+const themeSelect = $<HTMLSelectElement>('theme-select');
+for (const t of THEME_ORDER) themeSelect.add(new Option(THEME_NAMES[t], t));
 
 function applyTheme(remount: boolean): void {
-  document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
+  document.documentElement.dataset.theme = themeSetting;
   applyCrepeTheme(isDark());
-  $('btn-theme').textContent = 'Theme: ' + themeSetting;
+  themeSelect.value = themeSetting;
   if (remount) void mountEditor(editor?.getScroll());
 }
 
-$('btn-theme').addEventListener('click', () => {
-  themeSetting = themeSetting === 'auto' ? 'light' : themeSetting === 'light' ? 'dark' : 'auto';
-  try {
-    localStorage.setItem('theme', themeSetting);
-  } catch {
-    // ignore
-  }
+themeSelect.addEventListener('change', () => {
+  themeSetting = themeSelect.value as ThemeSetting;
+  backend.setSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
   applyTheme(true);
 });
-darkQuery.addEventListener('change', () => {
-  if (themeSetting === 'auto') applyTheme(true);
-});
+
+/** Applies the theme saved in the settings, if any. Runs before any file is opened. */
+async function loadSavedTheme(): Promise<void> {
+  try {
+    const saved = await backend.getSetting('theme');
+    if (isTheme(saved)) themeSetting = saved;
+  } catch {
+    // no saved theme; keep the default
+  }
+  applyTheme(false);
+}
 
 // ---------- tabs and editor ----------
 
@@ -99,6 +118,7 @@ function renderTabs(): void {
   for (const tab of tabs) {
     const el = document.createElement('div');
     el.className = 'tab' + (tab === active ? ' active' : '');
+    el.dataset.color = String(tab.color);
     el.title = tab.path;
     el.draggable = true;
 
@@ -156,6 +176,10 @@ function renderTabs(): void {
 function renderBanner(): void {
   bannerEl.replaceChildren();
   const tab = active;
+  if (tab?.needsPermission && !tab.conflict) {
+    renderPermissionBanner(tab);
+    return;
+  }
   if (!tab || !tab.conflict) {
     bannerEl.hidden = true;
     return;
@@ -175,6 +199,26 @@ function renderBanner(): void {
     b.addEventListener('click', fn);
     bannerEl.appendChild(b);
   }
+  bannerEl.hidden = false;
+}
+
+/** A file opened from File Explorer (or a remembered folder) needs the user's OK before it can be saved. */
+function renderPermissionBanner(tab: Tab): void {
+  const msg = document.createElement('span');
+  msg.className = 'msg';
+  msg.textContent = `MdGeek needs permission to save ${basename(tab.path)}. Your edits are kept until then.`;
+  const allow = document.createElement('button');
+  allow.textContent = 'Allow';
+  allow.addEventListener('click', async () => {
+    if (!(await backend.allowSaving(tab.path))) {
+      toast('Saving was not allowed. Click Allow to ask again.');
+      return;
+    }
+    tab.needsPermission = false;
+    renderBanner();
+    await saveNow(tab);
+  });
+  bannerEl.append(msg, allow);
   bannerEl.hidden = false;
 }
 
@@ -213,7 +257,7 @@ async function mountEditor(scroll?: number): Promise<void> {
     handle =
       tab.view === 'source'
         ? createSourceEditor(host, tab.content, isDark(), onChange)
-        : await createWysiwygEditor(host, tab.content, tab.path, onChange);
+        : await createWysiwygEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href));
   } catch (e) {
     toast('Could not open editor: ' + e);
     return;
@@ -249,7 +293,7 @@ async function openFile(path: string): Promise<void> {
     return;
   }
   try {
-    const data = await ReadFile(path);
+    const data = await backend.readFile(path);
     const tab: Tab = {
       path,
       content: data.content,
@@ -258,10 +302,11 @@ async function openFile(path: string): Promise<void> {
       view: defaultView,
       conflict: null,
       saveTimer: null,
+      color: nextTabColor++ % TAB_COLORS,
       saving: false,
+      needsPermission: false,
     };
     tabs.push(tab);
-    if (!tree.rootPath) void tree.setRoot(dirname(path));
     active = tab;
     await mountEditor();
   } catch (e) {
@@ -269,11 +314,45 @@ async function openFile(path: string): Promise<void> {
   }
 }
 
+/** Ctrl+Click on a link: Markdown files open in a tab, anything else in its default app. */
+async function followLink(tab: Tab, href: string): Promise<void> {
+  const target = resolveLink(dirname(tab.path), href);
+  if (!target) return;
+  if (target.kind === 'local' && isMarkdownPath(target.path)) {
+    await openFile(target.path);
+    return;
+  }
+  try {
+    await backend.openLink(target.kind === 'web' ? target.url : target.path);
+  } catch (e) {
+    toast(`Could not open ${href}: ${e}`);
+  }
+}
+
+/** Folders replace what the left pane shows. Files open in tabs and are listed in the pane unless already shown there. */
 async function openPaths(paths: string[]): Promise<void> {
   for (const p of paths) {
-    if (await IsDir(p)) await tree.setRoot(p);
-    else await openFile(p);
+    if (await backend.isDir(p)) {
+      await tree.setRoot(p);
+    } else {
+      await openFile(p);
+      const opened = tabs.some((t) => t.path === p);
+      if (opened && isMarkdownPath(p) && !tree.shows(p)) await tree.add([{ path: p, isDir: false }]);
+    }
   }
+}
+
+/** Files and folders dropped on the left pane are listed there. Only Markdown files can be listed. */
+async function addToSidebar(paths: string[]): Promise<void> {
+  const items: TreeItem[] = [];
+  let skipped = 0;
+  for (const p of paths) {
+    const isDir = await backend.isDir(p);
+    if (isDir || isMarkdownPath(p)) items.push({ path: p, isDir });
+    else skipped++;
+  }
+  await tree.add(items);
+  if (skipped) toast(`Skipped ${skipped} file${skipped > 1 ? 's' : ''}: only Markdown files and folders can be listed.`);
 }
 
 async function closeTab(tab: Tab): Promise<void> {
@@ -302,7 +381,7 @@ function onEdit(tab: Tab, text: string): void {
   tab.content = text;
   if (wasDirty !== isDirty(tab)) renderTabs();
   if (tab.saveTimer !== null) window.clearTimeout(tab.saveTimer);
-  if (!tab.conflict) tab.saveTimer = window.setTimeout(() => void saveNow(tab), AUTOSAVE_MS);
+  if (!tab.conflict && !tab.needsPermission) tab.saveTimer = window.setTimeout(() => void saveNow(tab), AUTOSAVE_MS);
 }
 
 async function saveNow(tab: Tab): Promise<void> {
@@ -310,13 +389,13 @@ async function saveNow(tab: Tab): Promise<void> {
     window.clearTimeout(tab.saveTimer);
     tab.saveTimer = null;
   }
-  if (tab.conflict || tab.saving || !isDirty(tab)) return;
+  if (tab.conflict || tab.needsPermission || tab.saving || !isDirty(tab)) return;
   tab.saving = true;
   try {
     // Make sure nobody else changed the file since we last looked.
     let diskTime: number | null = null;
     try {
-      diskTime = await StatFile(tab.path);
+      diskTime = await backend.statFile(tab.path);
     } catch {
       // The file was deleted; saving will recreate it.
     }
@@ -325,10 +404,15 @@ async function saveNow(tab: Tab): Promise<void> {
       return;
     }
     const content = tab.content;
-    tab.modTime = await WriteFile(tab.path, content);
+    tab.modTime = await backend.writeFile(tab.path, content);
     tab.savedContent = content;
   } catch (e) {
-    toast(`Could not save ${basename(tab.path)}: ${e}`);
+    if (e instanceof NeedsPermission) {
+      tab.needsPermission = true;
+      renderBanner();
+    } else {
+      toast(`Could not save ${basename(tab.path)}: ${e}`);
+    }
   } finally {
     tab.saving = false;
     renderTabs();
@@ -339,7 +423,7 @@ async function saveNow(tab: Tab): Promise<void> {
 async function handleDiskChange(tab: Tab): Promise<void> {
   let disk;
   try {
-    disk = await ReadFile(tab.path);
+    disk = await backend.readFile(tab.path);
   } catch {
     return; // deleted or unreadable; leave the tab as is
   }
@@ -392,7 +476,7 @@ async function pollDisk(): Promise<void> {
   for (const tab of tabs) {
     if (tab.saving || tab.conflict) continue;
     try {
-      const mt = await StatFile(tab.path);
+      const mt = await backend.statFile(tab.path);
       if (mt !== tab.modTime && !tab.saving) await handleDiskChange(tab);
     } catch {
       // file missing right now; ignore
@@ -407,20 +491,32 @@ async function flushAll(): Promise<void> {
 }
 window.addEventListener('blur', () => void flushAll());
 
-// The Go side holds the window open until we have saved everything.
-EventsOn('request-close', async () => {
-  await flushAll();
-  EventsEmit('close-ready');
-});
+backend.onClose(flushAll, () => tabs.some(isDirty));
+
+// A new version of the browser app is ready. Switching reloads the page, so save everything first and
+// stay on this version if anything couldn't be saved.
+backend.onUpdateReady((apply) =>
+  toast('A new version of MdGeek is ready.', {
+    label: 'Reload',
+    run: async () => {
+      await flushAll();
+      if (tabs.some(isDirty)) {
+        toast("Couldn't save everything, so MdGeek didn't reload.");
+        return;
+      }
+      apply();
+    },
+  }),
+);
 
 // ---------- export ----------
 
 async function exportHtml(): Promise<void> {
   if (!active) return;
   const name = basename(active.path).replace(/\.(md|markdown)$/i, '');
-  const html = renderStandalone(active.content, active.path, name);
+  const html = renderStandalone(active.content, name);
   try {
-    const saved = await SaveExport(name + '.html', html);
+    const saved = await backend.saveExport(name + '.html', html);
     if (saved) toast('Exported to ' + saved);
   } catch (e) {
     toast('Export failed: ' + e);
@@ -430,7 +526,7 @@ async function exportHtml(): Promise<void> {
 async function exportPdf(): Promise<void> {
   if (!active) return;
   const root = $('print-root');
-  root.innerHTML = `<style>${documentCss}</style>` + renderBody(active.content, active.path, true);
+  root.innerHTML = `<style>${documentCss}</style>` + (await renderPrintable(active.content, active.path));
   // Wait for images so they appear in the PDF (but not forever).
   const images = Array.from(root.querySelectorAll('img'));
   await Promise.race([
@@ -444,12 +540,24 @@ async function exportPdf(): Promise<void> {
 // ---------- toolbar, keys, startup ----------
 
 async function pickFiles(): Promise<void> {
-  const paths = await PickFiles();
-  if (paths?.length) await openPaths(paths);
+  let paths: string[];
+  try {
+    paths = await backend.pickFiles();
+  } catch (e) {
+    toast('Could not open: ' + e);
+    return;
+  }
+  if (paths.length) await openPaths(paths);
 }
 
 async function pickFolder(): Promise<void> {
-  const dir = await PickFolder();
+  let dir: string;
+  try {
+    dir = await backend.pickFolder();
+  } catch (e) {
+    toast('Could not open: ' + e);
+    return;
+  }
   if (dir) await tree.setRoot(dir);
 }
 
@@ -488,9 +596,50 @@ window.addEventListener(
   true,
 );
 
-const tree = new Tree($('tree'), $('sidebar-title'), (p) => void openFile(p));
+const tree = new Tree(
+  $('tree'),
+  $('sidebar-title'),
+  (p) => void openFile(p),
+  (items) => void backend.rememberItems(items),
+);
 
-EventsOn('open-paths', (paths: string[]) => void openPaths(paths));
+backend.onOpenPaths((paths) => void openPaths(paths));
+
+// Files dropped from File Explorer: on the left pane they're listed there, anywhere else they open.
+// The x and y are page coordinates, so the page can tell which part of the window got the drop.
+const sidebar = $('sidebar');
+backend.onFileDrop((x, y, paths) => {
+  sidebar.classList.remove('drop-over');
+  if (document.elementFromPoint(x, y)?.closest('#sidebar')) void addToSidebar(paths);
+  else void openPaths(paths);
+});
+sidebar.addEventListener('dragover', (e) => {
+  if (e.dataTransfer?.types.includes('Files')) sidebar.classList.add('drop-over');
+});
+sidebar.addEventListener('dragleave', (e) => {
+  if (!sidebar.contains(e.relatedTarget as Node | null)) sidebar.classList.remove('drop-over');
+});
+
+// Backstop: no link anywhere in the app may open a popup window or navigate the app window.
+// The editor handles the links it knows about before this runs.
+window.open = () => null;
+for (const type of ['click', 'auxclick'] as const) {
+  document.addEventListener(type, (e) => {
+    if ((e.target as Element).closest?.('a[href]')) e.preventDefault();
+  });
+}
+// The browser version needs the File System Access API, which only Edge and Chrome on a computer have.
+if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
+  emptyEl.querySelector('p')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
+  emptyEl.querySelector('.hint')?.remove();
+  for (const id of ['btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
+}
+
 applyTheme(false);
 renderChrome();
-void StartupPaths().then(openPaths);
+void loadSavedTheme()
+  .then(async () => {
+    const items = await backend.rememberedItems();
+    if (items.length) await tree.restore(items);
+  })
+  .then(() => backend.startupPaths().then(openPaths));

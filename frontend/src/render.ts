@@ -5,7 +5,8 @@ import taskLists from 'markdown-it-task-lists';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import hljsCss from 'highlight.js/styles/github.css?inline';
-import { dirname, resolveLocal } from './paths';
+import { backend } from './backend';
+import { dirname, localImagePath } from './paths';
 
 const md = new MarkdownIt({
   html: true, // raw HTML is allowed in the source, then cleaned by DOMPurify below
@@ -38,25 +39,26 @@ hr { border: 0; border-top: 1px solid #d0d7de; }
 `;
 
 /**
- * Renders Markdown to sanitized HTML.
- * With localImages, relative image paths are made loadable inside the app (for printing).
- * Exported files keep the original paths, so they work when saved next to the images.
+ * Renders Markdown to sanitized HTML. Image links keep their original paths, so an exported file
+ * works when saved next to the images.
  */
-export function renderBody(markdown: string, filePath: string, localImages: boolean): string {
-  const dirty = md.render(markdown);
-  const clean = DOMPurify.sanitize(dirty, { ADD_ATTR: ['checked', 'disabled'] });
-  if (!localImages) return clean;
-  const doc = new DOMParser().parseFromString(clean, 'text/html');
+export function renderBody(markdown: string): string {
+  return DOMPurify.sanitize(md.render(markdown), { ADD_ATTR: ['checked', 'disabled'] });
+}
+
+/** Renders Markdown for printing inside the app, with local images made loadable. */
+export async function renderPrintable(markdown: string, filePath: string): Promise<string> {
+  const doc = new DOMParser().parseFromString(renderBody(markdown), 'text/html');
   const base = dirname(filePath);
-  doc.querySelectorAll('img').forEach((img) => {
-    const src = img.getAttribute('src');
-    if (src) img.setAttribute('src', resolveLocal(base, src));
-  });
+  for (const img of Array.from(doc.querySelectorAll('img'))) {
+    const local = localImagePath(base, img.getAttribute('src') ?? '');
+    if (local !== null) img.setAttribute('src', await backend.imageUrl(local));
+  }
   return doc.body.innerHTML;
 }
 
 /** A complete standalone HTML file. */
-export function renderStandalone(markdown: string, filePath: string, title: string): string {
+export function renderStandalone(markdown: string, title: string): string {
   const esc = title.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
   return `<!DOCTYPE html>
 <html lang="en">
@@ -67,7 +69,7 @@ export function renderStandalone(markdown: string, filePath: string, title: stri
 <style>${documentCss}</style>
 </head>
 <body>
-${renderBody(markdown, filePath, false)}
+${renderBody(markdown)}
 </body>
 </html>
 `;

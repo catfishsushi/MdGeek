@@ -83,6 +83,9 @@ A desktop app for viewing and editing Markdown (.md) files on Windows and Linux.
 - The conflict dialog offers keep mine / take disk, not a line-by-line merge.
 - Exported HTML keeps image paths as written, so images only show if it is saved next to them.
 - The file tree does not notice new files until refreshed.
+- Saving from WYSIWYG view rebuilds the whole file, so Milkdown can still restyle lines that were not
+  edited (for example blank lines or `__bold__` becoming `**bold**`). Bullet characters are kept: the
+  file's own `-`, `*` or `+` is detected and reused.
 - `npm audit` reports 4 low-severity issues in Milkdown's LaTeX dependency, a feature that is turned off.
 
 ### How to build

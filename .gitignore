@@ -2,3 +2,5 @@ build/bin
 node_modules
 frontend/dist
 build/windows/installer/tmp/
+frontend/dist-web
+.playwright-mcp/

@@ -1,10 +1,14 @@
 // The sidebar file tree. Folders load their contents when first expanded.
-import { ListDir } from '../wailsjs/go/main/App';
-import { main } from '../wailsjs/go/models';
-import { basename } from './paths';
+// It shows either one opened folder's contents, or a list of files and folders dropped onto it.
+import { backend, Entry } from './backend';
+import { NoAccess } from './backend/errors';
+import { basename, isInside, samePath } from './paths';
+
+export type TreeItem = { path: string; isDir: boolean };
+type Node = Pick<Entry, 'name' | 'path' | 'isDir'>;
 
 export class Tree {
-  private root: string | null = null;
+  private roots: TreeItem[] = [];
   private expanded = new Set<string>();
   private active: string | null = null;
 
@@ -12,18 +16,64 @@ export class Tree {
     private container: HTMLElement,
     private titleEl: HTMLElement,
     private onOpenFile: (path: string) => void,
+    /** Called when the top-level list changes, so it can be remembered for next time. */
+    private onRootsChange: (items: TreeItem[]) => void = () => {},
   ) {}
 
-  get rootPath(): string | null {
-    return this.root;
+  get isEmpty(): boolean {
+    return this.roots.length === 0;
   }
 
+  /** Shows one folder's contents, replacing whatever was shown. */
   async setRoot(path: string): Promise<void> {
-    this.root = path;
+    this.roots = [{ path, isDir: true }];
     this.expanded.clear();
-    this.titleEl.textContent = basename(path) || path;
-    this.titleEl.title = path;
+    this.onRootsChange(this.roots.slice());
     await this.refresh();
+  }
+
+  /**
+   * Lists last session's items, ahead of anything already listed. Folders start collapsed, since the
+   * browser may need a click to allow access again.
+   */
+  async restore(items: TreeItem[]): Promise<void> {
+    const fresh = items.filter((it) => !this.roots.some((r) => samePath(r.path, it.path)));
+    this.roots = [...fresh, ...this.roots];
+    await this.refresh();
+  }
+
+  /** Lists more files and folders alongside what's already shown. Ones already listed are skipped. */
+  async add(items: TreeItem[]): Promise<void> {
+    const fresh = items.filter((it) => !this.roots.some((r) => samePath(r.path, it.path)));
+    if (fresh.length === 0) return;
+    // An opened folder was showing its contents directly. It becomes one entry in the list, kept open.
+    if (this.isSingleFolder()) this.expanded.add(this.roots[0].path);
+    for (const it of fresh) if (it.isDir) this.expanded.add(it.path);
+    this.roots.push(...fresh);
+    this.onRootsChange(this.roots.slice());
+    await this.refresh();
+  }
+
+  /** Whether the path is already in the pane, listed itself or inside a listed folder. */
+  shows(path: string): boolean {
+    return this.roots.some((r) => (r.isDir ? isInside(path, r.path) : samePath(r.path, path)));
+  }
+
+  private async remove(path: string): Promise<void> {
+    this.roots = this.roots.filter((r) => r.path !== path);
+    this.onRootsChange(this.roots.slice());
+    await this.refresh();
+  }
+
+  private isSingleFolder(): boolean {
+    return this.roots.length === 1 && this.roots[0].isDir;
+  }
+
+  private showTitle(): void {
+    const r = this.roots;
+    this.titleEl.textContent =
+      r.length === 0 ? 'No folder open' : r.length === 1 ? basename(r[0].path) || r[0].path : `${r.length} items`;
+    this.titleEl.title = r.map((x) => x.path).join('\n');
   }
 
   setActive(path: string | null): void {
@@ -36,19 +86,56 @@ export class Tree {
   }
 
   async refresh(): Promise<void> {
+    this.showTitle();
     this.container.replaceChildren();
-    if (!this.root) return;
-    await this.fill(this.container, this.root, 0);
+    if (this.roots.length === 0) {
+      const msg = document.createElement('div');
+      msg.className = 'tree-empty';
+      msg.textContent = 'Drop Markdown files or folders here to list them.';
+      this.container.appendChild(msg);
+    } else if (this.isSingleFolder()) {
+      await this.fill(this.container, this.roots[0].path, 0);
+    } else {
+      for (const r of this.roots) {
+        const node = await this.buildNode({ name: basename(r.path) || r.path, path: r.path, isDir: r.isDir }, 0);
+        this.addRemoveButton(node.firstElementChild as HTMLElement, r.path);
+        this.container.appendChild(node);
+      }
+    }
+  }
+
+  private addRemoveButton(row: HTMLElement, path: string): void {
+    const btn = document.createElement('button');
+    btn.className = 'remove';
+    btn.textContent = '×';
+    btn.title = 'Remove from list (the file stays on disk)';
+    btn.setAttribute('aria-label', 'Remove from list');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void this.remove(path);
+    });
+    row.appendChild(btn);
   }
 
   private async fill(parent: HTMLElement, dir: string, depth: number): Promise<void> {
-    let entries: main.Entry[];
+    let entries: Entry[];
     try {
-      entries = await ListDir(dir);
+      entries = await backend.listDir(dir);
     } catch (e) {
       const msg = document.createElement('div');
       msg.className = 'tree-empty';
-      msg.textContent = String(e);
+      if (e instanceof NoAccess) {
+        // The click is what lets the browser show its "allow access" prompt.
+        const ask = document.createElement('button');
+        ask.textContent = `Allow access to ${basename(dir) || dir}`;
+        ask.addEventListener('click', () => {
+          parent.replaceChildren();
+          void this.fill(parent, dir, depth);
+        });
+        msg.append(ask);
+      } else {
+        msg.textContent = String(e);
+      }
       parent.appendChild(msg);
       return;
     }
@@ -64,7 +151,7 @@ export class Tree {
     }
   }
 
-  private async buildNode(entry: main.Entry, depth: number): Promise<HTMLElement> {
+  private async buildNode(entry: Node, depth: number): Promise<HTMLElement> {
     const wrap = document.createElement('div');
     const row = document.createElement('div');
     row.className = 'node';

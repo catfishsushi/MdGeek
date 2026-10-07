@@ -7,6 +7,7 @@
   --fg-muted: #656d76;
   --border: #d0d7de;
   --accent: #0969da;
+  --on-accent: #ffffff;
   --warn-bg: #fff8c5;
   --warn-border: #d4a72c;
   --del-bg: #ffebe9;
@@ -64,12 +65,24 @@ button:disabled { opacity: 0.5; cursor: default; }
   border-bottom: 1px solid var(--border);
 }
 .spacer { flex: 1; }
+#theme-picker { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-muted); }
+#theme-select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+#theme-select:hover { background: var(--bg-hover); }
+#theme-select option { background: var(--bg); color: var(--fg); }
 
 .segmented { display: inline-flex; }
 .segmented button { border-radius: 0; margin-left: -1px; }
 .segmented button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
 .segmented button:last-child { border-radius: 0 6px 6px 0; }
-.segmented button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.segmented button.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 #main { display: flex; flex: 1; min-height: 0; }
 
@@ -108,7 +121,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 .node:hover { background: var(--bg-hover); }
 .node.active { background: var(--bg-active); }
 .node .twisty { width: 12px; color: var(--fg-muted); font-size: 10px; text-align: center; }
-.node .label { overflow: hidden; text-overflow: ellipsis; }
+.node .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.node .remove { visibility: hidden; border: none; background: none; padding: 0 4px; color: var(--fg-muted); }
+.node:hover .remove, .node .remove:focus-visible { visibility: visible; }
+.node .remove:hover { background: var(--bg-hover); color: var(--fg); }
+#sidebar.drop-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
 
 #content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 
@@ -153,6 +170,14 @@ button:disabled { opacity: 0.5; cursor: default; }
 #editor[hidden] { display: none; }
 .cm-editor { height: 100%; }
 .cm-editor.cm-focused { outline: none; }
+/* Crepe puts 60px above the text plus a heading's top margin; trim that so the first line sits closer to its toolbar.
+   #editor raises specificity above Crepe's own rules, which load later. */
+#editor .milkdown .ProseMirror { padding-top: 20px; }
+/* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
+#editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
+/* A heading at the very top sits 22px higher than Crepe puts it (32px down), like the title of the
+   note. 22px is what puts it 2px above the first ruled line in the School theme. */
+#editor .milkdown .ProseMirror > :is(h1, h2, h3, h4, h5, h6):nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 10px; }
 .cm-scroller { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 14px; }
 
 #empty {
@@ -178,6 +203,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   z-index: 50;
 }
 #toast[hidden] { display: none; }
+#toast button { margin-left: 8px; }
 
 #modal {
   position: fixed;
@@ -221,6 +247,557 @@ button:disabled { opacity: 0.5; cursor: default; }
 .diff-cell { padding: 0 10px; white-space: pre-wrap; word-break: break-word; min-height: 1.5em; border-right: 1px solid var(--border); }
 .diff-cell.del { background: var(--del-bg); }
 .diff-cell.add { background: var(--add-bg); }
+
+/* ---------- SciFi theme ----------
+   Built on the dark theme (the editors load their dark styles). The sci-fi look lives in the frame:
+   toolbar, sidebar, tabs, dialogs. The text being edited stays plain, high-contrast and in the
+   normal fonts. Colors were checked against WCAG AA (4.5:1 for normal text). */
+
+:root[data-theme="scifi"] {
+  --bg: #070d14;
+  --bg-alt: #0b1622;
+  --bg-hover: #12263a;
+  --bg-active: #0c3a4a;
+  --fg: #e6f4fa;
+  --fg-muted: #8fb8ca;
+  --border: #1d4a5e;
+  --accent: #33d6ec;
+  --on-accent: #031018;
+  --warn-bg: #33240a;
+  --warn-border: #e0a326;
+  --del-bg: #3a1220;
+  --add-bg: #0b3024;
+  --glow: rgba(51, 214, 236, 0.35);
+  --frame-font: Bahnschrift, "Segoe UI", sans-serif;
+  --scanlines: repeating-linear-gradient(0deg, rgba(51, 214, 236, 0.04) 0 1px, transparent 1px 3px);
+  color-scheme: dark;
+}
+
+/* Toolbar and tabs: faint scanlines and a glowing edge. */
+:root[data-theme="scifi"] #toolbar {
+  background: var(--scanlines), linear-gradient(#0f2131, var(--bg-alt));
+  border-bottom-color: var(--accent);
+  box-shadow: 0 0 12px var(--glow);
+  position: relative;
+  z-index: 1;
+}
+
+/* Buttons: square, with small accent brackets on two corners. */
+:root[data-theme="scifi"] button {
+  border-radius: 0;
+  font-family: var(--frame-font);
+  letter-spacing: 0.04em;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+:root[data-theme="scifi"] #toolbar button {
+  text-transform: uppercase;
+  background-image:
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent));
+  background-size: 7px 1px, 1px 7px, 7px 1px, 1px 7px;
+  background-position: top left, top left, bottom right, bottom right;
+  background-repeat: no-repeat;
+}
+:root[data-theme="scifi"] #theme-picker { font-family: var(--frame-font); letter-spacing: 0.04em; text-transform: uppercase; }
+:root[data-theme="scifi"] #theme-select { border-radius: 0; font-family: var(--frame-font); }
+:root[data-theme="scifi"] #theme-select:hover { border-color: var(--accent); box-shadow: 0 0 8px var(--glow); }
+:root[data-theme="scifi"] #theme-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+:root[data-theme="scifi"] button:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 8px var(--glow); }
+:root[data-theme="scifi"] button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+:root[data-theme="scifi"] .segmented button,
+:root[data-theme="scifi"] .segmented button:first-child,
+:root[data-theme="scifi"] .segmented button:last-child { border-radius: 0; }
+:root[data-theme="scifi"] .segmented button.active { box-shadow: 0 0 10px var(--glow); }
+/* Small icon buttons (close, remove, refresh) stay plain. */
+:root[data-theme="scifi"] .tab .close,
+:root[data-theme="scifi"] .node .remove { letter-spacing: 0; }
+
+/* Sidebar: glowing right edge, heading styled as a panel label. */
+:root[data-theme="scifi"] #sidebar { border-right-color: var(--border); box-shadow: inset -1px 0 0 rgba(51, 214, 236, 0.25); }
+:root[data-theme="scifi"] #sidebar-head {
+  font-family: var(--frame-font);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom-color: var(--border);
+}
+:root[data-theme="scifi"] .node.active { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* Active tab: a top bar that glows, gently pulsing. */
+:root[data-theme="scifi"] .tab { font-family: var(--frame-font); letter-spacing: 0.02em; }
+:root[data-theme="scifi"] .tab.active { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 10px var(--glow); animation: scifi-pulse 4s ease-in-out infinite; }
+:root[data-theme="scifi"] .tab .conflict { color: var(--warn-border); }
+@keyframes scifi-pulse {
+  0%, 100% { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 6px rgba(51, 214, 236, 0.2); }
+  50% { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 12px rgba(51, 214, 236, 0.45); }
+}
+
+/* Empty screen: a faint grid behind the hint. */
+:root[data-theme="scifi"] #empty {
+  font-family: var(--frame-font);
+  letter-spacing: 0.06em;
+  background-image:
+    linear-gradient(rgba(51, 214, 236, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 214, 236, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+:root[data-theme="scifi"] .dialog { border-color: var(--accent); border-radius: 0; box-shadow: 0 0 24px var(--glow); }
+:root[data-theme="scifi"] .dialog-head { font-family: var(--frame-font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+:root[data-theme="scifi"] #toast { background: var(--bg-alt); color: var(--fg); border: 1px solid var(--accent); border-radius: 0; box-shadow: 0 0 12px var(--glow); }
+
+:root[data-theme="scifi"] ::selection { background: #1d5a6e; }
+:root[data-theme="scifi"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+:root[data-theme="scifi"] ::-webkit-scrollbar-track { background: var(--bg); }
+:root[data-theme="scifi"] ::-webkit-scrollbar-thumb { background: var(--border); border: 2px solid var(--bg); }
+:root[data-theme="scifi"] ::-webkit-scrollbar-thumb:hover { background: #2e7088; }
+
+/* Control room backdrop: a faded, blurred picture behind the content area. To use a different picture,
+   replace assets/control-room.png or change the url() below (SVG and JPG work too). */
+:root[data-theme="scifi"] #content { overflow: hidden; }
+:root[data-theme="scifi"] #content::before {
+  content: "";
+  position: absolute;
+  inset: -16px; /* bleed past the edges so the blur doesn't leave a soft border */
+  background: url("./assets/control-room.png") center / cover no-repeat;
+  filter: blur(3px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+:root[data-theme="scifi"] #content > * { position: relative; }
+:root[data-theme="scifi"] #tabs { background: var(--scanlines), rgba(11, 22, 34, 0.85); }
+:root[data-theme="scifi"] #empty { background-color: rgba(7, 13, 20, 0.35); }
+
+/* The editor fills the content area with a light dark tint over the room, just enough to keep text
+   readable over the brighter parts of the picture. */
+:root[data-theme="scifi"] #editor { background: rgba(7, 13, 20, 0.55); }
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme="scifi"] #editor { background: var(--bg); }
+}
+
+/* Editors: see-through so the room shows; the text itself stays plain. */
+:root[data-theme="scifi"] .cm-editor,
+:root[data-theme="scifi"] .cm-editor .cm-gutters { background: transparent; }
+:root[data-theme="scifi"] .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--fg);
+  --crepe-color-surface: var(--bg-alt);
+  --crepe-color-surface-low: #0e1c2a;
+  --crepe-color-on-surface: #d6e8f0;
+  --crepe-color-on-surface-variant: #9fc3d3;
+  --crepe-color-outline: #3f7f94;
+  --crepe-color-primary: var(--accent);
+  --crepe-color-secondary: #12384a;
+  --crepe-color-on-secondary: #d6eef6;
+  --crepe-color-hover: var(--bg-hover);
+  --crepe-color-selected: #17405a;
+  --crepe-color-inline-area: #10202e;
+  --crepe-color-inline-code: #ffb86b;
+}
+:root[data-theme="scifi"] .milkdown .milkdown-top-bar {
+  background: var(--scanlines), var(--bg-alt);
+  border-bottom: 1px solid rgba(51, 214, 236, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="scifi"] * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Author theme ----------
+   Built on the light theme (the editors load their light styles). Warm parchment, browns and tans,
+   and classic serif type, in the spirit of a well-worn book. Body text is dark brown on parchment,
+   well above WCAG AA contrast. Fonts are ones Windows ships with, so nothing is downloaded.
+   School (further down) shares these rules and swaps in its own colors and page. */
+
+:root:is([data-theme="author"], [data-theme="school"]) {
+  --bg: #f5ecd7;
+  --bg-alt: #ebddbd;
+  --bg-hover: #e2cfa6;
+  --bg-active: #dcc396;
+  --fg: #3a2a1b;
+  --fg-muted: #66503a;
+  --border: #c8b088;
+  --accent: #8a4b1c;
+  --on-accent: #fbf6ea;
+  --warn-bg: #f6e2b3;
+  --warn-border: #b07a1e;
+  --del-bg: #f2d5c8;
+  --add-bg: #dfe5c2;
+  --book-font: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --text-font: Georgia, "Palatino Linotype", serif;
+  /* Parchment: a very faint paper grain plus slightly darker, uneven edges. */
+  --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.3 0 0 0 0 0.15 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --parchment:
+    var(--paper-grain),
+    radial-gradient(ellipse at 30% 20%, rgba(255, 250, 235, 0.6), transparent 60%),
+    radial-gradient(ellipse at center, transparent 55%, rgba(160, 120, 70, 0.16) 100%),
+    #f5ecd7;
+  color-scheme: light;
+}
+
+:root:is([data-theme="author"], [data-theme="school"]) body { font-family: var(--book-font); }
+
+/* Frame: toolbar, tabs and sidebar in rich dark wood (walnut) with cream text, like a writing desk
+   around the page. The grain is a stretched noise texture over a warm brown gradient. */
+:root[data-theme="author"] {
+  --frame-fg: #f2e4c8;
+  --frame-muted: #d2b993;
+  --frame-edge: #24140a;
+  --frame-accent: #d1a464;
+  --wood-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.22' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.06 0 0 0 0 0.02 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --frame-bg: var(--wood-grain), linear-gradient(170deg, #5a3520, #4a2a17 45%, #3d2213);
+  --frame-active-tab: #ebdcbb;
+  --frame-active-tab-fg: var(--fg);
+}
+
+:root:is([data-theme="author"], [data-theme="school"]) #toolbar {
+  background: var(--frame-bg);
+  color: var(--frame-fg);
+  border-bottom-color: var(--frame-edge);
+  box-shadow: 0 2px 4px rgba(30, 15, 5, 0.35);
+  position: relative;
+  z-index: 1;
+}
+:root:is([data-theme="author"], [data-theme="school"]) button {
+  border-radius: 3px;
+  font-family: var(--book-font);
+  background: #f3e8cf;
+}
+:root:is([data-theme="author"], [data-theme="school"]) button:hover:not(:disabled) { background: var(--bg-hover); border-color: #a88a5c; }
+/* ...but not the formatting toolbar's buttons, which keep Crepe's own flat icon style. */
+:root:is([data-theme="author"], [data-theme="school"]) .milkdown .milkdown-top-bar button { background: transparent; border-color: transparent; }
+:root:is([data-theme="author"], [data-theme="school"]) .milkdown .milkdown-top-bar button:hover:not(:disabled) { background: var(--crepe-color-hover); border-color: transparent; }
+:root:is([data-theme="author"], [data-theme="school"]) button:focus-visible,
+:root:is([data-theme="author"], [data-theme="school"]) #theme-select:focus-visible { outline: 2px solid var(--frame-accent); outline-offset: 1px; }
+
+/* Buttons on the wood: darker inset panels with cream labels; the active view is brass. */
+:root:is([data-theme="author"], [data-theme="school"]) #toolbar button,
+:root:is([data-theme="author"], [data-theme="school"]) #theme-select,
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar button {
+  background: rgba(20, 10, 4, 0.28);
+  border-color: rgba(10, 5, 2, 0.6);
+  color: var(--frame-fg);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 190, 0.08);
+}
+:root:is([data-theme="author"], [data-theme="school"]) #toolbar button,
+:root:is([data-theme="author"], [data-theme="school"]) #theme-picker { font-variant: small-caps; letter-spacing: 0.04em; }
+:root:is([data-theme="author"], [data-theme="school"]) #theme-picker { color: var(--frame-muted); }
+:root:is([data-theme="author"], [data-theme="school"]) #theme-select { font-family: var(--book-font); border-radius: 3px; }
+:root:is([data-theme="author"], [data-theme="school"]) #theme-select option { background: var(--bg); color: var(--fg); }
+:root:is([data-theme="author"], [data-theme="school"]) #toolbar button:hover:not(:disabled),
+:root:is([data-theme="author"], [data-theme="school"]) #theme-select:hover,
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar button:hover:not(:disabled) { background: rgba(255, 220, 170, 0.12); border-color: var(--frame-accent); }
+:root:is([data-theme="author"], [data-theme="school"]) .segmented button.active,
+:root:is([data-theme="author"], [data-theme="school"]) #toolbar .segmented button.active { background: var(--frame-accent); border-color: var(--frame-accent); color: #2a170b; }
+:root:is([data-theme="author"], [data-theme="school"]) .tab .close,
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar .node .remove { background: none; border: none; box-shadow: none; }
+
+/* Sidebar: wood, with a pale ring where a cup once sat. */
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar {
+  position: relative;
+  background: var(--frame-bg);
+  color: var(--frame-fg);
+  border-right-color: var(--frame-edge);
+}
+:root[data-theme="author"] #sidebar::after {
+  content: "";
+  position: absolute;
+  right: -41px;
+  bottom: -31px;
+  width: 204px;
+  height: 204px;
+  background: url("./assets/coffee-ring.svg") center / contain no-repeat;
+  transform: rotate(-18deg);
+  /* The ring is drawn in brown for paper; on dark wood a dried ring shows lighter, so flip it. */
+  filter: invert(1) sepia(0.6) brightness(1.1);
+  opacity: 0.55;
+  pointer-events: none;
+}
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar-head,
+:root:is([data-theme="author"], [data-theme="school"]) #tree { position: relative; z-index: 1; }
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar-head {
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  font-size: 15px;
+  color: var(--frame-accent);
+  border-bottom: 3px double color-mix(in srgb, var(--frame-accent) 45%, transparent);
+}
+:root:is([data-theme="author"], [data-theme="school"]) .tree-empty { color: var(--frame-muted); }
+:root:is([data-theme="author"], [data-theme="school"]) .node { font-size: 15px; }
+:root:is([data-theme="author"], [data-theme="school"]) .node .twisty,
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar .node .remove { color: var(--frame-muted); }
+:root:is([data-theme="author"], [data-theme="school"]) .node:hover { background: rgba(255, 220, 170, 0.08); }
+:root:is([data-theme="author"], [data-theme="school"]) .node.active { background: color-mix(in srgb, var(--frame-accent) 22%, transparent); box-shadow: inset 3px 0 0 var(--frame-accent); }
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar .node .remove:hover { background: rgba(255, 220, 170, 0.12); color: var(--frame-fg); }
+:root:is([data-theme="author"], [data-theme="school"]) #sidebar.drop-over { outline-color: var(--frame-accent); }
+
+/* Tabs: on the wood; the open one is a slip of parchment joined to the page below it. */
+:root:is([data-theme="author"], [data-theme="school"]) #tabs { background: var(--frame-bg); border-bottom-color: var(--frame-edge); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab { font-style: italic; color: var(--frame-muted); border-right-color: rgba(10, 5, 2, 0.5); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab:hover { color: var(--frame-fg); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab .close { color: var(--frame-muted); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab .close:hover { background: rgba(255, 220, 170, 0.12); color: var(--frame-fg); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab .dirty { color: var(--frame-accent); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab.active { background: var(--frame-active-tab); color: var(--frame-active-tab-fg); box-shadow: inset 0 2px 0 var(--frame-accent); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab.active .close { color: var(--fg-muted); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab.active .close:hover { background: var(--bg-hover); color: var(--fg); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab.active .dirty { color: var(--accent); }
+:root:is([data-theme="author"], [data-theme="school"]) .tab .conflict { color: #f0a54a; }
+:root:is([data-theme="author"], [data-theme="school"]) .tab.active .conflict { color: #a3540f; }
+
+/* The page itself. */
+:root[data-theme="author"] #editor,
+:root[data-theme="author"] #empty { background: var(--parchment); }
+:root:is([data-theme="author"], [data-theme="school"]) #empty { font-style: italic; }
+
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor,
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor .cm-gutters { background: transparent; }
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor .cm-gutters { color: #8c7253; border-right-color: #d6c19c; }
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor .cm-activeLine { background: rgba(160, 120, 70, 0.08); }
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor .cm-activeLineGutter { background: rgba(160, 120, 70, 0.14); }
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor .cm-cursor { border-left-color: var(--fg); }
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor.cm-focused .cm-selectionBackground,
+:root:is([data-theme="author"], [data-theme="school"]) .cm-editor .cm-selectionBackground { background: #e0c99a; }
+
+:root:is([data-theme="author"], [data-theme="school"]) .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--fg);
+  --crepe-color-surface: #efe3c8;
+  --crepe-color-surface-low: #e9dbbb;
+  --crepe-color-on-surface: #3a2a1b;
+  --crepe-color-on-surface-variant: #5e4935;
+  --crepe-color-outline: #a88a5c;
+  --crepe-color-primary: var(--accent);
+  --crepe-color-secondary: #e2cfa6;
+  --crepe-color-on-secondary: #3a2a1b;
+  --crepe-color-hover: #e6d5b0;
+  --crepe-color-selected: #dcc396;
+  --crepe-color-inline-area: #eadcbc;
+  --crepe-color-inline-code: #8a3a12;
+  --crepe-font-title: var(--book-font);
+  --crepe-font-default: var(--text-font);
+  --crepe-base-font-size: 17px;
+}
+:root:is([data-theme="author"], [data-theme="school"]) .milkdown .ProseMirror { line-height: 1.65; }
+:root:is([data-theme="author"], [data-theme="school"]) .milkdown .milkdown-top-bar {
+  background: var(--paper-grain), #ebdcbb;
+  border-bottom: 1px solid #c8b088;
+}
+
+:root:is([data-theme="author"], [data-theme="school"]) .dialog { box-shadow: 0 6px 24px rgba(70, 45, 20, 0.3); }
+:root:is([data-theme="author"], [data-theme="school"]) .dialog-head { font-variant: small-caps; letter-spacing: 0.06em; color: var(--accent); }
+:root:is([data-theme="author"], [data-theme="school"]) #toast { background: #3a2a1b; color: #f5ecd7; font-style: italic; }
+
+:root:is([data-theme="author"], [data-theme="school"]) ::selection { background: #e0c99a; }
+:root:is([data-theme="author"], [data-theme="school"]) ::-webkit-scrollbar { width: 10px; height: 10px; }
+:root:is([data-theme="author"], [data-theme="school"]) ::-webkit-scrollbar-track { background: transparent; }
+:root:is([data-theme="author"], [data-theme="school"]) ::-webkit-scrollbar-thumb { background: #cdb68d; border: 2px solid #ebddbd; border-radius: 5px; }
+:root:is([data-theme="author"], [data-theme="school"]) ::-webkit-scrollbar-thumb:hover { background: #b3976a; }
+
+/* ---------- School theme ----------
+   Shares Author's rules (above) and swaps in a chalkboard for the frame, a brown leather-look strip
+   for the formatting toolbar (like the binding at the top of a legal pad) and a yellow legal pad for
+   the page. Text sits on a 32px line grid so it lines up with the ruled lines. */
+
+:root[data-theme="school"] {
+  --bg: #fcf5ae;
+  --bg-alt: #f3e99a;
+  --bg-hover: #efe18a;
+  --bg-active: #e9d878;
+  --fg: #24231c;
+  --fg-muted: #57513d;
+  --border: #cfc27a;
+  --accent: #8a4b1c;
+  --chalk-font: "Segoe UI", "Noto Sans", sans-serif;
+  /* Chalkboard: dark slate green, faint white chalk grain and a few half-erased smudges. */
+  --chalk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  --frame-bg:
+    var(--chalk-grain),
+    radial-gradient(ellipse 60% 40% at 25% 30%, rgba(255, 255, 255, 0.07), transparent 70%),
+    radial-gradient(ellipse 50% 30% at 75% 70%, rgba(255, 255, 255, 0.05), transparent 70%),
+    linear-gradient(160deg, #34443a, #2b3830 55%, #26322b);
+  --frame-fg: #eef1ea;
+  --frame-muted: #bac6be;
+  --frame-edge: #18201b;
+  --frame-accent: #f2df8a;
+  /* Leather strip: mottled brown, after the binding on the legal pad. */
+  --leather:
+    radial-gradient(ellipse 30% 90% at 12% 40%, rgba(50, 25, 8, 0.35), transparent 70%),
+    radial-gradient(ellipse 35% 80% at 55% 65%, rgba(255, 210, 150, 0.16), transparent 70%),
+    radial-gradient(ellipse 25% 90% at 88% 35%, rgba(50, 25, 8, 0.3), transparent 70%),
+    var(--paper-grain),
+    linear-gradient(#9c6638, #83512a);
+  --rule: 32px;
+  --rule-color: #93c4cc;
+  --margin-color: #df8278;
+}
+
+/* Frame lettering: a plain, readable sans serif with a faint chalky softness. */
+:root[data-theme="school"] #toolbar button,
+:root[data-theme="school"] #theme-picker,
+:root[data-theme="school"] #theme-select,
+:root[data-theme="school"] #sidebar-head,
+:root[data-theme="school"] .tab,
+:root[data-theme="school"] .node {
+  font-family: var(--chalk-font);
+  font-variant: normal;
+  font-style: normal;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.3);
+}
+:root[data-theme="school"] .node { font-size: 14px; }
+/* Two pieces of chalk resting near the bottom of the left pane, behind the file list. */
+:root[data-theme="school"] #sidebar::after {
+  content: "";
+  position: absolute;
+  right: -22px; /* the drawing's empty right edge hangs off the pane, which clips it */
+  bottom: 10px;
+  width: 300px;
+  height: 138px;
+  background: url("./assets/chalk.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+:root[data-theme="school"] #toolbar .segmented button.active { text-shadow: none; }
+
+/* Document tabs: colored plastic folder tabs. Each tab keeps its own color (set by main.ts), the
+   sides slant in like a real tab, and a soft diagonal glare plus a top sheen keep them from
+   looking flat. Open tabs that aren't selected sit a little lower and lighter. */
+:root[data-theme="school"] #tabs { padding: 6px 8px 0; align-items: flex-end; overflow-y: hidden; }
+:root[data-theme="school"] .tab {
+  --tab: #5aaee8;
+  position: relative;
+  z-index: 0;
+  margin: 0 3px;
+  padding: 6px 20px 5px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: #13212b;
+  font-weight: 600;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  opacity: 0.8;
+  transform: translateY(3px);
+  transition: transform 0.12s, opacity 0.12s;
+}
+:root[data-theme="school"] .tab::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid color-mix(in srgb, var(--tab) 65%, #000);
+  border-bottom: none;
+  border-radius: 9px 9px 0 0;
+  background:
+    linear-gradient(155deg, transparent 18%, rgba(255, 255, 255, 0.55) 30%, rgba(255, 255, 255, 0.1) 46%, transparent 58%),
+    linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.12) 40%, rgba(0, 0, 0, 0.06)),
+    var(--tab);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 6px rgba(255, 255, 255, 0.25);
+  transform: perspective(60px) rotateX(5deg);
+  transform-origin: bottom;
+}
+:root[data-theme="school"] .tab:hover { opacity: 0.95; transform: translateY(1px); }
+:root[data-theme="school"] .tab.active {
+  z-index: 1;
+  opacity: 1;
+  transform: none;
+  background: none;
+  box-shadow: none;
+  color: #0d1820;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+:root[data-theme="school"] .tab.active::before { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.3), 0 -2px 6px rgba(0, 0, 0, 0.35); }
+:root[data-theme="school"] .tab[data-color="1"] { --tab: #7fca6c; }
+:root[data-theme="school"] .tab[data-color="2"] { --tab: #f3a64f; }
+:root[data-theme="school"] .tab[data-color="3"] { --tab: #ee90b7; }
+:root[data-theme="school"] .tab[data-color="4"] { --tab: #ab96e2; }
+:root[data-theme="school"] .tab[data-color="5"] { --tab: #f1d65c; }
+:root[data-theme="school"] .tab .close,
+:root[data-theme="school"] .tab.active .close,
+:root[data-theme="school"] .tab .dirty,
+:root[data-theme="school"] .tab.active .dirty { color: #13212b; text-shadow: none; }
+:root[data-theme="school"] .tab .close:hover,
+:root[data-theme="school"] .tab.active .close:hover { background: rgba(255, 255, 255, 0.4); color: #000; }
+:root[data-theme="school"] .tab .conflict,
+:root[data-theme="school"] .tab.active .conflict { color: #a3260b; }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="school"] .tab { transition: none; }
+}
+
+/* The legal pad. */
+:root[data-theme="school"] #editor,
+:root[data-theme="school"] #empty { background: var(--paper-grain), var(--bg); }
+
+:root[data-theme="school"] .milkdown {
+  --crepe-color-surface: #f6eeb0;
+  --crepe-color-surface-low: #f0e59c;
+  --crepe-color-hover: #efe18a;
+  --crepe-color-selected: #e9d878;
+  --crepe-color-inline-area: #f0e59c;
+  --crepe-base-font-size: 17px;
+}
+:root[data-theme="school"] .milkdown .milkdown-top-bar {
+  background: var(--leather);
+  border-bottom: 2px solid #5a3518;
+  box-shadow: 0 2px 3px rgba(60, 35, 10, 0.25);
+  --crepe-color-outline: #f3e3c4;
+  --crepe-color-on-surface: #fbf0da;
+  --crepe-color-primary: #ffe08a;
+  --crepe-color-hover: rgba(255, 240, 210, 0.16);
+  --crepe-color-selected: rgba(255, 240, 210, 0.26);
+}
+/* The heading menu drops down over the page, so it keeps page colors. */
+:root[data-theme="school"] .milkdown .milkdown-top-bar .top-bar-heading-dropdown {
+  --crepe-color-surface: #f6eeb0;
+  --crepe-color-on-surface: var(--fg);
+  --crepe-color-primary: var(--accent);
+  --crepe-color-hover: #efe18a;
+}
+
+/* Ruled lines and the double red margin line, drawn on the text area so they scroll with the text.
+   The editor is stretched to fill the pane so the lines run to the bottom even on short notes. */
+:root[data-theme="school"] .host .milkdown { min-height: 100%; display: flex; flex-direction: column; }
+:root[data-theme="school"] #editor .milkdown .ProseMirror {
+  flex: 1;
+  padding-top: var(--rule);
+  line-height: var(--rule);
+  background:
+    linear-gradient(to right, transparent 84px, var(--margin-color) 84px 85px, transparent 85px 88px,
+      var(--margin-color) 88px 89px, transparent 89px) border-box no-repeat,
+    repeating-linear-gradient(transparent 0 26px, var(--rule-color) 26px 27px, transparent 27px var(--rule))
+      0 var(--rule) / 100% calc(100% - var(--rule)) no-repeat;
+}
+/* The first heading rides up into the unruled top strip without moving anything below it, so the
+   text after it stays on the lines. */
+:root[data-theme="school"] #editor .milkdown .ProseMirror > :is(h1, h2, h3, h4, h5, h6):nth-child(1 of :not(.prosemirror-virtual-cursor)) {
+  margin-top: 0;
+  position: relative;
+  top: -22px;
+}
+/* Every block takes whole ruled lines: no extra padding or margins, headings two lines or one. */
+:root[data-theme="school"] .milkdown .ProseMirror :is(p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li) {
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: var(--rule);
+}
+:root[data-theme="school"] .milkdown .ProseMirror :is(h1, h2) { line-height: calc(var(--rule) * 2); }
+:root[data-theme="school"] .milkdown .ProseMirror h1 { font-size: 2.2em; }
+:root[data-theme="school"] .milkdown .ProseMirror h2 { font-size: 1.8em; }
+:root[data-theme="school"] .milkdown .ProseMirror h3 { font-size: 1.45em; }
+:root[data-theme="school"] .milkdown .ProseMirror h4 { font-size: 1.25em; }
+:root[data-theme="school"] .milkdown .ProseMirror h5 { font-size: 1.1em; }
+
+/* Source view: the same ruling; the gutter edge becomes the red margin line. */
+:root[data-theme="school"] .cm-editor .cm-line { line-height: var(--rule); }
+:root[data-theme="school"] .cm-editor .cm-content {
+  background: linear-gradient(transparent 26px, var(--rule-color) 26px 27px, transparent 27px) 0 0 / 100% var(--rule) repeat content-box border-box;
+}
+:root[data-theme="school"] .cm-editor .cm-gutters { color: #9c8f5a; border-right: 4px double var(--margin-color); }
+:root[data-theme="school"] .cm-editor .cm-activeLine,
+:root[data-theme="school"] .cm-editor .cm-activeLineGutter { background: rgba(200, 170, 40, 0.12); }
+
+:root[data-theme="school"] ::selection { background: #f0d36a; }
+:root[data-theme="school"] ::-webkit-scrollbar-thumb { background: #cfc27a; border-color: #f3e99a; }
 
 #print-root { display: none; }
 

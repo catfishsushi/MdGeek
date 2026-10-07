@@ -34,17 +34,56 @@ const isRemote = (s: string) => /^([a-z][a-z0-9+.-]*:)?\/\//i.test(s) || /^(data
 const isAbsolute = (s: string) => s.startsWith('/') || /^[A-Za-z]:[\\/]/.test(s);
 
 /**
- * Turns an image link found in a Markdown file into a URL the app can load.
- * Web and data: links are left alone. Local paths go through the Go /localfile handler.
+ * Works out which local file an image link in a Markdown file points to, taking relative links
+ * from the file's folder. Returns null for web and data: links, which load as they are.
  */
-export function resolveLocal(baseDir: string, src: string): string {
-  if (isRemote(src)) return src;
+export function localImagePath(baseDir: string, src: string): string | null {
+  if (isRemote(src)) return null;
   let decoded = src;
   try {
     decoded = decodeURIComponent(src);
   } catch {
     // keep as is
   }
-  const abs = isAbsolute(decoded) ? normalize(decoded) : normalize(baseDir + '/' + decoded);
-  return '/localfile?p=' + encodeURIComponent(abs);
+  return isAbsolute(decoded) ? normalize(decoded) : normalize(baseDir + '/' + decoded);
+}
+
+export type LinkTarget = { kind: 'web'; url: string } | { kind: 'local'; path: string };
+
+/**
+ * Works out where a link in a Markdown file points. Relative links are taken from the file's
+ * folder. Returns null for links within the same page ("#heading") and for unknown schemes.
+ */
+export function resolveLink(baseDir: string, href: string): LinkTarget | null {
+  if (/^(https?|mailto):/i.test(href)) return { kind: 'web', url: href };
+  let p = href;
+  if (/^file:/i.test(p)) p = p.replace(/^file:\/*/i, '/').replace(/^\/([A-Za-z]:)/, '$1');
+  else if (/^[a-z][a-z0-9+.-]*:/i.test(p) && !/^[A-Za-z]:[\\/]/.test(p)) return null;
+  p = p.replace(/[?#].*$/, ''); // a "#section" or "?query" part isn't part of the file name
+  if (p === '') return null;
+  try {
+    p = decodeURIComponent(p);
+  } catch {
+    // keep as is
+  }
+  const abs = isAbsolute(p) ? normalize(p) : normalize(baseDir + '/' + p);
+  // Windows paths go back to backslashes so they match paths from the file tree and dialogs.
+  return { kind: 'local', path: /^[A-Za-z]:/.test(abs) ? abs.replace(/\//g, '\\') : abs };
+}
+
+/** True for the file types MdGeek edits. Matches isMarkdown in app.go. */
+export function isMarkdownPath(p: string): boolean {
+  return /\.(md|markdown)$/i.test(p);
+}
+
+/** Whether two paths name the same file. Windows paths ignore case, as Windows does. */
+export function samePath(a: string, b: string): boolean {
+  return /^[A-Za-z]:/.test(a) ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
+/** Whether a path is the folder itself or anywhere inside it. */
+export function isInside(p: string, dir: string): boolean {
+  const a = normalize(p), b = normalize(dir);
+  const fold = /^[A-Za-z]:/.test(a) ? (s: string) => s.toLowerCase() : (s: string) => s;
+  return fold(a) === fold(b) || fold(a).startsWith(fold(b.endsWith('/') ? b : b + '/'));
 }

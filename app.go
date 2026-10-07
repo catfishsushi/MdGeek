@@ -39,10 +39,8 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Files dropped onto the window are opened as tabs.
-	runtime.OnFileDrop(ctx, func(x, y int, paths []string) {
-		runtime.EventsEmit(ctx, "open-paths", paths)
-	})
+	// Files dropped onto the window are handled by the frontend (OnFileDrop in main.ts), which
+	// knows which part of the window they landed on.
 
 	// The frontend answers "request-close" with "close-ready" once every tab is saved.
 	runtime.EventsOn(ctx, "close-ready", func(_ ...interface{}) {
