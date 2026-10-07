@@ -138,7 +138,7 @@ after every task.
 - [ ] T037 [P] Add a `.gitattributes` with `*.sh text eol=lf` so spec-kit's Bash scripts keep Unix line endings on Windows checkouts
 - [ ] T038 [P] Add a "Browser version and installing" section to `README.md`: the Pages address, how to install from Edge or Chrome, offline use, opening `.md` files, the permission prompts, and the Firefox/Safari limit. Update the build commands in `CLAUDE.md` with `npm run preview:web`
 - [x] T039 Default branch renamed from `master` to `main` (2026-10-06), so `quickstart.md` and `research.md` R6 are already correct
-- [ ] T040 **Needs your go-ahead (rewrites history)**: rewrite every commit's author and committer email from the personal Gmail address to `42792811+catfishsushi@users.noreply.github.com` across all branches, then confirm `git log --all --format='%ae %ce'` shows only the noreply address
+- [x] T040 (done 2026-10-06) rewrite every commit's author and committer email from the personal Gmail address to `42792811+catfishsushi@users.noreply.github.com` across all branches, then confirm `git log --all --format='%ae %ce'` shows only the noreply address
 - [ ] T041 After T040: create the public repo with `gh repo create catfishsushi/MdGeek --public --source C:\DevProjects\MdGeek`, push `main`, `feature/wysiwyg-toolbar`, and `001-installable-pwa`, and set Settings > Pages > Source to "GitHub Actions" (`gh api -X POST repos/catfishsushi/MdGeek/pages -f build_type=workflow`)
 - [ ] T042 After merge to `main` and the first workflow run: repeat `quickstart.md` checks 1–4 against `https://catfishsushi.github.io/MdGeek/`
 
