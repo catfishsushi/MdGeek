@@ -10,6 +10,16 @@ interface Window {
   showOpenFilePicker(options?: { multiple?: boolean; types?: FilePickerAcceptType[] }): Promise<FileSystemFileHandle[]>;
   showDirectoryPicker(options?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
   showSaveFilePicker(options?: { suggestedName?: string; types?: FilePickerAcceptType[] }): Promise<FileSystemFileHandle>;
+  /** Files sent to the installed app from File Explorer. Missing outside installed apps and in other browsers. */
+  launchQueue?: LaunchQueue;
+}
+
+interface LaunchParams {
+  files: FileSystemHandle[];
+}
+
+interface LaunchQueue {
+  setConsumer(fn: (params: LaunchParams) => void): void;
 }
 
 interface FileSystemHandle {

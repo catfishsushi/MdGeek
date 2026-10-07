@@ -11,6 +11,18 @@ type Handle = FileSystemFileHandle | FileSystemDirectoryHandle;
 // Kept before main.ts replaces window.open to stop links opening popups.
 const openWindow = window.open.bind(window);
 
+/**
+ * The service worker that lets MdGeek be installed and run offline. Browsers only allow one on https
+ * or localhost, so it's skipped when index.html is opened straight from disk.
+ */
+export const swRegistration: Promise<ServiceWorkerRegistration | null> =
+  'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')
+    ? navigator.serviceWorker.register('./sw.js', { scope: './' }).catch((e) => {
+        console.warn('MdGeek: could not set up offline use', e);
+        return null;
+      })
+    : Promise.resolve(null);
+
 /** Picked and dropped items, by the top-level name they were given. */
 const roots = new Map<string, Handle>();
 

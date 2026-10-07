@@ -39,10 +39,10 @@ after every task.
 
 **Purpose**: Web-only files folder, preview command, icons, and type declarations.
 
-- [ ] T001 Create `frontend/public-web/` and set Vite's `publicDir` to `public-web` in web mode only, and to `false` otherwise, in `frontend/vite.config.ts`, so the desktop build (`dist/`) never gets the manifest or service worker
-- [ ] T002 [P] Add `"preview:web": "vite preview --mode web"` to `scripts` in `frontend/package.json` and confirm it serves `frontend/dist-web/` at `http://localhost:4173`
-- [ ] T003 [P] Make `frontend/public-web/icon-192.png` (192×192) and `frontend/public-web/icon-512.png` (512×512) from `build/appicon.png` (1024×1024), using a one-off PowerShell `System.Drawing` resize run from the scratchpad (not part of the build), and commit the two PNGs
-- [ ] T004 [P] Add `launchQueue` types to `frontend/src/fs-access.d.ts`: `interface LaunchParams { files: FileSystemHandle[] }`, `interface LaunchQueue { setConsumer(fn: (p: LaunchParams) => void): void }`, and `launchQueue?: LaunchQueue` on `Window`
+- [x] T001 Create `frontend/public-web/` and set Vite's `publicDir` to `public-web` in web mode only, and to `false` otherwise, in `frontend/vite.config.ts`, so the desktop build (`dist/`) never gets the manifest or service worker
+- [x] T002 [P] Add `"preview:web": "vite preview --mode web"` to `scripts` in `frontend/package.json` and confirm it serves `frontend/dist-web/` at `http://localhost:4173`
+- [x] T003 [P] Make `frontend/public-web/icon-192.png` (192×192) and `frontend/public-web/icon-512.png` (512×512) from `build/appicon.png` (1024×1024), using a one-off PowerShell `System.Drawing` resize run from the scratchpad (not part of the build), and commit the two PNGs
+- [x] T004 [P] Add `launchQueue` types to `frontend/src/fs-access.d.ts`: `interface LaunchParams { files: FileSystemHandle[] }`, `interface LaunchQueue { setConsumer(fn: (p: LaunchParams) => void): void }`, and `launchQueue?: LaunchQueue` on `Window`
 
 ---
 
@@ -50,7 +50,7 @@ after every task.
 
 **Purpose**: The build step every story's published output depends on.
 
-- [ ] T005 Add a small inline Vite plugin in `frontend/vite.config.ts` (web mode only) that runs in `closeBundle`: reads `dist-web/index.html`, computes the first 8 hex characters of its SHA-256 (Node `crypto`), and replaces `__VERSION__` in `dist-web/sw.js` with it. Fails the build if `sw.js` is missing or has no `__VERSION__`
+- [x] T005 Add a small inline Vite plugin in `frontend/vite.config.ts` (web mode only) that runs in `closeBundle`: reads `dist-web/index.html`, computes the first 8 hex characters of its SHA-256 (Node `crypto`), and replaces `__VERSION__` in `dist-web/sw.js` with it. Fails the build if `sw.js` is missing or has no `__VERSION__`
 
 **Checkpoint**: `npm run build:web` produces `dist-web/` with `index.html`, the two icons, and anything placed in `public-web/`.
 
@@ -62,11 +62,11 @@ after every task.
 
 **Independent Test**: `quickstart.md` checks 1 and 2.
 
-- [ ] T006 [P] [US1] Write `frontend/public-web/manifest.webmanifest` per `specs/001-installable-pwa/contracts/manifest.md`, **without** `file_handlers` and `launch_handler` (added in US3). Take `background_color` from `--bg` and `theme_color` from `--bg-alt` in the `:root` block of `frontend/src/style.css`
-- [ ] T007 [P] [US1] Write `frontend/public-web/sw.js` per `specs/001-installable-pwa/contracts/service-worker.md`: `const VERSION = '__VERSION__'`, cache `mdgeek-${VERSION}`, files `./`, `./index.html`, `./manifest.webmanifest`, `./icon-192.png`, `./icon-512.png` resolved against `self.registration.scope`; `install` caches them (no `skipWaiting`); `activate` deletes other `mdgeek-*` caches and calls `clients.claim()`; `fetch` answers same-origin GETs for those files cache-first, network fallback, and ignores everything else. Leave out the `message` handler (US2)
-- [ ] T008 [US1] Add `<link rel="manifest" href="./manifest.webmanifest">` and `<meta name="theme-color" content="…">` (same value as the manifest) to `frontend/index.html`. Opening `dist-web/index.html` from disk must still work; a missing manifest there is harmless
-- [ ] T009 [US1] Register the service worker in `frontend/src/backend/web.ts` at module load: only if `'serviceWorker' in navigator` and (`location.protocol === 'https:'` or `location.hostname === 'localhost'`), call `navigator.serviceWorker.register('./sw.js', { scope: './' })`, and ignore failures (log with `console.warn`). Export the registration promise for US2
-- [ ] T010 [US1] Run `npm run build:web` and `npm run preview:web`, then do `quickstart.md` checks 1 and 2 in Edge (Playwright browser tools can confirm the manifest loads, the service worker is active, and the page reloads with the network offline). Confirm `npm run build` (desktop) output has no `manifest.webmanifest` or `sw.js`
+- [x] T006 [P] [US1] Write `frontend/public-web/manifest.webmanifest` per `specs/001-installable-pwa/contracts/manifest.md`, **without** `file_handlers` and `launch_handler` (added in US3). Take `background_color` from `--bg` and `theme_color` from `--bg-alt` in the `:root` block of `frontend/src/style.css`
+- [x] T007 [P] [US1] Write `frontend/public-web/sw.js` per `specs/001-installable-pwa/contracts/service-worker.md`: `const VERSION = '__VERSION__'`, cache `mdgeek-${VERSION}`, files `./`, `./index.html`, `./manifest.webmanifest`, `./icon-192.png`, `./icon-512.png` resolved against `self.registration.scope`; `install` caches them (no `skipWaiting`); `activate` deletes other `mdgeek-*` caches and calls `clients.claim()`; `fetch` answers same-origin GETs for those files cache-first, network fallback, and ignores everything else. Leave out the `message` handler (US2)
+- [x] T008 [US1] (Done in the `installable()` Vite plugin's `transformIndexHtml` instead of editing `index.html`, so only the web build gets these tags; also adds a favicon link.) Add `<link rel="manifest" href="./manifest.webmanifest">` and `<meta name="theme-color" content="…">` (same value as the manifest) to `frontend/index.html`. Opening `dist-web/index.html` from disk must still work; a missing manifest there is harmless
+- [x] T009 [US1] Register the service worker in `frontend/src/backend/web.ts` at module load: only if `'serviceWorker' in navigator` and (`location.protocol === 'https:'` or `location.hostname === 'localhost'`), call `navigator.serviceWorker.register('./sw.js', { scope: './' })`, and ignore failures (log with `console.warn`). Export the registration promise for US2
+- [x] T010 [US1] Run `npm run build:web` and `npm run preview:web`, then do `quickstart.md` checks 1 and 2 in Edge (Playwright browser tools can confirm the manifest loads, the service worker is active, and the page reloads with the network offline). Confirm `npm run build` (desktop) output has no `manifest.webmanifest` or `sw.js`
 
 **Checkpoint**: MdGeek installs from `localhost`, opens in its own window, and works offline. This alone is a usable release.
 

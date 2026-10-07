@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:web": "tsc && vite build --mode web",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:web": "vite preview --mode web"
   },
   "devDependencies": {
     "@types/diff": "^7.0.2",
