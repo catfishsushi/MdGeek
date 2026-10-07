@@ -27,7 +27,7 @@ after every task.
   editor, currently only for disk conflicts), `openPaths(paths)`, `flushAll()`, and `saveNow(tab)`.
 - `tree.ts` `Tree` holds `roots: TreeItem[]`; `setRoot()` replaces them and `add()` appends; a private
   `remove()` drops one. `fill()` calls `backend.listDir()` and catches its errors.
-- The repo's default branch is `master`, not `main`.
+- The repo's default branch is `main` (renamed from `master` on 2026-10-06).
 - The GitHub repo `catfishsushi/MdGeek` doesn't exist yet. It will be public. Its history must be
   rewritten to the noreply email before the first push (see T040).
 - Follow the code style already in the repo: short plain-English comments explaining why, no library
@@ -134,13 +134,13 @@ after every task.
 - [ ] T033 [P] Extend the Vite plugin from T005 in `frontend/vite.config.ts`: after inlining, compute the SHA-256 of the inlined `<script type="module">` body and insert the CSP `<meta http-equiv="Content-Security-Policy">` from research R7 at the top of `<head>` in `dist-web/index.html`, **before** computing the `sw.js` version hash
 - [ ] T034 Do `quickstart.md` check 7: rerun checks 1–5 with the console open and fix any CSP errors (likely candidates: Milkdown/CodeMirror inline styles, `blob:` images, highlight.js). Also confirm `dist-web/index.html` opened from disk still works with the CSP
 - [ ] T035 Do `quickstart.md` check 6 (normal tab, opened from disk, Firefox message, desktop `wails build` unchanged)
-- [ ] T036 [P] Create `.github/workflows/pages.yml`: on push to `master` and `workflow_dispatch`; permissions `contents: read`, `pages: write`, `id-token: write`; job runs `actions/checkout`, `actions/setup-node` (Node 22, npm cache on `frontend/package-lock.json`), `npm ci` and `npm run build:web` in `frontend/`, `actions/configure-pages`, `actions/upload-pages-artifact` with `path: frontend/dist-web`, then a `deploy` job with `actions/deploy-pages`. Use a `concurrency: pages` group
+- [ ] T036 [P] Create `.github/workflows/pages.yml`: on push to `main` and `workflow_dispatch`; permissions `contents: read`, `pages: write`, `id-token: write`; job runs `actions/checkout`, `actions/setup-node` (Node 22, npm cache on `frontend/package-lock.json`), `npm ci` and `npm run build:web` in `frontend/`, `actions/configure-pages`, `actions/upload-pages-artifact` with `path: frontend/dist-web`, then a `deploy` job with `actions/deploy-pages`. Use a `concurrency: pages` group
 - [ ] T037 [P] Add a `.gitattributes` with `*.sh text eol=lf` so spec-kit's Bash scripts keep Unix line endings on Windows checkouts
 - [ ] T038 [P] Add a "Browser version and installing" section to `README.md`: the Pages address, how to install from Edge or Chrome, offline use, opening `.md` files, the permission prompts, and the Firefox/Safari limit. Update the build commands in `CLAUDE.md` with `npm run preview:web`
-- [ ] T039 Update `specs/001-installable-pwa/quickstart.md` and `research.md` R6 to say `master` instead of `main`
+- [x] T039 Default branch renamed from `master` to `main` (2026-10-06), so `quickstart.md` and `research.md` R6 are already correct
 - [ ] T040 **Needs your go-ahead (rewrites history)**: rewrite every commit's author and committer email from the personal Gmail address to `42792811+catfishsushi@users.noreply.github.com` across all branches, then confirm `git log --all --format='%ae %ce'` shows only the noreply address
-- [ ] T041 After T040: create the public repo with `gh repo create catfishsushi/MdGeek --public --source C:\DevProjects\MdGeek`, push `master`, `feature/wysiwyg-toolbar`, and `001-installable-pwa`, and set Settings > Pages > Source to "GitHub Actions" (`gh api -X POST repos/catfishsushi/MdGeek/pages -f build_type=workflow`)
-- [ ] T042 After merge to `master` and the first workflow run: repeat `quickstart.md` checks 1–4 against `https://catfishsushi.github.io/MdGeek/`
+- [ ] T041 After T040: create the public repo with `gh repo create catfishsushi/MdGeek --public --source C:\DevProjects\MdGeek`, push `main`, `feature/wysiwyg-toolbar`, and `001-installable-pwa`, and set Settings > Pages > Source to "GitHub Actions" (`gh api -X POST repos/catfishsushi/MdGeek/pages -f build_type=workflow`)
+- [ ] T042 After merge to `main` and the first workflow run: repeat `quickstart.md` checks 1–4 against `https://catfishsushi.github.io/MdGeek/`
 
 ---
 
