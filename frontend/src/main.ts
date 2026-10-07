@@ -8,7 +8,7 @@ import { documentCss, renderPrintable, renderStandalone } from './render';
 import { Tree, TreeItem } from './tree';
 
 type View = 'wysiwyg' | 'source';
-type ThemeSetting = 'light' | 'dark' | 'scifi' | 'author' | 'school';
+type ThemeSetting = 'light' | 'dark' | 'scifi';
 
 interface Tab {
   path: string;
@@ -20,7 +20,6 @@ interface Tab {
   saveTimer: number | null;
   saving: boolean;
   needsPermission: boolean; // the browser must be asked, from a click, before this file can be saved
-  color: number; // which tab color the School theme gives it; stays put when tabs move
 }
 
 const AUTOSAVE_MS = 800;
@@ -39,8 +38,6 @@ let active: Tab | null = null;
 let editor: EditorHandle | null = null;
 let mountToken = 0;
 let defaultView: View = 'wysiwyg';
-let nextTabColor = 0;
-const TAB_COLORS = 6; // matches the colors in style.css
 
 const isDirty = (t: Tab) => t.content !== t.savedContent;
 
@@ -67,21 +64,18 @@ function toast(msg: string, action?: { label: string; run: () => void }): void {
 
 // ---------- theme ----------
 
-const THEME_ORDER: ThemeSetting[] = ['light', 'dark', 'scifi', 'author', 'school'];
+const THEME_ORDER: ThemeSetting[] = ['light', 'dark', 'scifi'];
 const THEME_NAMES: Record<ThemeSetting, string> = {
   light: 'Light',
   dark: 'Dark',
   scifi: 'SciFi',
-  author: 'Author',
-  school: 'School',
 };
 const isTheme = (v: string): v is ThemeSetting => (THEME_ORDER as string[]).includes(v);
 
 // Light until the saved choice arrives from the saved settings (see loadSavedTheme).
 let themeSetting: ThemeSetting = 'light';
 
-// SciFi is built on the dark theme, Author and School on the light one: the editors use those
-// styles and style.css recolors the rest.
+// SciFi is built on the dark theme: the editors use its styles and style.css recolors the rest.
 const isDark = () => themeSetting === 'dark' || themeSetting === 'scifi';
 
 const themeSelect = $<HTMLSelectElement>('theme-select');
@@ -118,7 +112,6 @@ function renderTabs(): void {
   for (const tab of tabs) {
     const el = document.createElement('div');
     el.className = 'tab' + (tab === active ? ' active' : '');
-    el.dataset.color = String(tab.color);
     el.title = tab.path;
     el.draggable = true;
 
@@ -302,7 +295,6 @@ async function openFile(path: string): Promise<void> {
       view: defaultView,
       conflict: null,
       saveTimer: null,
-      color: nextTabColor++ % TAB_COLORS,
       saving: false,
       needsPermission: false,
     };

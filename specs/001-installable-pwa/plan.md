@@ -39,14 +39,14 @@ headers
 `.specify/memory/constitution.md` is still the blank template, so it sets no gates. This plan is
 checked against your global CLAUDE.md rules instead:
 
-| Rule                                      | Status | Notes                                                                                                 |
-|-------------------------------------------|--------|-------------------------------------------------------------------------------------------------------|
-| Simplest implementation first             | Pass   | Hand-written service worker and IndexedDB helper instead of Workbox / `idb-keyval` (R1, R5).          |
-| Surface standard patterns before building | Pass   | App-shell caching, "update ready, reload" toast, File Handling API, persistent permissions (R2, R4, R5). |
-| Security headers on every response        | Partial | GitHub Pages can't set headers. CSP added as a `<meta>` tag; the rest need a different host (R7).    |
-| Validate input / sanitize HTML            | Pass   | No new input paths. Markdown rendering already goes through DOMPurify.                               |
-| Never commit secrets                      | Pass   | No secrets involved.                                                                                  |
-| Bot protection, authorization             | N/A    | No forms, accounts, or server.                                                                        |
+| Rule                                      | Status  | Notes                                                                                                    |
+| ----------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| Simplest implementation first             | Pass    | Hand-written service worker and IndexedDB helper instead of Workbox / `idb-keyval` (R1, R5).             |
+| Surface standard patterns before building | Pass    | App-shell caching, "update ready, reload" toast, File Handling API, persistent permissions (R2, R4, R5). |
+| Security headers on every response        | Partial | GitHub Pages can't set headers. CSP added as a `<meta>` tag; the rest need a different host (R7).        |
+| Validate input / sanitize HTML            | Pass    | No new input paths. Markdown rendering already goes through DOMPurify.                                   |
+| Never commit secrets                      | Pass    | No secrets involved.                                                                                     |
+| Bot protection, authorization             | N/A     | No forms, accounts, or server.                                                                           |
 
 **Post-design re-check**: Same results. The one partial item is recorded under Complexity Tracking.
 
@@ -100,13 +100,16 @@ build doesn't ship a manifest or service worker.
 ## Phases
 
 ### Phase 0: Research — done
+
 All open questions resolved in [research.md](./research.md). Hosting: a public GitHub repo with
 GitHub Pages (R6). The repo still has to be created and pushed before the publishing step.
 
 ### Phase 1: Design — done
+
 [data-model.md](./data-model.md), [contracts/](./contracts/), [quickstart.md](./quickstart.md).
 
 ### Suggested build order (for /speckit-tasks)
+
 1. Installable: manifest, icons, `public-web/`, `preview:web`, service worker with caching (Story 1
    and the offline half of Story 2). This is the minimum useful slice.
 2. Update toast with save-before-reload (rest of Story 2).
@@ -117,7 +120,7 @@ GitHub Pages (R6). The repo still has to be created and pushed before the publis
 
 ## Complexity Tracking
 
-| Deviation                                   | Why Needed                                       | Simpler Alternative Rejected Because                                                       |
-|---------------------------------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------|
+| Deviation                                          | Why Needed                                              | Simpler Alternative Rejected Because                                                               |
+| -------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Only a CSP `<meta>` tag, no other security headers | You chose GitHub Pages (Q1: A), which can't set headers | Switching to Cloudflare Pages or Netlify would allow a `_headers` file; still open if you want it. |
-| CSP enforced from the start, not Report-Only | `<meta>` CSP doesn't support Report-Only          | Covered by quickstart check 7 (no CSP errors in the console).                              |
+| CSP enforced from the start, not Report-Only       | `<meta>` CSP doesn't support Report-Only                | Covered by quickstart check 7 (no CSP errors in the console).                                      |
