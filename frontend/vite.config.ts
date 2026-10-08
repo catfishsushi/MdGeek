@@ -19,7 +19,7 @@ function installable(): Plugin {
     // Only the browser build links the manifest, so the desktop app doesn't ask for a missing file.
     transformIndexHtml: () => [
       { tag: 'link', attrs: { rel: 'manifest', href: './manifest.webmanifest' }, injectTo: 'head' },
-      { tag: 'meta', attrs: { name: 'theme-color', content: '#f6f8fa' }, injectTo: 'head' },
+      { tag: 'meta', attrs: { name: 'theme-color', content: '#EEEFF1' }, injectTo: 'head' },
       { tag: 'link', attrs: { rel: 'icon', href: './icon-192.png' }, injectTo: 'head' },
     ],
     closeBundle() {

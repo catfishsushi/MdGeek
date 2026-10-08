@@ -1,3 +1,10 @@
+// Fonts are bundled so the app works offline (and its security policy only allows its own fonts).
+import '@fontsource-variable/geist/wght.css';
+import '@fontsource-variable/geist-mono/wght.css';
+import '@fontsource-variable/exo-2/wght.css';
+import '@fontsource/rajdhani/latin-500.css';
+import '@fontsource/rajdhani/latin-600.css';
+import '@fontsource/rajdhani/latin-700.css';
 import './style.css';
 import { backend } from './backend';
 import { NeedsPermission } from './backend/errors';
@@ -64,12 +71,14 @@ function toast(msg: string, action?: { label: string; run: () => void }): void {
 
 // ---------- theme ----------
 
-const THEME_ORDER: ThemeSetting[] = ['light', 'dark', 'scifi'];
-const THEME_NAMES: Record<ThemeSetting, string> = {
-  light: 'Light',
-  dark: 'Dark',
-  scifi: 'SciFi',
-};
+/** The themes, in menu order. Adding one takes an entry here plus a `.th-<id>` block in style.css. */
+const THEMES: { id: ThemeSetting; label: string; swatch: [string, string] }[] = [
+  { id: 'light', label: 'Light', swatch: ['#FFFFFF', '#2F54EB'] },
+  { id: 'dark', label: 'Dark', swatch: ['#14161B', '#8FA8FF'] },
+  { id: 'scifi', label: 'SciFi', swatch: ['#07101A', '#3FD0F0'] },
+];
+const THEME_ORDER = THEMES.map((t) => t.id);
+const THEME_NAMES = Object.fromEntries(THEMES.map((t) => [t.id, t.label])) as Record<ThemeSetting, string>;
 const isTheme = (v: string): v is ThemeSetting => (THEME_ORDER as string[]).includes(v);
 
 // Light until the saved choice arrives from the saved settings (see loadSavedTheme).
@@ -82,7 +91,8 @@ const themeSelect = $<HTMLSelectElement>('theme-select');
 for (const t of THEME_ORDER) themeSelect.add(new Option(THEME_NAMES[t], t));
 
 function applyTheme(remount: boolean): void {
-  document.documentElement.dataset.theme = themeSetting;
+  const root = document.documentElement;
+  for (const t of THEME_ORDER) root.classList.toggle('th-' + t, t === themeSetting);
   applyCrepeTheme(isDark());
   themeSelect.value = themeSetting;
   if (remount) void mountEditor(editor?.getScroll());
@@ -224,6 +234,7 @@ function renderChrome(): void {
   $('btn-export-pdf').toggleAttribute('disabled', !active);
   document.querySelectorAll<HTMLElement>('#view-toggle button').forEach((b) => {
     b.classList.toggle('active', !!active && b.dataset.view === active.view);
+    b.setAttribute('aria-pressed', String(!!active && b.dataset.view === active.view));
     b.toggleAttribute('disabled', !active);
   });
   document.title = active ? `${basename(active.path)} - MdGeek` : 'MdGeek';

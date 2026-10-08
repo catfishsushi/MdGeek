@@ -1,34 +1,150 @@
-:root {
-  --bg: #ffffff;
-  --bg-alt: #f6f8fa;
-  --bg-hover: #eaeef2;
-  --bg-active: #ddf4ff;
-  --fg: #1f2328;
-  --fg-muted: #656d76;
-  --border: #d0d7de;
-  --accent: #0969da;
-  --on-accent: #ffffff;
-  --warn-bg: #fff8c5;
-  --warn-border: #d4a72c;
-  --del-bg: #ffebe9;
-  --add-bg: #dafbe1;
+/* ---------- Themes ----------
+   Each theme is a set of variables on a class on <html> (th-light, th-dark, th-scifi); everything below
+   reads only the variables. Adding a theme takes one block here plus one entry in THEMES in main.ts. */
+
+.th-light {
+  --bg: #EEEFF1;           /* window background */
+  --side: transparent;     /* sidebar background */
+  --panel: #FFFFFF;        /* editor panel */
+  --panelline: #E3E5E8;
+  --ink: #16181D;          /* text */
+  --ink2: #5A5F69;         /* secondary text */
+  --ink3: #8B909A;         /* faint text and icons */
+  --line: #E8EAED;         /* dividers */
+  --btn: #FFFFFF;
+  --btnline: #D8DBE0;
+  --btnh: #F4F5F7;         /* button hover */
+  --btnshadow: 0 1px 1px rgba(16, 24, 40, .05);
+  --track: #E2E4E8;        /* two-button toggle background */
+  --trackline: transparent;
+  --on: #FFFFFF;           /* chosen half of the toggle */
+  --onink: #16181D;
+  --onshadow: 0 1px 2px rgba(16, 24, 40, .14), 0 0 0 1px rgba(16, 24, 40, .04);
+  --acc: #2F54EB;          /* accent */
+  --logoink: #FFFFFF;      /* text on the accent colour */
+  --accsoft: #EAEEFF;      /* accent tint, for highlights */
+  --accink: #1D3AB5;       /* text on the accent tint */
+  --hover: rgba(16, 24, 40, .05);
+  --dir: #5A5F69;          /* folder icons */
+  --code: #F5F6F8;
+  --ok: #1F9D57;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 8px 24px rgba(16, 24, 40, .06);
+  --dropline: #CBD1DB;
+  --dropbg: #FAFBFC;
+  --menu: #FFFFFF;
+  --menuline: #E3E5E8;
+  --menushadow: 0 12px 32px rgba(16, 24, 40, .13), 0 2px 6px rgba(16, 24, 40, .06);
+  --warn-bg: #FFF8C5;
+  --warn-line: #D4A72C;
+  --del-bg: #FFEBE9;
+  --add-bg: #DAFBE1;
+  --ui: 'Geist Variable', system-ui, sans-serif;     /* interface */
+  --read: 'Geist Variable', system-ui, sans-serif;   /* document text */
+  --disp: 'Geist Variable', system-ui, sans-serif;   /* headings */
+  --mono: 'Geist Mono Variable', ui-monospace, monospace;
   color-scheme: light;
 }
 
-:root[data-theme="dark"] {
-  --bg: #0d1117;
-  --bg-alt: #161b22;
-  --bg-hover: #21262d;
-  --bg-active: #1f3a5f;
-  --fg: #e6edf3;
-  --fg-muted: #8d96a0;
-  --border: #30363d;
-  --accent: #4493f8;
-  --warn-bg: #3d2e00;
-  --warn-border: #9e6a03;
-  --del-bg: #4a1d1d;
-  --add-bg: #12361f;
+.th-dark {
+  --bg: #0A0B0E;
+  --side: transparent;
+  --panel: #14161B;
+  --panelline: #22252C;
+  --ink: #ECEEF1;
+  --ink2: #A1A6B0;
+  --ink3: #6B717C;
+  --line: #23262D;
+  --btn: #17191F;
+  --btnline: #2A2E36;
+  --btnh: #20232A;
+  --btnshadow: none;
+  --track: #17191F;
+  --trackline: #24272E;
+  --on: #2B3039;
+  --onink: #F4F5F7;
+  --onshadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .5);
+  --acc: #8FA8FF;
+  --logoink: #0A0B0E;
+  --accsoft: rgba(143, 168, 255, .13);
+  --accink: #CBD6FF;
+  --hover: rgba(255, 255, 255, .05);
+  --dir: #A1A6B0;
+  --code: #0E1014;
+  --ok: #4ADE80;
+  --shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 12px 32px rgba(0, 0, 0, .45);
+  --dropline: #343944;
+  --dropbg: rgba(255, 255, 255, .015);
+  --menu: #1B1E24;
+  --menuline: #2C3038;
+  --menushadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 0 1px rgba(0, 0, 0, .3);
+  --warn-bg: #3D2E00;
+  --warn-line: #9E6A03;
+  --del-bg: #4A1D1D;
+  --add-bg: #12361F;
+  --ui: 'Geist Variable', system-ui, sans-serif;
+  --read: 'Geist Variable', system-ui, sans-serif;
+  --disp: 'Geist Variable', system-ui, sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, monospace;
   color-scheme: dark;
+}
+
+.th-scifi {
+  --bg: #07101A;
+  --side: #0A1621;
+  --panel: transparent;
+  --panelline: rgba(63, 208, 240, .35);
+  --ink: #D8F4FB;
+  --ink2: #86BCCB;
+  --ink3: #4E7E8E;
+  --line: rgba(63, 208, 240, .22);
+  --btn: rgba(6, 18, 28, .7);
+  --btnline: rgba(63, 208, 240, .42);
+  --btnh: rgba(63, 208, 240, .1);
+  --btnshadow: none;
+  --track: rgba(6, 18, 28, .7);
+  --trackline: rgba(63, 208, 240, .3);
+  --on: rgba(63, 208, 240, .16);
+  --onink: #7FE9FF;
+  --onshadow: inset 0 0 0 1px rgba(63, 208, 240, .6), 0 0 12px rgba(63, 208, 240, .25);
+  --acc: #3FD0F0;
+  --logoink: #04121A;
+  --accsoft: rgba(63, 208, 240, .1);
+  --accink: #9AF0FF;
+  --hover: rgba(63, 208, 240, .07);
+  --dir: #FF9F45;
+  --code: rgba(2, 8, 14, .8);
+  --ok: #FF9F45;
+  --shadow: inset 0 0 80px rgba(0, 0, 0, .55);
+  --dropline: rgba(63, 208, 240, .45);
+  --dropbg: rgba(4, 12, 20, .74);
+  --menu: rgba(6, 16, 25, .97);
+  --menuline: rgba(63, 208, 240, .45);
+  --menushadow: 0 0 28px rgba(63, 208, 240, .18), 0 16px 40px rgba(0, 0, 0, .6);
+  --warn-bg: #33240A;
+  --warn-line: #E0A326;
+  --del-bg: #3A1220;
+  --add-bg: #0B3024;
+  --ui: 'Rajdhani', sans-serif;
+  --read: 'Exo 2 Variable', sans-serif;
+  --disp: 'Rajdhani', sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --glow: rgba(63, 208, 240, .35);
+  color-scheme: dark;
+}
+
+/* Old names, kept while the rest of this file moves over to the theme variables. */
+:root {
+  --bg-alt: var(--btn);
+  --bg-hover: var(--btnh);
+  --bg-active: var(--accsoft);
+  --fg: var(--ink);
+  --fg-muted: var(--ink2);
+  --border: var(--btnline);
+  --accent: var(--acc);
+  --on-accent: var(--logoink);
+  --warn-border: var(--warn-line);
+  --frame-font: var(--ui);
+  --scanlines: repeating-linear-gradient(0deg, rgba(63, 208, 240, .04) 0 1px, transparent 1px 3px);
 }
 
 * { box-sizing: border-box; }
@@ -37,8 +153,8 @@ html, body {
   margin: 0;
   height: 100%;
   background: var(--bg);
-  color: var(--fg);
-  font-family: -apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  font-family: var(--ui);
   font-size: 14px;
 }
 
@@ -56,33 +172,79 @@ button {
 button:hover { background: var(--bg-hover); }
 button:disabled { opacity: 0.5; cursor: default; }
 
-#toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--bg-alt);
-  border-bottom: 1px solid var(--border);
-}
-.spacer { flex: 1; }
-#theme-picker { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-muted); }
-#theme-select {
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg-alt);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 3px 6px;
-  cursor: pointer;
-}
-#theme-select:hover { background: var(--bg-hover); }
-#theme-select option { background: var(--bg); color: var(--fg); }
+/* ---------- Toolbar ---------- */
 
-.segmented { display: inline-flex; }
-.segmented button { border-radius: 0; margin-left: -1px; }
-.segmented button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-.segmented button:last-child { border-radius: 0 6px 6px 0; }
-.segmented button.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+#app svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* Three groups: left, centre, right. The equal outer columns keep the toggle centred. */
+#toolbar {
+  height: 56px;
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px 0 14px;
+}
+.grp { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.grp.end { justify-content: flex-end; }
+.brand { display: flex; align-items: center; gap: 9px; margin-right: 4px; }
+.logo { width: 26px; height: 26px; border-radius: 7px; background: var(--acc); color: var(--logoink); display: grid; place-items: center; font: 700 11px/1 var(--mono); letter-spacing: -.04em; }
+.bname { font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
+.sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+
+.btn {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--btnline);
+  background: var(--btn);
+  font-weight: 500;
+  font-size: 13.5px;
+  box-shadow: var(--btnshadow);
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--btnh); }
+.btn .ic { color: var(--ink2); }
+.btn.pri { background: var(--acc); color: var(--logoink); border-color: transparent; }
+.btn.pri .ic { color: inherit; }
+
+/* WYSIWYG / Source: a two-button toggle. */
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--track); border: 1px solid var(--trackline); }
+.seg-b {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink2);
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.seg-b:hover:not(:disabled) { background: transparent; color: var(--ink); }
+.seg-b.active { background: var(--on); color: var(--onink); box-shadow: var(--onshadow); }
+
+/* Export: a label and two buttons joined into one group. */
+.exp { display: inline-flex; align-items: center; height: 34px; border: 1px solid var(--btnline); border-radius: 8px; background: var(--btn); box-shadow: var(--btnshadow); overflow: hidden; }
+.exp .lbl { display: inline-flex; align-items: center; gap: 6px; height: 100%; padding: 0 10px 0 11px; color: var(--ink2); font-size: 13px; border-right: 1px solid var(--btnline); }
+.exp button { height: 100%; border: 0; border-radius: 0; background: transparent; padding: 0 11px; font-weight: 600; font-size: 12.5px; letter-spacing: .03em; }
+.exp button + button { border-left: 1px solid var(--btnline); }
+.exp button:hover:not(:disabled) { background: var(--btnh); }
+.exp button:disabled { opacity: .4; }
+
+#toolbar :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+/* Temporary: the native theme list, until the custom drop-down replaces it. */
+#theme-picker { display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); }
+#theme-select { font: inherit; color: var(--ink); background: var(--btn); border: 1px solid var(--btnline); border-radius: 8px; height: 34px; padding: 0 6px; }
+#theme-select option { background: var(--menu); color: var(--ink); }
 
 #main { display: flex; flex: 1; min-height: 0; }
 
@@ -127,7 +289,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .node .remove:hover { background: var(--bg-hover); color: var(--fg); }
 #sidebar.drop-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
 
-#content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+#content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; background: var(--panel); }
 
 #tabs {
   display: flex;
@@ -147,7 +309,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   color: var(--fg-muted);
   user-select: none;
 }
-.tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 2px 0 var(--accent); }
+.tab.active { background: var(--panel); color: var(--fg); box-shadow: inset 0 2px 0 var(--accent); }
 .tab.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
 .tab .dirty { color: var(--accent); }
 .tab .conflict { color: #d4a72c; font-weight: 700; }
@@ -178,7 +340,30 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* A heading at the very top sits 22px higher than Crepe puts it (32px down), like the title of the
    note. */
 #editor .milkdown .ProseMirror > :is(h1, h2, h3, h4, h5, h6):nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 10px; }
-.cm-scroller { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 14px; }
+.cm-scroller { font-family: var(--mono); font-size: 14px; }
+.cm-editor, .cm-editor .cm-gutters { background: transparent; }
+
+/* The WYSIWYG editor (Crepe) takes its colours and fonts from the theme. #editor raises specificity above
+   Crepe's own stylesheet, which loads later. */
+#editor .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--ink);
+  --crepe-color-surface: var(--menu);
+  --crepe-color-surface-low: var(--code);
+  --crepe-color-on-surface: var(--ink);
+  --crepe-color-on-surface-variant: var(--ink2);
+  --crepe-color-outline: var(--ink3);
+  --crepe-color-primary: var(--acc);
+  --crepe-color-secondary: var(--accsoft);
+  --crepe-color-on-secondary: var(--accink);
+  --crepe-color-hover: var(--hover);
+  --crepe-color-selected: color-mix(in srgb, var(--acc) 24%, transparent);
+  --crepe-color-inline-area: var(--code);
+  --crepe-color-inline-code: var(--ink);
+  --crepe-font-title: var(--disp);
+  --crepe-font-default: var(--read);
+  --crepe-font-code: var(--mono);
+}
 
 #empty {
   flex: 1;
@@ -220,7 +405,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   flex-direction: column;
   width: min(1100px, 94vw);
   height: min(700px, 88vh);
-  background: var(--bg);
+  background: var(--menu);
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
@@ -253,68 +438,41 @@ button:disabled { opacity: 0.5; cursor: default; }
    toolbar, sidebar, tabs, dialogs. The text being edited stays plain, high-contrast and in the
    normal fonts. Colors were checked against WCAG AA (4.5:1 for normal text). */
 
-:root[data-theme="scifi"] {
-  --bg: #070d14;
-  --bg-alt: #0b1622;
-  --bg-hover: #12263a;
-  --bg-active: #0c3a4a;
-  --fg: #e6f4fa;
-  --fg-muted: #8fb8ca;
-  --border: #1d4a5e;
-  --accent: #33d6ec;
-  --on-accent: #031018;
-  --warn-bg: #33240a;
-  --warn-border: #e0a326;
-  --del-bg: #3a1220;
-  --add-bg: #0b3024;
-  --glow: rgba(51, 214, 236, 0.35);
-  --frame-font: Bahnschrift, "Segoe UI", sans-serif;
-  --scanlines: repeating-linear-gradient(0deg, rgba(51, 214, 236, 0.04) 0 1px, transparent 1px 3px);
-  color-scheme: dark;
-}
 
-/* Toolbar and tabs: faint scanlines and a glowing edge. */
-:root[data-theme="scifi"] #toolbar {
-  background: var(--scanlines), linear-gradient(#0f2131, var(--bg-alt));
-  border-bottom-color: var(--accent);
-  box-shadow: 0 0 12px var(--glow);
-  position: relative;
-  z-index: 1;
+/* Toolbar: a dark gradient strip with a glowing edge; square, uppercase controls with corner brackets. */
+.th-scifi #toolbar { background: linear-gradient(#0C1A27, #07111A); border-bottom: 1px solid rgba(63, 208, 240, .35); position: relative; z-index: 1; }
+.th-scifi .btn, .th-scifi .seg, .th-scifi .seg-b, .th-scifi .exp, .th-scifi .logo { border-radius: 0; }
+.th-scifi .btn, .th-scifi .seg-b, .th-scifi .exp, .th-scifi .bname { text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+.th-scifi .btn { font-size: 15px; }
+.th-scifi .seg-b { font-size: 14px; }
+.th-scifi .exp .lbl, .th-scifi .exp button { font-size: 14px; }
+.th-scifi .exp { overflow: visible; }
+.th-scifi .btn, .th-scifi .exp, .th-scifi .seg { position: relative; }
+.th-scifi .btn::before, .th-scifi .exp::before, .th-scifi .seg::before {
+  content: ''; position: absolute; left: -1px; top: -1px; width: 8px; height: 8px;
+  border-left: 2px solid var(--acc); border-top: 2px solid var(--acc); pointer-events: none;
 }
+.th-scifi .btn::after, .th-scifi .exp::after, .th-scifi .seg::after {
+  content: ''; position: absolute; right: -1px; bottom: -1px; width: 8px; height: 8px;
+  border-right: 2px solid var(--acc); border-bottom: 2px solid var(--acc); pointer-events: none;
+}
+.th-scifi .logo { box-shadow: 0 0 14px rgba(63, 208, 240, .55); }
+.th-scifi .bname { color: #7FE9FF; font-size: 17px; letter-spacing: .12em; }
+.th-scifi .btn.pri { background: rgba(63, 208, 240, .16); color: #9AF0FF; border-color: var(--acc); box-shadow: 0 0 16px rgba(63, 208, 240, .25); }
+.th-scifi #theme-picker { text-transform: uppercase; letter-spacing: .08em; }
+.th-scifi #theme-select { border-radius: 0; }
 
-/* Buttons: square, with small accent brackets on two corners. */
-:root[data-theme="scifi"] button {
-  border-radius: 0;
-  font-family: var(--frame-font);
-  letter-spacing: 0.04em;
-  transition: box-shadow 0.15s, border-color 0.15s;
-}
-:root[data-theme="scifi"] #toolbar button {
-  text-transform: uppercase;
-  background-image:
-    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent));
-  background-size: 7px 1px, 1px 7px, 7px 1px, 1px 7px;
-  background-position: top left, top left, bottom right, bottom right;
-  background-repeat: no-repeat;
-}
-:root[data-theme="scifi"] #theme-picker { font-family: var(--frame-font); letter-spacing: 0.04em; text-transform: uppercase; }
-:root[data-theme="scifi"] #theme-select { border-radius: 0; font-family: var(--frame-font); }
-:root[data-theme="scifi"] #theme-select:hover { border-color: var(--accent); box-shadow: 0 0 8px var(--glow); }
-:root[data-theme="scifi"] #theme-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-:root[data-theme="scifi"] button:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 8px var(--glow); }
-:root[data-theme="scifi"] button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-:root[data-theme="scifi"] .segmented button,
-:root[data-theme="scifi"] .segmented button:first-child,
-:root[data-theme="scifi"] .segmented button:last-child { border-radius: 0; }
-:root[data-theme="scifi"] .segmented button.active { box-shadow: 0 0 10px var(--glow); }
+/* Buttons outside the toolbar (banner, dialogs, toast, sidebar): square, glowing on hover. */
+.th-scifi button { border-radius: 0; letter-spacing: 0.04em; transition: box-shadow 0.15s, border-color 0.15s; }
+.th-scifi :is(#banner, #modal, #toast, #sidebar) button:hover:not(:disabled) { border-color: var(--acc); box-shadow: 0 0 8px var(--glow); }
+.th-scifi button:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
 /* Small icon buttons (close, remove, refresh) stay plain. */
-:root[data-theme="scifi"] .tab .close,
-:root[data-theme="scifi"] .node .remove { letter-spacing: 0; }
+.th-scifi .tab .close,
+.th-scifi .node .remove { letter-spacing: 0; }
 
 /* Sidebar: glowing right edge, heading styled as a panel label. */
-:root[data-theme="scifi"] #sidebar { border-right-color: var(--border); box-shadow: inset -1px 0 0 rgba(51, 214, 236, 0.25); }
-:root[data-theme="scifi"] #sidebar-head {
+.th-scifi #sidebar { border-right-color: var(--border); box-shadow: inset -1px 0 0 rgba(51, 214, 236, 0.25); }
+.th-scifi #sidebar-head {
   font-family: var(--frame-font);
   font-size: 12px;
   letter-spacing: 0.1em;
@@ -322,19 +480,19 @@ button:disabled { opacity: 0.5; cursor: default; }
   color: var(--accent);
   border-bottom-color: var(--border);
 }
-:root[data-theme="scifi"] .node.active { box-shadow: inset 2px 0 0 var(--accent); }
+.th-scifi .node.active { box-shadow: inset 2px 0 0 var(--accent); }
 
 /* Active tab: a top bar that glows, gently pulsing. */
-:root[data-theme="scifi"] .tab { font-family: var(--frame-font); letter-spacing: 0.02em; }
-:root[data-theme="scifi"] .tab.active { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 10px var(--glow); animation: scifi-pulse 4s ease-in-out infinite; }
-:root[data-theme="scifi"] .tab .conflict { color: var(--warn-border); }
+.th-scifi .tab { font-family: var(--frame-font); letter-spacing: 0.02em; }
+.th-scifi .tab.active { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 10px var(--glow); animation: scifi-pulse 4s ease-in-out infinite; }
+.th-scifi .tab .conflict { color: var(--warn-border); }
 @keyframes scifi-pulse {
   0%, 100% { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 6px rgba(51, 214, 236, 0.2); }
   50% { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 12px rgba(51, 214, 236, 0.45); }
 }
 
 /* Empty screen: a faint grid behind the hint. */
-:root[data-theme="scifi"] #empty {
+.th-scifi #empty {
   font-family: var(--frame-font);
   letter-spacing: 0.06em;
   background-image:
@@ -343,20 +501,20 @@ button:disabled { opacity: 0.5; cursor: default; }
   background-size: 32px 32px;
 }
 
-:root[data-theme="scifi"] .dialog { border-color: var(--accent); border-radius: 0; box-shadow: 0 0 24px var(--glow); }
-:root[data-theme="scifi"] .dialog-head { font-family: var(--frame-font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
-:root[data-theme="scifi"] #toast { background: var(--bg-alt); color: var(--fg); border: 1px solid var(--accent); border-radius: 0; box-shadow: 0 0 12px var(--glow); }
+.th-scifi .dialog { border-color: var(--accent); border-radius: 0; box-shadow: 0 0 24px var(--glow); }
+.th-scifi .dialog-head { font-family: var(--frame-font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.th-scifi #toast { background: var(--bg-alt); color: var(--fg); border: 1px solid var(--accent); border-radius: 0; box-shadow: 0 0 12px var(--glow); }
 
-:root[data-theme="scifi"] ::selection { background: #1d5a6e; }
-:root[data-theme="scifi"] ::-webkit-scrollbar { width: 10px; height: 10px; }
-:root[data-theme="scifi"] ::-webkit-scrollbar-track { background: var(--bg); }
-:root[data-theme="scifi"] ::-webkit-scrollbar-thumb { background: var(--border); border: 2px solid var(--bg); }
-:root[data-theme="scifi"] ::-webkit-scrollbar-thumb:hover { background: #2e7088; }
+.th-scifi ::selection { background: #1d5a6e; }
+.th-scifi ::-webkit-scrollbar { width: 10px; height: 10px; }
+.th-scifi ::-webkit-scrollbar-track { background: var(--bg); }
+.th-scifi ::-webkit-scrollbar-thumb { background: var(--border); border: 2px solid var(--bg); }
+.th-scifi ::-webkit-scrollbar-thumb:hover { background: #2e7088; }
 
 /* Control room backdrop: a faded, blurred picture behind the content area. To use a different picture,
    replace assets/control-room.png or change the url() below (SVG and JPG work too). */
-:root[data-theme="scifi"] #content { overflow: hidden; }
-:root[data-theme="scifi"] #content::before {
+.th-scifi #content { overflow: hidden; }
+.th-scifi #content::before {
   content: "";
   position: absolute;
   inset: -16px; /* bleed past the edges so the blur doesn't leave a soft border */
@@ -365,43 +523,24 @@ button:disabled { opacity: 0.5; cursor: default; }
   opacity: 0.7;
   pointer-events: none;
 }
-:root[data-theme="scifi"] #content > * { position: relative; }
-:root[data-theme="scifi"] #tabs { background: var(--scanlines), rgba(11, 22, 34, 0.85); }
-:root[data-theme="scifi"] #empty { background-color: rgba(7, 13, 20, 0.35); }
+.th-scifi #content > * { position: relative; }
+.th-scifi #tabs { background: var(--scanlines), rgba(11, 22, 34, 0.85); }
+.th-scifi #empty { background-color: rgba(7, 13, 20, 0.35); }
 
 /* The editor fills the content area with a light dark tint over the room, just enough to keep text
    readable over the brighter parts of the picture. */
-:root[data-theme="scifi"] #editor { background: rgba(7, 13, 20, 0.55); }
+.th-scifi #editor { background: rgba(7, 13, 20, 0.55); }
 @media (prefers-reduced-transparency: reduce) {
-  :root[data-theme="scifi"] #editor { background: var(--bg); }
+  .th-scifi #editor { background: var(--bg); }
 }
 
-/* Editors: see-through so the room shows; the text itself stays plain. */
-:root[data-theme="scifi"] .cm-editor,
-:root[data-theme="scifi"] .cm-editor .cm-gutters { background: transparent; }
-:root[data-theme="scifi"] .milkdown {
-  --crepe-color-background: transparent;
-  --crepe-color-on-background: var(--fg);
-  --crepe-color-surface: var(--bg-alt);
-  --crepe-color-surface-low: #0e1c2a;
-  --crepe-color-on-surface: #d6e8f0;
-  --crepe-color-on-surface-variant: #9fc3d3;
-  --crepe-color-outline: #3f7f94;
-  --crepe-color-primary: var(--accent);
-  --crepe-color-secondary: #12384a;
-  --crepe-color-on-secondary: #d6eef6;
-  --crepe-color-hover: var(--bg-hover);
-  --crepe-color-selected: #17405a;
-  --crepe-color-inline-area: #10202e;
-  --crepe-color-inline-code: #ffb86b;
-}
-:root[data-theme="scifi"] .milkdown .milkdown-top-bar {
+.th-scifi .milkdown .milkdown-top-bar {
   background: var(--scanlines), var(--bg-alt);
   border-bottom: 1px solid rgba(51, 214, 236, 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root[data-theme="scifi"] * { animation: none !important; transition: none !important; }
+  .th-scifi * { animation: none !important; transition: none !important; }
 }
 
 #print-root { display: none; }
