@@ -87,22 +87,105 @@ let themeSetting: ThemeSetting = 'light';
 // SciFi is built on the dark theme: the editors use its styles and style.css recolors the rest.
 const isDark = () => themeSetting === 'dark' || themeSetting === 'scifi';
 
-const themeSelect = $<HTMLSelectElement>('theme-select');
-for (const t of THEME_ORDER) themeSelect.add(new Option(THEME_NAMES[t], t));
+// The theme drop-down is built by hand because a native <select> list can't be styled. It follows the
+// listbox pattern: arrow keys, Home/End, Enter or Space to pick, Esc or Tab to close.
+const themeBtn = $<HTMLButtonElement>('theme-btn');
+const themeMenu = $('theme-menu');
+const themeLabel = $('theme-label');
+const CHECK_SVG =
+  '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+const themeOptions = THEMES.map((t) => {
+  const opt = document.createElement('div');
+  opt.className = 'opt';
+  opt.id = 'theme-opt-' + t.id;
+  opt.setAttribute('role', 'option');
+  opt.tabIndex = -1;
+  opt.dataset.theme = t.id;
+  const sw = document.createElement('span');
+  sw.className = 'sw';
+  sw.style.background = `linear-gradient(135deg, ${t.swatch[0]} 50%, ${t.swatch[1]} 50%)`;
+  const name = document.createElement('span');
+  name.textContent = t.label;
+  opt.append(sw, name);
+  opt.insertAdjacentHTML('beforeend', CHECK_SVG);
+  opt.addEventListener('click', () => pickTheme(t.id));
+  themeMenu.appendChild(opt);
+  return opt;
+});
+
+const isThemeMenuOpen = () => !themeMenu.hidden;
+
+function openThemeMenu(focus: 'current' | 'first' | 'last' = 'current'): void {
+  themeMenu.hidden = false;
+  themeBtn.setAttribute('aria-expanded', 'true');
+  themeBtn.classList.add('open');
+  const i = focus === 'first' ? 0 : focus === 'last' ? themeOptions.length - 1 : THEME_ORDER.indexOf(themeSetting);
+  themeOptions[i].focus();
+}
+
+function closeThemeMenu(refocus: boolean): void {
+  if (!isThemeMenuOpen()) return;
+  themeMenu.hidden = true;
+  themeBtn.setAttribute('aria-expanded', 'false');
+  themeBtn.classList.remove('open');
+  if (refocus) themeBtn.focus();
+}
+
+function pickTheme(id: ThemeSetting): void {
+  closeThemeMenu(true);
+  if (id === themeSetting) return;
+  themeSetting = id;
+  backend.setSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
+  applyTheme(true);
+}
+
+themeBtn.addEventListener('click', () => (isThemeMenuOpen() ? closeThemeMenu(true) : openThemeMenu()));
+themeBtn.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    openThemeMenu(e.key === 'ArrowDown' ? 'current' : 'last');
+  }
+});
+themeMenu.addEventListener('keydown', (e) => {
+  const i = themeOptions.indexOf(document.activeElement as HTMLDivElement);
+  const n = themeOptions.length;
+  const go = (j: number) => {
+    e.preventDefault();
+    themeOptions[(j + n) % n].focus();
+  };
+  if (e.key === 'ArrowDown') go(i + 1);
+  else if (e.key === 'ArrowUp') go(i - 1);
+  else if (e.key === 'Home') go(0);
+  else if (e.key === 'End') go(n - 1);
+  else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    if (i >= 0) pickTheme(themeOptions[i].dataset.theme as ThemeSetting);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    closeThemeMenu(true);
+  } else if (e.key === 'Tab') {
+    closeThemeMenu(false);
+  }
+});
+// A click anywhere outside the button and menu closes it.
+document.addEventListener('pointerdown', (e) => {
+  if (isThemeMenuOpen() && !$('theme-dd').contains(e.target as Node)) closeThemeMenu(false);
+});
 
 function applyTheme(remount: boolean): void {
   const root = document.documentElement;
   for (const t of THEME_ORDER) root.classList.toggle('th-' + t, t === themeSetting);
   applyCrepeTheme(isDark());
-  themeSelect.value = themeSetting;
+  themeLabel.textContent = THEME_NAMES[themeSetting];
+  for (const opt of themeOptions) {
+    const on = opt.dataset.theme === themeSetting;
+    opt.classList.toggle('on', on);
+    opt.setAttribute('aria-selected', String(on));
+  }
   if (remount) void mountEditor(editor?.getScroll());
 }
-
-themeSelect.addEventListener('change', () => {
-  themeSetting = themeSelect.value as ThemeSetting;
-  backend.setSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
-  applyTheme(true);
-});
 
 /** Applies the theme saved in the settings, if any. Runs before any file is opened. */
 async function loadSavedTheme(): Promise<void> {
