@@ -37,6 +37,7 @@ const tabsEl = $('tabs');
 const bannerEl = $('banner');
 const editorEl = $('editor');
 const emptyEl = $('empty');
+const docHeadEl = $('dochead');
 const toastEl = $('toast');
 const modalEl = $('modal');
 
@@ -87,22 +88,105 @@ let themeSetting: ThemeSetting = 'light';
 // SciFi is built on the dark theme: the editors use its styles and style.css recolors the rest.
 const isDark = () => themeSetting === 'dark' || themeSetting === 'scifi';
 
-const themeSelect = $<HTMLSelectElement>('theme-select');
-for (const t of THEME_ORDER) themeSelect.add(new Option(THEME_NAMES[t], t));
+// The theme drop-down is built by hand because a native <select> list can't be styled. It follows the
+// listbox pattern: arrow keys, Home/End, Enter or Space to pick, Esc or Tab to close.
+const themeBtn = $<HTMLButtonElement>('theme-btn');
+const themeMenu = $('theme-menu');
+const themeLabel = $('theme-label');
+const CHECK_SVG =
+  '<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+const themeOptions = THEMES.map((t) => {
+  const opt = document.createElement('div');
+  opt.className = 'opt';
+  opt.id = 'theme-opt-' + t.id;
+  opt.setAttribute('role', 'option');
+  opt.tabIndex = -1;
+  opt.dataset.theme = t.id;
+  const sw = document.createElement('span');
+  sw.className = 'sw';
+  sw.style.background = `linear-gradient(135deg, ${t.swatch[0]} 50%, ${t.swatch[1]} 50%)`;
+  const name = document.createElement('span');
+  name.textContent = t.label;
+  opt.append(sw, name);
+  opt.insertAdjacentHTML('beforeend', CHECK_SVG);
+  opt.addEventListener('click', () => pickTheme(t.id));
+  themeMenu.appendChild(opt);
+  return opt;
+});
+
+const isThemeMenuOpen = () => !themeMenu.hidden;
+
+function openThemeMenu(focus: 'current' | 'first' | 'last' = 'current'): void {
+  themeMenu.hidden = false;
+  themeBtn.setAttribute('aria-expanded', 'true');
+  themeBtn.classList.add('open');
+  const i = focus === 'first' ? 0 : focus === 'last' ? themeOptions.length - 1 : THEME_ORDER.indexOf(themeSetting);
+  themeOptions[i].focus();
+}
+
+function closeThemeMenu(refocus: boolean): void {
+  if (!isThemeMenuOpen()) return;
+  themeMenu.hidden = true;
+  themeBtn.setAttribute('aria-expanded', 'false');
+  themeBtn.classList.remove('open');
+  if (refocus) themeBtn.focus();
+}
+
+function pickTheme(id: ThemeSetting): void {
+  closeThemeMenu(true);
+  if (id === themeSetting) return;
+  themeSetting = id;
+  backend.setSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
+  applyTheme(true);
+}
+
+themeBtn.addEventListener('click', () => (isThemeMenuOpen() ? closeThemeMenu(true) : openThemeMenu()));
+themeBtn.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    openThemeMenu(e.key === 'ArrowDown' ? 'current' : 'last');
+  }
+});
+themeMenu.addEventListener('keydown', (e) => {
+  const i = themeOptions.indexOf(document.activeElement as HTMLDivElement);
+  const n = themeOptions.length;
+  const go = (j: number) => {
+    e.preventDefault();
+    themeOptions[(j + n) % n].focus();
+  };
+  if (e.key === 'ArrowDown') go(i + 1);
+  else if (e.key === 'ArrowUp') go(i - 1);
+  else if (e.key === 'Home') go(0);
+  else if (e.key === 'End') go(n - 1);
+  else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    if (i >= 0) pickTheme(themeOptions[i].dataset.theme as ThemeSetting);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    closeThemeMenu(true);
+  } else if (e.key === 'Tab') {
+    closeThemeMenu(false);
+  }
+});
+// A click anywhere outside the button and menu closes it.
+document.addEventListener('pointerdown', (e) => {
+  if (isThemeMenuOpen() && !$('theme-dd').contains(e.target as Node)) closeThemeMenu(false);
+});
 
 function applyTheme(remount: boolean): void {
   const root = document.documentElement;
   for (const t of THEME_ORDER) root.classList.toggle('th-' + t, t === themeSetting);
   applyCrepeTheme(isDark());
-  themeSelect.value = themeSetting;
+  themeLabel.textContent = THEME_NAMES[themeSetting];
+  for (const opt of themeOptions) {
+    const on = opt.dataset.theme === themeSetting;
+    opt.classList.toggle('on', on);
+    opt.setAttribute('aria-selected', String(on));
+  }
   if (remount) void mountEditor(editor?.getScroll());
 }
-
-themeSelect.addEventListener('change', () => {
-  themeSetting = themeSelect.value as ThemeSetting;
-  backend.setSetting('theme', themeSetting).catch(() => toast('Could not save the theme choice'));
-  applyTheme(true);
-});
 
 /** Applies the theme saved in the settings, if any. Runs before any file is opened. */
 async function loadSavedTheme(): Promise<void> {
@@ -117,7 +201,53 @@ async function loadSavedTheme(): Promise<void> {
 
 // ---------- tabs and editor ----------
 
+/** The path bar above the document: where the file is, and whether it's saved. */
+function renderDocHead(): void {
+  docHeadEl.hidden = !active;
+  if (!active) return;
+  const crumb = $('doc-crumb');
+  crumb.replaceChildren();
+  crumb.title = active.path;
+  const parts = crumbParts(active.path);
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      const sl = document.createElement('span');
+      sl.className = 'sl';
+      sl.textContent = '/';
+      crumb.append(sl);
+    }
+    const el = document.createElement(i === parts.length - 1 ? 'b' : 'span');
+    el.textContent = part;
+    crumb.append(el);
+  });
+  renderStatus();
+}
+
+/** The file's folders from the listed folder it's in (or just its own folder), then its name. */
+function crumbParts(path: string): string[] {
+  const root = tree.rootFor(path);
+  const rel = root ? path.slice(root.length) : basename(path);
+  const parts = rel.split(/[\\/]/).filter(Boolean);
+  const top = basename(root ?? dirname(path));
+  return top ? [top, ...parts] : parts;
+}
+
+function renderStatus(): void {
+  const tab = active;
+  if (!tab) return;
+  const [state, text] = tab.conflict
+    ? ['warn', 'Changed on disk']
+    : tab.needsPermission
+      ? ['warn', 'Not saved: needs permission']
+      : isDirty(tab)
+        ? ['dirty', 'Unsaved changes']
+        : ['', 'Saved'];
+  $('doc-status').className = state;
+  $('doc-status-text').textContent = text;
+}
+
 function renderTabs(): void {
+  renderStatus();
   tabsEl.replaceChildren();
   for (const tab of tabs) {
     const el = document.createElement('div');
@@ -219,6 +349,7 @@ function renderPermissionBanner(tab: Tab): void {
     }
     tab.needsPermission = false;
     renderBanner();
+    renderStatus();
     await saveNow(tab);
   });
   bannerEl.append(msg, allow);
@@ -227,6 +358,7 @@ function renderPermissionBanner(tab: Tab): void {
 
 function renderChrome(): void {
   renderTabs();
+  renderDocHead();
   renderBanner();
   emptyEl.hidden = tabs.length > 0;
   editorEl.hidden = tabs.length === 0;
@@ -413,6 +545,7 @@ async function saveNow(tab: Tab): Promise<void> {
     if (e instanceof NeedsPermission) {
       tab.needsPermission = true;
       renderBanner();
+      renderStatus();
     } else {
       toast(`Could not save ${basename(tab.path)}: ${e}`);
     }
@@ -566,9 +699,12 @@ async function pickFolder(): Promise<void> {
 
 $('btn-open-file').addEventListener('click', () => void pickFiles());
 $('btn-open-folder').addEventListener('click', () => void pickFolder());
+$('btn-empty-file').addEventListener('click', () => void pickFiles());
+$('btn-empty-folder').addEventListener('click', () => void pickFolder());
 $('btn-export-html').addEventListener('click', () => void exportHtml());
 $('btn-export-pdf').addEventListener('click', () => void exportPdf());
 $('btn-refresh').addEventListener('click', () => void tree.refresh());
+$('btn-close-folder').addEventListener('click', () => void tree.clear());
 document.querySelectorAll<HTMLElement>('#view-toggle button').forEach((b) =>
   b.addEventListener('click', () => switchView(b.dataset.view as View)),
 );
@@ -601,7 +737,7 @@ window.addEventListener(
 
 const tree = new Tree(
   $('tree'),
-  $('sidebar-title'),
+  { sidebar: $('sidebar'), title: $('sidebar-title'), count: $('sidebar-count'), where: $('sidebar-where') },
   (p) => void openFile(p),
   (items) => void backend.rememberItems(items),
 );
@@ -633,8 +769,9 @@ for (const type of ['click', 'auxclick'] as const) {
 }
 // The browser version needs the File System Access API, which only Edge and Chrome on a computer have.
 if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
-  emptyEl.querySelector('p')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
+  emptyEl.querySelector('h2')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
   emptyEl.querySelector('.hint')?.remove();
+  emptyEl.querySelector('.acts')?.remove();
   for (const id of ['btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
 }
 

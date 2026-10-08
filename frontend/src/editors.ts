@@ -9,6 +9,7 @@ import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { Crepe } from '@milkdown/crepe';
 import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { $remark } from '@milkdown/kit/utils';
 import crepeCommon from '@milkdown/crepe/theme/common/style.css?inline';
 import crepeLight from '@milkdown/crepe/theme/frame.css?inline';
 import crepeDark from '@milkdown/crepe/theme/frame-dark.css?inline';
@@ -184,6 +185,22 @@ function watchLinks(parent: HTMLElement, onLink: (href: string) => void): void {
   });
 }
 
+type MdNode = { type: string; title?: string | null; children?: MdNode[] };
+
+/**
+ * Works around a Milkdown 7.22 bug. A picture on a line of its own with no title, like `![x](pic.png)`,
+ * has a title of null, which Crepe's picture block rejects. The picture then vanished from the editor,
+ * and the next autosave deleted it from the file. An empty title is the same thing and is not written
+ * back, so the file is unchanged. Fixes both node types, since the order plugins run in isn't promised.
+ */
+const imageTitleFix = $remark('mdgeek-image-title-fix', () => () => (tree: unknown) => {
+  const walk = (node: MdNode) => {
+    if ((node.type === 'image' || node.type === 'image-block') && node.title == null) node.title = '';
+    node.children?.forEach(walk);
+  };
+  walk(tree as MdNode);
+});
+
 export async function createWysiwygEditor(
   parent: HTMLElement,
   text: string,
@@ -211,6 +228,7 @@ export async function createWysiwygEditor(
     },
   });
 
+  crepe.editor.use(imageTitleFix);
   const bullet = detectBullet(text);
   crepe.editor.config((ctx) => {
     ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet }));
