@@ -274,46 +274,73 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 #main { display: flex; flex: 1; min-height: 0; }
 
+/* ---------- Sidebar ("Explorer") ---------- */
+
 #sidebar {
-  width: 260px;
-  min-width: 160px;
+  width: 264px;
+  min-width: 180px;
   max-width: 50%;
+  flex: none;
   display: flex;
   flex-direction: column;
-  background: var(--bg-alt);
-  border-right: 1px solid var(--border);
+  padding: 2px 8px 12px 10px;
+  background: var(--side);
   resize: horizontal;
   overflow: hidden;
 }
-#sidebar-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-}
+#sidebar-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 6px 4px 12px 6px; }
+.side-name { min-width: 0; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink2); }
+.fname { font-weight: 600; font-size: 14px; margin-top: 4px; display: flex; align-items: center; gap: 7px; min-width: 0; }
+.fname .ic { color: var(--acc); display: none; }
+#sidebar.has-items .fname .ic { display: block; }
 #sidebar-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#btn-refresh { padding: 0 6px; }
-#tree { flex: 1; overflow: auto; padding: 4px 0; }
-.tree-empty { padding: 10px; color: var(--fg-muted); }
+.ibs { display: flex; gap: 2px; flex: none; }
+.ib { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border-radius: 7px; border: 0; background: transparent; color: var(--ink2); }
+.ib:hover:not(:disabled) { background: var(--btnh); color: var(--ink); }
+#sidebar:not(.has-items) .ib { opacity: .4; pointer-events: none; }
+
+#tree { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 1px; }
+/* The wrappers around each folder's rows don't affect layout, so every row is spaced the same. */
+#tree div:not(.node, .tree-empty, .side-empty) { display: contents; }
+.tree-empty { padding: 8px 6px; color: var(--ink2); font-size: 13px; }
+.side-empty { margin: 4px; padding: 16px 14px; border: 1px dashed var(--btnline); border-radius: 10px; color: var(--ink2); font-size: 13px; line-height: 1.5; }
+
 .node {
+  height: 32px;
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: 8px;
+  padding-right: 8px;
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 13.5px;
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
 }
-.node:hover { background: var(--bg-hover); }
-.node.active { background: var(--bg-active); }
-.node .twisty { width: 12px; color: var(--fg-muted); font-size: 10px; text-align: center; }
-.node .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.node .remove { visibility: hidden; border: none; background: none; padding: 0 4px; color: var(--fg-muted); }
+.node:hover { background: var(--hover); }
+.node:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+.node .ic { color: var(--ink3); }
+.node.dir .ic { color: var(--dir); }
+#app .node .chev { width: 14px; height: 14px; color: var(--ink3); transition: transform .12s ease; }
+.node.open .chev { transform: rotate(90deg); }
+.node.active { background: var(--accsoft); color: var(--accink); font-weight: 500; }
+.node.active .ic { color: var(--acc); }
+.node .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.node .ext { margin-left: auto; font: 500 10.5px var(--mono); color: var(--ink2); }
+.node .remove { visibility: hidden; margin-left: auto; border: none; background: none; padding: 0 4px; color: var(--ink2); }
+.node .ext + .remove { margin-left: 4px; }
 .node:hover .remove, .node .remove:focus-visible { visibility: visible; }
-.node .remove:hover { background: var(--bg-hover); color: var(--fg); }
-#sidebar.drop-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.node .remove:hover { background: var(--btnh); color: var(--ink); }
+#sidebar.drop-over { outline: 2px dashed var(--acc); outline-offset: -2px; }
+
+/* Footer: how many files are showing, and the folder's location. */
+.side-f { display: none; justify-content: space-between; gap: 12px; margin-top: auto; padding: 10px 6px 0; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink2); }
+#sidebar.has-items .side-f { display: flex; }
+#sidebar-count { flex: none; }
+#sidebar-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 #content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; background: var(--panel); }
 
@@ -509,17 +536,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-scifi .tab .close,
 .th-scifi .node .remove { letter-spacing: 0; }
 
-/* Sidebar: glowing right edge, heading styled as a panel label. */
-.th-scifi #sidebar { border-right-color: var(--border); box-shadow: inset -1px 0 0 rgba(51, 214, 236, 0.25); }
-.th-scifi #sidebar-head {
-  font-family: var(--frame-font);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-  border-bottom-color: var(--border);
-}
-.th-scifi .node.active { box-shadow: inset 2px 0 0 var(--accent); }
+/* Sidebar: its own dark panel, cyan labels, square rows. */
+.th-scifi #sidebar { padding-top: 8px; }
+.th-scifi .ib, .th-scifi .node, .th-scifi .side-empty { border-radius: 0; }
+.th-scifi .eyebrow { color: var(--acc); letter-spacing: .14em; font-size: 12px; }
+.th-scifi .fname { font-size: 16px; letter-spacing: .04em; }
+.th-scifi .node { font-size: 15px; font-weight: 500; }
+.th-scifi .node.active { text-shadow: 0 0 10px rgba(63, 208, 240, .6); }
 
 /* Active tab: a top bar that glows, gently pulsing. */
 .th-scifi .tab { font-family: var(--frame-font); letter-spacing: 0.02em; }

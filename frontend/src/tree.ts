@@ -7,6 +7,20 @@ import { basename, isInside, samePath } from './paths';
 export type TreeItem = { path: string; isDir: boolean };
 type Node = Pick<Entry, 'name' | 'path' | 'isDir'>;
 
+/** The parts of the sidebar, outside the tree itself, that show what is listed. */
+export interface TreeChrome {
+  sidebar: HTMLElement; // gets the class "has-items" while anything is listed
+  title: HTMLElement;
+  count: HTMLElement;
+  where: HTMLElement;
+}
+
+const svg = (cls: string, paths: string) =>
+  `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+const CHEVRON = svg('chev', '<path d="M9 6l6 6-6 6"/>');
+const FOLDER_ICON = svg('ic', '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
+const FILE_ICON = svg('ic', '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>');
+
 export class Tree {
   private roots: TreeItem[] = [];
   private expanded = new Set<string>();
@@ -14,7 +28,7 @@ export class Tree {
 
   constructor(
     private container: HTMLElement,
-    private titleEl: HTMLElement,
+    private chrome: TreeChrome,
     private onOpenFile: (path: string) => void,
     /** Called when the top-level list changes, so it can be remembered for next time. */
     private onRootsChange: (items: TreeItem[]) => void = () => {},
@@ -54,6 +68,14 @@ export class Tree {
     await this.refresh();
   }
 
+  /** Empties the pane. Nothing on disk changes. */
+  async clear(): Promise<void> {
+    this.roots = [];
+    this.expanded.clear();
+    this.onRootsChange([]);
+    await this.refresh();
+  }
+
   /** Whether the path is already in the pane, listed itself or inside a listed folder. */
   shows(path: string): boolean {
     return this.roots.some((r) => (r.isDir ? isInside(path, r.path) : samePath(r.path, path)));
@@ -69,11 +91,23 @@ export class Tree {
     return this.roots.length === 1 && this.roots[0].isDir;
   }
 
-  private showTitle(): void {
+  /** Header and footer: what is listed, how many files are showing, and where they are. */
+  private showChrome(): void {
     const r = this.roots;
-    this.titleEl.textContent =
+    const { sidebar, title, where } = this.chrome;
+    sidebar.classList.toggle('has-items', r.length > 0);
+    title.textContent =
       r.length === 0 ? 'No folder open' : r.length === 1 ? basename(r[0].path) || r[0].path : `${r.length} items`;
-    this.titleEl.title = r.map((x) => x.path).join('\n');
+    title.title = r.map((x) => x.path).join('\n');
+    where.textContent = r.length === 1 ? r[0].path : '';
+    where.title = where.textContent;
+    this.updateCount();
+  }
+
+  /** Counts the files currently showing; files inside closed folders aren't loaded yet, so aren't counted. */
+  private updateCount(): void {
+    const n = this.container.querySelectorAll('.node.file').length;
+    this.chrome.count.textContent = `${n} file${n === 1 ? '' : 's'} shown`;
   }
 
   setActive(path: string | null): void {
@@ -86,12 +120,11 @@ export class Tree {
   }
 
   async refresh(): Promise<void> {
-    this.showTitle();
     this.container.replaceChildren();
     if (this.roots.length === 0) {
       const msg = document.createElement('div');
-      msg.className = 'tree-empty';
-      msg.textContent = 'Drop Markdown files or folders here to list them.';
+      msg.className = 'side-empty';
+      msg.textContent = 'Open a folder to browse its Markdown files here. You can also drop files and folders on this pane.';
       this.container.appendChild(msg);
     } else if (this.isSingleFolder()) {
       await this.fill(this.container, this.roots[0].path, 0);
@@ -102,6 +135,7 @@ export class Tree {
         this.container.appendChild(node);
       }
     }
+    this.showChrome();
   }
 
   private addRemoveButton(row: HTMLElement, path: string): void {
@@ -127,10 +161,11 @@ export class Tree {
       if (e instanceof NoAccess) {
         // The click is what lets the browser show its "allow access" prompt.
         const ask = document.createElement('button');
+        ask.className = 'btn';
         ask.textContent = `Allow access to ${basename(dir) || dir}`;
         ask.addEventListener('click', () => {
           parent.replaceChildren();
-          void this.fill(parent, dir, depth);
+          void this.fill(parent, dir, depth).then(() => this.updateCount());
         });
         msg.append(ask);
       } else {
@@ -154,38 +189,58 @@ export class Tree {
   private async buildNode(entry: Node, depth: number): Promise<HTMLElement> {
     const wrap = document.createElement('div');
     const row = document.createElement('div');
-    row.className = 'node';
+    row.className = 'node ' + (entry.isDir ? 'dir' : 'file');
     row.dataset.path = entry.path;
-    row.style.paddingLeft = 8 + depth * 14 + 'px';
-    const twisty = document.createElement('span');
-    twisty.className = 'twisty';
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    // Files line up with folder icons: they have no arrow (14px) or the gap after it (8px).
+    row.style.paddingLeft = 8 + depth * 18 + (entry.isDir ? 0 : 22) + 'px';
+    const ext = entry.isDir ? '' : (/\.[^.]+$/.exec(entry.name)?.[0] ?? '');
     const label = document.createElement('span');
     label.className = 'label';
-    label.textContent = entry.name;
+    label.textContent = ext ? entry.name.slice(0, -ext.length) : entry.name;
     label.title = entry.path;
-    row.append(twisty, label);
+    row.insertAdjacentHTML('beforeend', entry.isDir ? CHEVRON + FOLDER_ICON : FILE_ICON);
+    row.append(label);
+    if (ext) {
+      const tag = document.createElement('span');
+      tag.className = 'ext';
+      tag.textContent = ext.toLowerCase();
+      row.append(tag);
+    }
+    row.addEventListener('keydown', (e) => {
+      if (e.target === row && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        row.click();
+      }
+    });
     wrap.appendChild(row);
 
     if (entry.isDir) {
       const kids = document.createElement('div');
       wrap.appendChild(kids);
+      const setOpen = (open: boolean) => {
+        row.classList.toggle('open', open);
+        row.setAttribute('aria-expanded', String(open));
+      };
       const open = async () => {
-        twisty.textContent = '▾';
+        setOpen(true);
         kids.replaceChildren();
         await this.fill(kids, entry.path, depth + 1);
         this.setActive(this.active);
       };
-      twisty.textContent = '▸';
+      setOpen(false);
       if (this.expanded.has(entry.path)) await open();
       row.addEventListener('click', async () => {
         if (this.expanded.has(entry.path)) {
           this.expanded.delete(entry.path);
-          twisty.textContent = '▸';
+          setOpen(false);
           kids.replaceChildren();
         } else {
           this.expanded.add(entry.path);
           await open();
         }
+        this.updateCount();
       });
     } else {
       if (entry.path === this.active) row.classList.add('active');

@@ -652,6 +652,7 @@ $('btn-open-folder').addEventListener('click', () => void pickFolder());
 $('btn-export-html').addEventListener('click', () => void exportHtml());
 $('btn-export-pdf').addEventListener('click', () => void exportPdf());
 $('btn-refresh').addEventListener('click', () => void tree.refresh());
+$('btn-close-folder').addEventListener('click', () => void tree.clear());
 document.querySelectorAll<HTMLElement>('#view-toggle button').forEach((b) =>
   b.addEventListener('click', () => switchView(b.dataset.view as View)),
 );
@@ -684,7 +685,7 @@ window.addEventListener(
 
 const tree = new Tree(
   $('tree'),
-  $('sidebar-title'),
+  { sidebar: $('sidebar'), title: $('sidebar-title'), count: $('sidebar-count'), where: $('sidebar-where') },
   (p) => void openFile(p),
   (items) => void backend.rememberItems(items),
 );

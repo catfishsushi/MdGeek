@@ -41,10 +41,17 @@
     <div id="main">
         <aside id="sidebar">
             <div id="sidebar-head">
-                <span id="sidebar-title">No folder open</span>
-                <button id="btn-refresh" title="Refresh">&#x21bb;</button>
+                <div class="side-name">
+                    <div class="eyebrow">Explorer</div>
+                    <div class="fname"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span id="sidebar-title">No folder open</span></div>
+                </div>
+                <div class="ibs">
+                    <button id="btn-refresh" class="ib" title="Refresh" aria-label="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+                    <button id="btn-close-folder" class="ib" title="Close folder (the files stay on disk)" aria-label="Close folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+                </div>
             </div>
             <div id="tree"></div>
+            <div class="side-f"><span id="sidebar-count"></span><span id="sidebar-where"></span></div>
         </aside>
         <section id="content">
             <div id="tabs" role="tablist"></div>
