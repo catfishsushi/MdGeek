@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="th-light">
 <head>
     <meta charset="UTF-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -8,17 +8,25 @@
 <body>
 <div id="app">
     <header id="toolbar">
-        <button id="btn-open-file" title="Open file (Ctrl+O)">Open file</button>
-        <button id="btn-open-folder" title="Open folder (Ctrl+Shift+O)">Open folder</button>
-        <span class="spacer"></span>
-        <div id="view-toggle" class="segmented" title="Switch view (Ctrl+E)">
-            <button data-view="wysiwyg">WYSIWYG</button>
-            <button data-view="source">Source</button>
+        <div class="grp">
+            <div class="brand"><span class="logo" aria-hidden="true">M&#x2193;</span><span class="bname">MdGeek</span></div>
+            <span class="sep"></span>
+            <button id="btn-open-file" class="btn" title="Open file (Ctrl+O)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Open file</button>
+            <button id="btn-open-folder" class="btn" title="Open folder (Ctrl+Shift+O)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Open folder</button>
         </div>
-        <span class="spacer"></span>
-        <button id="btn-export-html" title="Export as HTML">Export HTML</button>
-        <button id="btn-export-pdf" title="Export as PDF (opens the print dialog)">Export PDF</button>
-        <label id="theme-picker">Theme <select id="theme-select" title="Theme"></select></label>
+        <div id="view-toggle" class="seg" role="group" aria-label="Editor mode" title="Switch view (Ctrl+E)">
+            <button class="seg-b" data-view="wysiwyg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>WYSIWYG</button>
+            <button class="seg-b" data-view="source"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg>Source</button>
+        </div>
+        <div class="grp end">
+            <div class="exp" role="group" aria-label="Export">
+                <span class="lbl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Export</span>
+                <button id="btn-export-html" title="Export as HTML">HTML</button>
+                <button id="btn-export-pdf" title="Export as PDF (opens the print dialog)">PDF</button>
+            </div>
+            <span class="sep"></span>
+            <label id="theme-picker">Theme <select id="theme-select" title="Theme"></select></label>
+        </div>
     </header>
     <div id="main">
         <aside id="sidebar">
