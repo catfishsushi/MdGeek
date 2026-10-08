@@ -81,6 +81,11 @@ export class Tree {
     return this.roots.some((r) => (r.isDir ? isInside(path, r.path) : samePath(r.path, path)));
   }
 
+  /** The listed folder that contains the path, if any. */
+  rootFor(path: string): string | null {
+    return this.roots.find((r) => r.isDir && isInside(path, r.path))?.path ?? null;
+  }
+
   private async remove(path: string): Promise<void> {
     this.roots = this.roots.filter((r) => r.path !== path);
     this.onRootsChange(this.roots.slice());

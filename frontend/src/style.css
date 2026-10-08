@@ -132,21 +132,6 @@
   color-scheme: dark;
 }
 
-/* Old names, kept while the rest of this file moves over to the theme variables. */
-:root {
-  --bg-alt: var(--btn);
-  --bg-hover: var(--btnh);
-  --bg-active: var(--accsoft);
-  --fg: var(--ink);
-  --fg-muted: var(--ink2);
-  --border: var(--btnline);
-  --accent: var(--acc);
-  --on-accent: var(--logoink);
-  --warn-border: var(--warn-line);
-  --frame-font: var(--ui);
-  --scanlines: repeating-linear-gradient(0deg, rgba(63, 208, 240, .04) 0 1px, transparent 1px 3px);
-}
-
 * { box-sizing: border-box; }
 
 html, body {
@@ -162,14 +147,14 @@ html, body {
 
 button {
   font: inherit;
-  color: var(--fg);
-  background: var(--bg-alt);
-  border: 1px solid var(--border);
+  color: var(--ink);
+  background: var(--btn);
+  border: 1px solid var(--btnline);
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
 }
-button:hover { background: var(--bg-hover); }
+button:hover { background: var(--btnh); }
 button:disabled { opacity: 0.5; cursor: default; }
 
 /* ---------- Toolbar ---------- */
@@ -342,59 +327,71 @@ button:disabled { opacity: 0.5; cursor: default; }
 #sidebar-count { flex: none; }
 #sidebar-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-#content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; background: var(--panel); }
+/* ---------- Editor area ---------- */
 
-#tabs {
+/* Light and Dark: a rounded panel inset 8px from the window edges. */
+#content {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  overflow-x: auto;
-  background: var(--bg-alt);
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  position: relative;
+  margin: 0 8px 8px 0;
+  background: var(--panel);
+  border: 1px solid var(--panelline);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
+
+/* Open files, above the path bar. */
+#tabs { flex: none; display: flex; gap: 2px; padding: 6px 8px 0; overflow-x: auto; overflow-y: hidden; background: var(--code); box-shadow: inset 0 -1px 0 var(--line); }
 #tabs:empty { display: none; }
 .tab {
+  height: 34px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border-right: 1px solid var(--border);
+  padding: 0 6px 0 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  color: var(--ink2);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  color: var(--fg-muted);
   user-select: none;
 }
-.tab.active { background: var(--panel); color: var(--fg); box-shadow: inset 0 2px 0 var(--accent); }
-.tab.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
-.tab .dirty { color: var(--accent); }
-.tab .conflict { color: #d4a72c; font-weight: 700; }
-.tab .close { border: none; background: none; padding: 0 4px; color: var(--fg-muted); }
-.tab .close:hover { background: var(--bg-hover); color: var(--fg); }
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--ink); background: var(--panel); border-color: var(--line); box-shadow: inset 0 2px 0 var(--acc); }
+.tab.drag-over { outline: 2px dashed var(--acc); outline-offset: -2px; }
+.tab .dirty { color: var(--acc); }
+.tab .conflict { color: var(--warn-line); font-weight: 700; }
+.tab .close { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ink3); line-height: 1; }
+.tab .close:hover { background: var(--btnh); color: var(--ink); }
 
-#banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--warn-bg);
-  border-bottom: 1px solid var(--warn-border);
-}
+/* Path bar: where the file is, and whether it's saved. */
+#dochead { height: 44px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink2); }
+#dochead[hidden] { display: none; }
+.crumb { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.crumb b { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.crumb .sl { color: var(--ink3); }
+.status { display: flex; align-items: center; gap: 16px; flex: none; }
+.status > span { display: inline-flex; align-items: center; gap: 7px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
+#doc-status.dirty .dot { background: var(--acc); }
+#doc-status.warn .dot { background: var(--warn-line); }
+
+#banner { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 18px; background: var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-size: 13px; }
 #banner[hidden] { display: none; }
 #banner .msg { flex: 1; }
+#banner button { height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--btnline); background: var(--btn); }
+#banner button:hover { background: var(--btnh); }
 
 #editor { flex: 1; min-height: 0; overflow: hidden; }
 .host { height: 100%; overflow: auto; }
 #editor[hidden] { display: none; }
-.cm-editor { height: 100%; }
-.cm-editor.cm-focused { outline: none; }
-/* Crepe puts 60px above the text plus a heading's top margin; trim that so the first line sits closer to its toolbar.
-   #editor raises specificity above Crepe's own rules, which load later. */
-#editor .milkdown .ProseMirror { padding-top: 20px; }
-/* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
-#editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
-/* A heading at the very top sits 22px higher than Crepe puts it (32px down), like the title of the
-   note. */
-#editor .milkdown .ProseMirror > :is(h1, h2, h3, h4, h5, h6):nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 10px; }
-.cm-scroller { font-family: var(--mono); font-size: 14px; }
-.cm-editor, .cm-editor .cm-gutters { background: transparent; }
 
 /* The WYSIWYG editor (Crepe) takes its colours and fonts from the theme. #editor raises specificity above
    Crepe's own stylesheet, which loads later. */
@@ -417,24 +414,61 @@ button:disabled { opacity: 0.5; cursor: default; }
   --crepe-font-default: var(--read);
   --crepe-font-code: var(--mono);
 }
+#editor .milkdown .milkdown-top-bar { background: var(--panel); border-bottom: 1px solid var(--line); }
 
-#empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-muted);
-}
+/* The document: centred, at most 740px wide. */
+#editor .milkdown .ProseMirror { max-width: 740px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
+/* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
+#editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
+#editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { font-family: var(--disp); padding: 0; }
+#editor .milkdown .ProseMirror h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.025em; font-weight: 700; margin: 32px 0 12px; }
+#editor .milkdown .ProseMirror h2 { font-size: 21px; line-height: 1.3; letter-spacing: -.01em; font-weight: 600; margin: 32px 0 10px; }
+#editor .milkdown .ProseMirror h3 { font-size: 17px; line-height: 1.4; font-weight: 600; margin: 24px 0 8px; }
+#editor .milkdown .ProseMirror :is(h4, h5) { font-size: 15px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; }
+#editor .milkdown .ProseMirror h6 { font-size: 12px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
+#editor .milkdown .ProseMirror p { line-height: 1.7; padding: 0; }
+#editor .milkdown .ProseMirror > p { margin: 0 0 14px; }
+#editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper { color: var(--acc); }
+#editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper svg { fill: var(--acc); }
+#editor .milkdown .ProseMirror a { color: var(--acc); text-underline-offset: 3px; }
+#editor .milkdown .ProseMirror code { font-family: var(--mono); font-size: .84em; color: var(--ink); background: var(--code); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; line-height: 1.5; }
+#editor .milkdown .milkdown-code-block { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 6px 16px 14px; margin: 0 0 16px; }
+#editor .milkdown .milkdown-code-block .cm-editor,
+#editor .milkdown .milkdown-code-block .cm-gutters { background: transparent; }
+#editor .milkdown .milkdown-code-block .cm-scroller { font-size: 13px; line-height: 1.65; }
+#editor .milkdown .milkdown-code-block .cm-activeLineGutter { background: transparent; color: var(--ink); }
+#editor .milkdown .milkdown-code-block .cm-activeLine { background: var(--hover); }
+#editor .milkdown .ProseMirror blockquote { margin: 0 0 16px; padding: 12px 16px; border-radius: 10px; background: var(--accsoft); color: var(--ink); }
+#editor .milkdown .ProseMirror blockquote::before { display: none; }
+#editor .milkdown .ProseMirror blockquote p { margin: 0; }
+#editor .milkdown .milkdown-table-block { margin: 0 0 16px; font-size: 14px; }
+#editor .milkdown .milkdown-table-block :is(th, td) { border: 0; border-bottom: 1px solid var(--line); padding: 9px 10px; }
+#editor .milkdown .milkdown-table-block th { padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
+
+/* Source view: the same centred column, in the code font. */
+.cm-editor { height: 100%; }
+.cm-editor.cm-focused { outline: none; }
+.cm-editor, .cm-editor .cm-gutters { background: transparent; }
+.cm-scroller { font-family: var(--mono); font-size: 13.5px; line-height: 1.8; }
+#editor .host > .cm-editor .cm-content { flex: 0 1 740px; max-width: 740px; margin: 0 auto; padding: 44px 48px 64px; }
+
+/* Nothing open: a dashed drop-zone card. */
+#empty { flex: 1; display: grid; place-items: center; padding: 24px; }
 #empty[hidden] { display: none; }
-#empty .hint { font-size: 12px; }
+.drop { width: min(440px, 100%); padding: 36px 32px; border: 1.5px dashed var(--dropline); border-radius: 16px; background: var(--dropbg); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.drop .big { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--accsoft); color: var(--acc); }
+#app .drop .big svg { width: 26px; height: 26px; }
+.drop h2 { margin: 0; font-family: var(--disp); font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+.drop p { margin: 0; color: var(--ink2); font-size: 13.5px; }
+.drop .acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 2px; }
+.drop :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
 #toast {
   position: fixed;
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--fg);
+  background: var(--ink);
   color: var(--bg);
   padding: 8px 14px;
   border-radius: 6px;
@@ -459,7 +493,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   width: min(1100px, 94vw);
   height: min(700px, 88vh);
   background: var(--menu);
-  border: 1px solid var(--border);
+  border: 1px solid var(--btnline);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -468,7 +502,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--btnline);
   font-weight: 600;
 }
 .dialog-foot {
@@ -476,13 +510,13 @@ button:disabled { opacity: 0.5; cursor: default; }
   justify-content: flex-end;
   gap: 8px;
   padding: 10px 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--btnline);
 }
-.diff { flex: 1; overflow: auto; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
-.diff-cols { display: grid; grid-template-columns: 1fr 1fr; position: sticky; top: 0; background: var(--bg-alt); border-bottom: 1px solid var(--border); font-family: inherit; font-weight: 600; }
+.diff { flex: 1; overflow: auto; font-family: var(--mono); font-size: 13px; }
+.diff-cols { display: grid; grid-template-columns: 1fr 1fr; position: sticky; top: 0; background: var(--btn); border-bottom: 1px solid var(--btnline); font-family: inherit; font-weight: 600; }
 .diff-cols div { padding: 4px 10px; }
 .diff-row { display: grid; grid-template-columns: 1fr 1fr; }
-.diff-cell { padding: 0 10px; white-space: pre-wrap; word-break: break-word; min-height: 1.5em; border-right: 1px solid var(--border); }
+.diff-cell { padding: 0 10px; white-space: pre-wrap; word-break: break-word; min-height: 1.5em; border-right: 1px solid var(--btnline); }
 .diff-cell.del { background: var(--del-bg); }
 .diff-cell.add { background: var(--add-bg); }
 
@@ -544,38 +578,20 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-scifi .node { font-size: 15px; font-weight: 500; }
 .th-scifi .node.active { text-shadow: 0 0 10px rgba(63, 208, 240, .6); }
 
-/* Active tab: a top bar that glows, gently pulsing. */
-.th-scifi .tab { font-family: var(--frame-font); letter-spacing: 0.02em; }
-.th-scifi .tab.active { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 10px var(--glow); animation: scifi-pulse 4s ease-in-out infinite; }
-.th-scifi .tab .conflict { color: var(--warn-border); }
-@keyframes scifi-pulse {
-  0%, 100% { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 6px rgba(51, 214, 236, 0.2); }
-  50% { box-shadow: inset 0 2px 0 var(--accent), 0 -2px 12px rgba(51, 214, 236, 0.45); }
-}
-
-/* Empty screen: a faint grid behind the hint. */
-.th-scifi #empty {
-  font-family: var(--frame-font);
-  letter-spacing: 0.06em;
-  background-image:
-    linear-gradient(rgba(51, 214, 236, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(51, 214, 236, 0.06) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-.th-scifi .dialog { border-color: var(--accent); border-radius: 0; box-shadow: 0 0 24px var(--glow); }
-.th-scifi .dialog-head { font-family: var(--frame-font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
-.th-scifi #toast { background: var(--bg-alt); color: var(--fg); border: 1px solid var(--accent); border-radius: 0; box-shadow: 0 0 12px var(--glow); }
+.th-scifi .dialog { border-color: var(--acc); border-radius: 0; box-shadow: 0 0 24px var(--glow); }
+.th-scifi .dialog-head { font-family: var(--ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); }
+.th-scifi #toast { background: var(--btn); color: var(--ink); border: 1px solid var(--acc); border-radius: 0; box-shadow: 0 0 12px var(--glow); }
 
 .th-scifi ::selection { background: #1d5a6e; }
 .th-scifi ::-webkit-scrollbar { width: 10px; height: 10px; }
 .th-scifi ::-webkit-scrollbar-track { background: var(--bg); }
-.th-scifi ::-webkit-scrollbar-thumb { background: var(--border); border: 2px solid var(--bg); }
+.th-scifi ::-webkit-scrollbar-thumb { background: var(--btnline); border: 2px solid var(--bg); }
 .th-scifi ::-webkit-scrollbar-thumb:hover { background: #2e7088; }
 
-/* Control room backdrop: a faded, blurred picture behind the content area. To use a different picture,
-   replace assets/control-room.png or change the url() below (SVG and JPG work too). */
-.th-scifi #content { overflow: hidden; }
+/* Editor area: no inset; the control room picture, blurred and faded, sits behind it. To use a different
+   picture, replace assets/control-room.png or change the url() below (SVG and JPG work too). */
+.th-scifi #main { background: #08121B; }
+.th-scifi #content { margin: 0; border-radius: 0; border-width: 0 0 0 1px; background: #050A10; }
 .th-scifi #content::before {
   content: "";
   position: absolute;
@@ -586,19 +602,51 @@ button:disabled { opacity: 0.5; cursor: default; }
   pointer-events: none;
 }
 .th-scifi #content > * { position: relative; }
-.th-scifi #tabs { background: var(--scanlines), rgba(11, 22, 34, 0.85); }
-.th-scifi #empty { background-color: rgba(7, 13, 20, 0.35); }
 
-/* The editor fills the content area with a light dark tint over the room, just enough to keep text
-   readable over the brighter parts of the picture. */
-.th-scifi #editor { background: rgba(7, 13, 20, 0.55); }
-@media (prefers-reduced-transparency: reduce) {
-  .th-scifi #editor { background: var(--bg); }
+.th-scifi #tabs { background: rgba(4, 11, 18, .85); }
+.th-scifi .tab { border-radius: 0; text-transform: uppercase; letter-spacing: .06em; font-size: 14px; font-weight: 600; }
+.th-scifi .tab.active { background: rgba(4, 11, 18, .78); border-color: rgba(63, 208, 240, .35); text-shadow: 0 0 10px rgba(63, 208, 240, .6); }
+.th-scifi .tab .close { border-radius: 0; letter-spacing: 0; }
+
+.th-scifi #dochead { background: rgba(4, 11, 18, .78); font-family: var(--mono); font-size: 12px; letter-spacing: .04em; }
+.th-scifi .dot { box-shadow: 0 0 8px currentColor; color: var(--ok); }
+.th-scifi #doc-status.dirty .dot { color: var(--acc); }
+.th-scifi #doc-status.warn .dot { color: var(--warn-line); }
+
+/* The document sits on a see-through dark panel with corner brackets, so the text stays readable. */
+.th-scifi #editor .milkdown .milkdown-top-bar { background: #050C13; border-bottom-color: rgba(63, 208, 240, .35); }
+.th-scifi #editor .milkdown .ProseMirror,
+.th-scifi #editor .host > .cm-editor .cm-content {
+  position: relative;
+  max-width: 760px;
+  margin: 28px auto 40px;
+  padding: 40px 48px 48px;
+  background: rgba(4, 11, 18, .8);
+  border: 1px solid rgba(63, 208, 240, .28);
+}
+.th-scifi #editor .host > .cm-editor .cm-content { flex-basis: 760px; }
+.th-scifi #editor .milkdown .ProseMirror { font-size: 15.5px; }
+.th-scifi #editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: 38px; }
+.th-scifi #editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: 20px; }
+.th-scifi #editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 0; }
+
+.th-scifi .drop, .th-scifi .drop .big { border-radius: 0; }
+.th-scifi .drop { position: relative; }
+.th-scifi .drop h2 { text-transform: uppercase; letter-spacing: .08em; color: #7FE9FF; font-size: 20px; }
+.th-scifi .drop p { letter-spacing: .04em; }
+
+/* Corner brackets on the document panel and the drop card. */
+.th-scifi #editor .milkdown .ProseMirror::before, .th-scifi #editor .host > .cm-editor .cm-content::before, .th-scifi .drop::before {
+  content: ''; position: absolute; left: -1px; top: -1px; width: 8px; height: 8px;
+  border-left: 2px solid var(--acc); border-top: 2px solid var(--acc); pointer-events: none;
+}
+.th-scifi #editor .milkdown .ProseMirror::after, .th-scifi #editor .host > .cm-editor .cm-content::after, .th-scifi .drop::after {
+  content: ''; position: absolute; right: -1px; bottom: -1px; width: 8px; height: 8px;
+  border-right: 2px solid var(--acc); border-bottom: 2px solid var(--acc); pointer-events: none;
 }
 
-.th-scifi .milkdown .milkdown-top-bar {
-  background: var(--scanlines), var(--bg-alt);
-  border-bottom: 1px solid rgba(51, 214, 236, 0.5);
+@media (prefers-reduced-transparency: reduce) {
+  .th-scifi #editor .milkdown .ProseMirror, .th-scifi #editor .host > .cm-editor .cm-content { background: var(--bg); }
 }
 
 @media (prefers-reduced-motion: reduce) {

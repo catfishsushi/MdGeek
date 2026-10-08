@@ -55,11 +55,25 @@
         </aside>
         <section id="content">
             <div id="tabs" role="tablist"></div>
+            <div id="dochead" hidden>
+                <div id="doc-crumb" class="crumb"></div>
+                <div class="status">
+                    <span id="doc-status" role="status"><i class="dot"></i><span id="doc-status-text">Saved</span></span>
+                    <span>Markdown</span>
+                </div>
+            </div>
             <div id="banner" hidden></div>
             <div id="editor"></div>
             <div id="empty">
-                <p>Open a Markdown file or folder to begin.</p>
-                <p class="hint">You can also drop files here.</p>
+                <div class="drop">
+                    <div class="big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13l1.5 3 1.5-3 1.5 3 1.5-3"/></svg></div>
+                    <h2>Open a Markdown file or folder to begin.</h2>
+                    <p class="hint">You can also drop files here.</p>
+                    <div class="acts">
+                        <button id="btn-empty-file" class="btn pri"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Open file</button>
+                        <button id="btn-empty-folder" class="btn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Open folder</button>
+                    </div>
+                </div>
             </div>
         </section>
     </div>

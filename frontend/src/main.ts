@@ -37,6 +37,7 @@ const tabsEl = $('tabs');
 const bannerEl = $('banner');
 const editorEl = $('editor');
 const emptyEl = $('empty');
+const docHeadEl = $('dochead');
 const toastEl = $('toast');
 const modalEl = $('modal');
 
@@ -200,7 +201,53 @@ async function loadSavedTheme(): Promise<void> {
 
 // ---------- tabs and editor ----------
 
+/** The path bar above the document: where the file is, and whether it's saved. */
+function renderDocHead(): void {
+  docHeadEl.hidden = !active;
+  if (!active) return;
+  const crumb = $('doc-crumb');
+  crumb.replaceChildren();
+  crumb.title = active.path;
+  const parts = crumbParts(active.path);
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      const sl = document.createElement('span');
+      sl.className = 'sl';
+      sl.textContent = '/';
+      crumb.append(sl);
+    }
+    const el = document.createElement(i === parts.length - 1 ? 'b' : 'span');
+    el.textContent = part;
+    crumb.append(el);
+  });
+  renderStatus();
+}
+
+/** The file's folders from the listed folder it's in (or just its own folder), then its name. */
+function crumbParts(path: string): string[] {
+  const root = tree.rootFor(path);
+  const rel = root ? path.slice(root.length) : basename(path);
+  const parts = rel.split(/[\\/]/).filter(Boolean);
+  const top = basename(root ?? dirname(path));
+  return top ? [top, ...parts] : parts;
+}
+
+function renderStatus(): void {
+  const tab = active;
+  if (!tab) return;
+  const [state, text] = tab.conflict
+    ? ['warn', 'Changed on disk']
+    : tab.needsPermission
+      ? ['warn', 'Not saved: needs permission']
+      : isDirty(tab)
+        ? ['dirty', 'Unsaved changes']
+        : ['', 'Saved'];
+  $('doc-status').className = state;
+  $('doc-status-text').textContent = text;
+}
+
 function renderTabs(): void {
+  renderStatus();
   tabsEl.replaceChildren();
   for (const tab of tabs) {
     const el = document.createElement('div');
@@ -302,6 +349,7 @@ function renderPermissionBanner(tab: Tab): void {
     }
     tab.needsPermission = false;
     renderBanner();
+    renderStatus();
     await saveNow(tab);
   });
   bannerEl.append(msg, allow);
@@ -310,6 +358,7 @@ function renderPermissionBanner(tab: Tab): void {
 
 function renderChrome(): void {
   renderTabs();
+  renderDocHead();
   renderBanner();
   emptyEl.hidden = tabs.length > 0;
   editorEl.hidden = tabs.length === 0;
@@ -496,6 +545,7 @@ async function saveNow(tab: Tab): Promise<void> {
     if (e instanceof NeedsPermission) {
       tab.needsPermission = true;
       renderBanner();
+      renderStatus();
     } else {
       toast(`Could not save ${basename(tab.path)}: ${e}`);
     }
@@ -649,6 +699,8 @@ async function pickFolder(): Promise<void> {
 
 $('btn-open-file').addEventListener('click', () => void pickFiles());
 $('btn-open-folder').addEventListener('click', () => void pickFolder());
+$('btn-empty-file').addEventListener('click', () => void pickFiles());
+$('btn-empty-folder').addEventListener('click', () => void pickFolder());
 $('btn-export-html').addEventListener('click', () => void exportHtml());
 $('btn-export-pdf').addEventListener('click', () => void exportPdf());
 $('btn-refresh').addEventListener('click', () => void tree.refresh());
@@ -717,8 +769,9 @@ for (const type of ['click', 'auxclick'] as const) {
 }
 // The browser version needs the File System Access API, which only Edge and Chrome on a computer have.
 if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
-  emptyEl.querySelector('p')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
+  emptyEl.querySelector('h2')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
   emptyEl.querySelector('.hint')?.remove();
+  emptyEl.querySelector('.acts')?.remove();
   for (const id of ['btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
 }
 
