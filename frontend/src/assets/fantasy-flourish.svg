@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 24">
+  <!-- An ornamental divider: tapering rules, scrolls and a centre diamond. -->
+  <g fill="none" stroke="#4A321C" stroke-width="1.2" stroke-linecap="round">
+    <path d="M8 12 H128"/><path d="M192 12 H312"/>
+    <path d="M128 12 C136 12 138 4 145 5 C151 6 150 13 145 13 C141 13 141 9 144 9"/>
+    <path d="M192 12 C184 12 182 4 175 5 C169 6 170 13 175 13 C179 13 179 9 176 9"/>
+    <path d="M128 12 C136 12 138 20 145 19"/><path d="M192 12 C184 12 182 20 175 19"/>
+  </g>
+  <path d="M160 3 L169 12 L160 21 L151 12 Z" fill="#8B1E1E" stroke="#4A321C" stroke-width="1"/>
+  <circle cx="4" cy="12" r="1.8" fill="#4A321C"/><circle cx="316" cy="12" r="1.8" fill="#4A321C"/>
+</svg>
