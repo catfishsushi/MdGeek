@@ -56,8 +56,11 @@ const isDirty = (t: Tab) => t.content !== t.savedContent;
 // ---------- small helpers ----------
 
 let toastTimer: number | undefined;
+type ToastAction = { label: string; run: () => void };
+/** The "new version" notice, kept so other messages can't make it disappear for good. */
+let updateNotice: [string, ToastAction] | null = null;
 /** Shows a short message. With an action, it shows a button too and stays until clicked. */
-function toast(msg: string, action?: { label: string; run: () => void }): void {
+function toast(msg: string, action?: ToastAction): void {
   toastEl.textContent = msg;
   window.clearTimeout(toastTimer);
   if (action) {
@@ -66,10 +69,16 @@ function toast(msg: string, action?: { label: string; run: () => void }): void {
     b.addEventListener('click', () => {
       toastEl.hidden = true;
       action.run();
+      if (updateNotice && action !== updateNotice[1]) toast(...updateNotice);
     });
     toastEl.append(' ', b);
   } else {
-    toastTimer = window.setTimeout(() => (toastEl.hidden = true), 3500);
+    // A short message hides after a moment, then brings back the "new version" notice if one was
+    // showing, so a passing message can't wipe it out.
+    toastTimer = window.setTimeout(() => {
+      toastEl.hidden = true;
+      if (updateNotice) toast(...updateNotice);
+    }, 3500);
   }
   toastEl.hidden = false;
 }
@@ -637,19 +646,23 @@ backend.onClose(flushAll, () => tabs.some(isDirty));
 
 // A new version of the browser app is ready. Switching reloads the page, so save everything first and
 // stay on this version if anything couldn't be saved.
-backend.onUpdateReady((apply) =>
-  toast('A new version of MdGeek is ready.', {
-    label: 'Reload',
-    run: async () => {
-      await flushAll();
-      if (tabs.some(isDirty)) {
-        toast("Couldn't save everything, so MdGeek didn't reload.");
-        return;
-      }
-      apply();
+backend.onUpdateReady((apply) => {
+  updateNotice = [
+    'A new version of MdGeek is ready.',
+    {
+      label: 'Reload',
+      run: async () => {
+        await flushAll();
+        if (tabs.some(isDirty)) {
+          toast("Couldn't save everything, so MdGeek didn't reload.");
+          return;
+        }
+        apply();
+      },
     },
-  }),
-);
+  ];
+  toast(...updateNotice);
+});
 
 // ---------- export ----------
 

@@ -346,16 +346,26 @@ export const webBackend: Backend = {
           worker.postMessage({ type: 'activate-now' });
         });
       };
-      if (reg.waiting) offer(reg.waiting);
-      reg.addEventListener('updatefound', () => {
-        const worker = reg.installing;
+      const watch = (worker: ServiceWorker | null) => {
         worker?.addEventListener('statechange', () => {
           if (worker.state === 'installed') offer(worker);
         });
-      });
+      };
+      if (reg.waiting) offer(reg.waiting);
+      watch(reg.installing); // a download that started before this code ran
+      reg.addEventListener('updatefound', () => watch(reg.installing));
       // The browser checks for a new version when the app starts. An app left open for days would
-      // miss it, so check again every hour.
-      window.setInterval(() => void reg.update().catch(() => undefined), 60 * 60 * 1000);
+      // miss it, so check again every hour, and whenever the window comes back into view (at most
+      // every five minutes).
+      let lastCheck = Date.now();
+      const check = () => {
+        lastCheck = Date.now();
+        void reg.update().catch(() => undefined);
+      };
+      window.setInterval(check, 60 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && Date.now() - lastCheck > 5 * 60 * 1000) check();
+      });
     });
   },
 };
