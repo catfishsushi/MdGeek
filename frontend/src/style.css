@@ -511,8 +511,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 #editor .milkdown .milkdown-top-bar { background: var(--panel); border-bottom: 1px solid var(--line); }
 
-/* The document: centred, at most 740px wide. */
-#editor .milkdown .ProseMirror { max-width: 740px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
+/* The document: centred, at most 925px wide. */
+#editor .milkdown .ProseMirror { max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
 /* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
 #editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
 #editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { font-family: var(--disp); padding: 0; }
@@ -545,7 +545,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .cm-editor.cm-focused { outline: none; }
 .cm-editor, .cm-editor .cm-gutters { background: transparent; }
 .cm-scroller { font-family: var(--mono); font-size: 13.5px; line-height: 1.8; }
-#editor .host > .cm-editor .cm-content { flex: 0 1 740px; max-width: 740px; margin: 0 auto; padding: 44px 48px 64px; }
+#editor .host > .cm-editor .cm-content { flex: 0 1 925px; max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; }
 
 /* Nothing open: a dashed drop-zone card. */
 #empty { flex: 1; display: grid; place-items: center; padding: 24px; }
@@ -842,13 +842,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-scifi #editor .milkdown .ProseMirror,
 .th-scifi #editor .host > .cm-editor .cm-content {
   position: relative;
-  max-width: 760px;
+  max-width: 950px;
   margin: 28px auto 40px;
   padding: 40px 48px 48px;
   background: rgba(4, 11, 18, .8);
   border: 1px solid rgba(63, 208, 240, .28);
 }
-.th-scifi #editor .host > .cm-editor .cm-content { flex-basis: 760px; }
+.th-scifi #editor .host > .cm-editor .cm-content { flex-basis: 950px; }
 .th-scifi #editor .milkdown .ProseMirror { font-size: 15.5px; }
 .th-scifi #editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: 38px; }
 .th-scifi #editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: 20px; }
@@ -963,14 +963,14 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-fantasy #editor .milkdown .ProseMirror,
 .th-fantasy #editor .host > .cm-editor .cm-content {
   position: relative;
-  max-width: 760px;
+  max-width: 950px;
   margin: 28px auto 40px;
   padding: 48px 56px 56px;
   background: var(--grain), rgba(246, 236, 210, .94);
   border: 3px double var(--panelline);
   box-shadow: 0 6px 22px rgba(60, 38, 18, .3);
 }
-.th-fantasy #editor .host > .cm-editor .cm-content { flex-basis: 760px; }
+.th-fantasy #editor .host > .cm-editor .cm-content { flex-basis: 950px; }
 .th-fantasy #editor .milkdown .ProseMirror { font-size: 18px; line-height: 1.65; }
 .th-fantasy #editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { letter-spacing: .04em; color: var(--ink); }
 .th-fantasy #editor .milkdown .ProseMirror h1 {
