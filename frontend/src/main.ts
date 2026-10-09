@@ -2,6 +2,7 @@
 import '@fontsource-variable/geist/wght.css';
 import '@fontsource-variable/geist-mono/wght.css';
 import '@fontsource-variable/exo-2/wght.css';
+import '@fontsource-variable/pixelify-sans/wght.css';
 import '@fontsource/rajdhani/latin-500.css';
 import '@fontsource/rajdhani/latin-600.css';
 import '@fontsource/rajdhani/latin-700.css';
@@ -15,7 +16,7 @@ import { documentCss, renderPrintable, renderStandalone } from './render';
 import { Tree, TreeItem } from './tree';
 
 type View = 'wysiwyg' | 'source';
-type ThemeSetting = 'light' | 'dark' | 'scifi';
+type ThemeSetting = 'light' | 'dark' | 'retro' | 'scifi';
 
 interface Tab {
   path: string;
@@ -76,6 +77,7 @@ function toast(msg: string, action?: { label: string; run: () => void }): void {
 const THEMES: { id: ThemeSetting; label: string; swatch: [string, string] }[] = [
   { id: 'light', label: 'Light', swatch: ['#FFFFFF', '#2F54EB'] },
   { id: 'dark', label: 'Dark', swatch: ['#14161B', '#8FA8FF'] },
+  { id: 'retro', label: 'Retro', swatch: ['#141C78', '#FFD23F'] },
   { id: 'scifi', label: 'SciFi', swatch: ['#07101A', '#3FD0F0'] },
 ];
 const THEME_ORDER = THEMES.map((t) => t.id);
@@ -85,8 +87,8 @@ const isTheme = (v: string): v is ThemeSetting => (THEME_ORDER as string[]).incl
 // Light until the saved choice arrives from the saved settings (see loadSavedTheme).
 let themeSetting: ThemeSetting = 'light';
 
-// SciFi is built on the dark theme: the editors use its styles and style.css recolors the rest.
-const isDark = () => themeSetting === 'dark' || themeSetting === 'scifi';
+// Retro and SciFi are built on the dark theme: the editors use its styles and style.css recolors the rest.
+const isDark = () => themeSetting !== 'light';
 
 // The theme drop-down is built by hand because a native <select> list can't be styled. It follows the
 // listbox pattern: arrow keys, Home/End, Enter or Space to pick, Esc or Tab to close.

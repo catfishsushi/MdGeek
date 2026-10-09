@@ -1,5 +1,5 @@
 /* ---------- Themes ----------
-   Each theme is a set of variables on a class on <html> (th-light, th-dark, th-scifi); everything below
+   Each theme is a set of variables on a class on <html> (th-light, th-dark, th-retro, th-scifi); everything below
    reads only the variables. Adding a theme takes one block here plus one entry in THEMES in main.ts. */
 
 .th-light {
@@ -85,6 +85,55 @@
   --read: 'Geist Variable', system-ui, sans-serif;
   --disp: 'Geist Variable', system-ui, sans-serif;
   --mono: 'Geist Mono Variable', ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+.th-retro {
+  --bg: #06092A;
+  --side: transparent;
+  --panel: #2A3EB8;        /* top of the window gradient, so the open tab joins the window */
+  --panelline: #D3D6EA;
+  --ink: #F6F6FF;
+  --ink2: #C3C8EE;         /* about 5:1 against the brightest part of the window */
+  --ink3: #A3AADF;
+  --line: rgba(211, 214, 234, .35);
+  --btn: #18237E;
+  --btnline: #D3D6EA;
+  --btnh: #2B389A;
+  --btnshadow: 2px 2px 0 rgba(0, 0, 0, .6);
+  --track: #0C1150;
+  --trackline: #D3D6EA;
+  --on: #2B389A;
+  --onink: #FFD23F;
+  --onshadow: inset 2px 2px 0 rgba(255, 255, 255, .2);
+  --acc: #FFD23F;
+  --logoink: #06092A;
+  --accsoft: rgba(120, 140, 255, .22); /* a light blue highlight under gold text */
+  --accink: #FFE27A;
+  --hover: rgba(255, 255, 255, .08);
+  --dir: #4FE3FF;
+  --code: #0C1150;
+  --ok: #4ADE80;
+  --shadow: 4px 4px 0 rgba(0, 0, 0, .6);
+  --dropline: #D3D6EA;
+  --dropbg: rgba(6, 9, 42, .45);
+  --menu: #18237E;
+  --menuline: #D3D6EA;
+  --menushadow: 4px 4px 0 rgba(0, 0, 0, .6);
+  --warn-bg: #FFD23F;
+  --warn-line: #E0B21C;
+  --del-bg: #5A1030;
+  --add-bg: #0F4A3A;
+  --ui: 'Exo 2 Variable', system-ui, sans-serif;
+  --read: 'Exo 2 Variable', system-ui, sans-serif;
+  --disp: 'Pixelify Sans Variable', ui-monospace, monospace;
+  --mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --frame: #D3D6EA;
+  --scan: repeating-linear-gradient(rgba(0, 0, 0, .14) 0 1px, transparent 1px 3px);
+  /* A 2x2 checker dither, the texture PlayStation-era graphics used to smooth their gradients. */
+  --dither: repeating-conic-gradient(rgba(0, 0, 0, .14) 0 25%, transparent 0 50%);
+  /* The bevelled window frame: a black edge, a light inner highlight, and a hard drop shadow. */
+  --bevel: inset 0 0 0 1px #000, inset 2px 2px 0 1px rgba(255, 255, 255, .25), 0 0 0 1px #000, 4px 4px 0 rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
 
@@ -520,6 +569,135 @@ button:disabled { opacity: 0.5; cursor: default; }
 .diff-cell.del { background: var(--del-bg); }
 .diff-cell.add { background: var(--add-bg); }
 
+/* ---------- Retro theme: a 32-bit console menu screen ----------
+   The same look as HomeDashboard's Retro theme. Built on the dark theme (the editors load their dark
+   styles). Blue gradient windows with light bevelled frames, a gold accent and a blinking cursor on the
+   open tab. Like the menu screens of that era, the pixel face is kept for short labels (buttons, tabs,
+   headings, the app name) while the document and file names use a clean face so they stay easy to read.
+   CRT scan lines are part of the backgrounds, so they sit behind text instead of cutting through it. */
+
+.th-retro body { background: var(--scan), linear-gradient(#000008, #0B0F4A 70%, #1A1060) fixed; }
+
+/* Labels keep the pixel face, with the hard drop shadow of the era. */
+.th-retro :is(.bname, .btn, .seg-b, .exp .lbl, .exp button, .sel .k, .sel .v, .menu-h, .opt, .eyebrow, .tab, .dialog-head, #banner button, .dialog button) {
+  font-family: var(--disp);
+  letter-spacing: .03em;
+}
+.th-retro :is(.btn, .seg-b, .exp button, .sel .v, .tab, .opt, .dialog button) { text-shadow: 1px 1px 0 #000; }
+.th-retro .btn.pri { text-shadow: none; }
+
+/* Square-ish corners everywhere. */
+.th-retro :is(button, .btn, .seg, .seg-b, .exp, .sel, .menu, .opt, .sw, .ib, .node, .tab, .side-empty, .drop, .dialog, #toast) { border-radius: 3px; }
+
+/* Toolbar: a dark blue title bar with a light frame under it. */
+.th-retro #toolbar { background: #000 linear-gradient(#20309C, #0A1050); border-bottom: 2px solid var(--frame); }
+.th-retro .logo { border-radius: 3px; border: 2px solid #000; box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .5); font-family: var(--disp); }
+.th-retro .bname { color: var(--acc); text-transform: uppercase; letter-spacing: .08em; text-shadow: 2px 2px 0 #000; }
+.th-retro .sel.open { box-shadow: var(--btnshadow); }
+
+/* Windows: the editor panel, the theme menu and dialogs get the gradient and a bevelled light frame. */
+.th-retro :is(#content, .menu, .dialog) {
+  background-image: var(--dither), linear-gradient(#2A3EB8, #141C78 60%, #0C1150);
+  background-size: 4px 4px, auto;
+  border: 2px solid var(--frame);
+  box-shadow: var(--bevel);
+}
+.th-retro #content { margin: 8px 10px 10px 0; border-radius: 4px; }
+.th-retro .dialog-head { color: var(--acc); text-shadow: 2px 2px 0 #000; }
+
+/* The open tab and the chosen theme: gold text with the classic blinking pointer. */
+.th-retro .tab.active { color: var(--acc); box-shadow: none; }
+.th-retro :is(.tab.active, .opt.on)::before { content: "\25B6" / ""; font-size: 10px; animation: retro-blink 1s steps(1) infinite; }
+.th-retro .opt.on { color: var(--acc); }
+@keyframes retro-blink { 50% { opacity: 0; } }
+
+.th-retro .eyebrow, .th-retro .menu-h { color: var(--acc); }
+.th-retro .node.active { color: var(--accink); }
+.th-retro .dot { border-radius: 0; }
+
+/* The document: pixel headings in gold. */
+.th-retro #editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { color: var(--acc); letter-spacing: .02em; text-shadow: 2px 2px 0 #000; }
+.th-retro #editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 3px; }
+.th-retro #editor .milkdown .milkdown-top-bar { border-bottom: 2px solid var(--frame); }
+
+/* The "file changed on disk" banner: a gold warning window with dark red text and a red alert tag. */
+.th-retro #banner {
+  color: #7A0010;
+  background-image: var(--dither), linear-gradient(#FFE27A, #FFD23F 55%, #E8B820);
+  background-size: 4px 4px, auto;
+  border-bottom: 2px solid #000;
+}
+.th-retro #banner::before {
+  content: "!! ALERT !!" / ""; /* the empty text keeps screen readers from reading it out */
+  flex: none;
+  padding: 2px 8px;
+  background: #C8102E;
+  border: 2px solid #000;
+  color: var(--acc);
+  font-family: var(--disp);
+  letter-spacing: .12em;
+  text-shadow: 2px 2px 0 #000;
+}
+
+/* Nothing open: the drop card's icon becomes a marching pixel invader (assets/retro-invader-*.svg). */
+.th-retro .drop { border-width: 2px; }
+.th-retro .drop h2 { color: var(--acc); text-shadow: 2px 2px 0 #000; }
+.th-retro .drop .big {
+  border-radius: 3px;
+  background: var(--acc) url("./assets/retro-invader-1.svg") center / 36px auto no-repeat;
+  border: 2px solid #000;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .5), 3px 3px 0 rgba(0, 0, 0, .6);
+  image-rendering: pixelated;
+  animation: retro-invader 1s steps(1) infinite;
+}
+.th-retro .drop .big svg { display: none; }
+@keyframes retro-invader { 50% { background-image: url("./assets/retro-invader-2.svg"); } }
+
+.th-retro #toast { background: #18237E; color: var(--ink); border: 2px solid var(--frame); box-shadow: var(--bevel); }
+
+.th-retro ::selection { background: var(--acc); color: #000; text-shadow: none; }
+.th-retro ::-webkit-scrollbar { width: 12px; height: 12px; }
+.th-retro ::-webkit-scrollbar-track { background: #0C1150; }
+.th-retro ::-webkit-scrollbar-thumb { background: #4651A8; border: 2px solid #0C1150; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .3); }
+.th-retro ::-webkit-scrollbar-thumb:hover { background: #6670BC; }
+
+/* A little pixel robot in the toolbar, after the app name. Pure CSS: each frame is a box-shadow
+   drawing on a 11x12 grid of 3px pixels, swapped by a stepped animation (idle, antenna
+   light, blink, wave). Decorative only, so screen readers skip it. */
+.th-retro .brand::after {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 3px;
+  height: 3px;
+  margin: 0 33px 0 4px;
+  transform: translate(-3px, -19px);
+  box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC;
+  animation: retro-robot 6s steps(1) infinite;
+}
+@keyframes retro-robot {
+  0% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  12% { box-shadow: 18px 3px #4651A8, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #4651A8, 15px 27px #D3D6EA, 18px 27px #FFD23F, 21px 27px #D3D6EA, 24px 27px #4651A8, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  24% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  36% { box-shadow: 18px 3px #4651A8, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #06092A, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #06092A, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #4651A8, 15px 27px #D3D6EA, 18px 27px #FFD23F, 21px 27px #D3D6EA, 24px 27px #4651A8, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  39% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  52% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #06092A, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #06092A, 27px 15px #D3D6EA, 33px 15px #6670BC, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 33px 18px #6670BC, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 33px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #D3D6EA, 33px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  58% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #06092A, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #06092A, 27px 15px #D3D6EA, 30px 15px #6670BC, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 30px 18px #6670BC, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 33px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 33px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  64% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #06092A, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #06092A, 27px 15px #D3D6EA, 33px 15px #6670BC, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 33px 18px #6670BC, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 33px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #D3D6EA, 33px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  70% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #06092A, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #06092A, 27px 15px #D3D6EA, 30px 15px #6670BC, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 30px 18px #6670BC, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 33px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 33px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  76% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #06092A, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #06092A, 27px 15px #D3D6EA, 33px 15px #6670BC, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 33px 18px #6670BC, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 33px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #D3D6EA, 33px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  82% { box-shadow: 18px 3px #FF4D6D, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #FFD23F, 15px 27px #D3D6EA, 18px 27px #4651A8, 21px 27px #D3D6EA, 24px 27px #FFD23F, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+  92% { box-shadow: 18px 3px #4651A8, 18px 6px #6670BC, 9px 9px #D3D6EA, 12px 9px #D3D6EA, 15px 9px #D3D6EA, 18px 9px #D3D6EA, 21px 9px #D3D6EA, 24px 9px #D3D6EA, 27px 9px #D3D6EA, 9px 12px #D3D6EA, 12px 12px #4FE3FF, 15px 12px #D3D6EA, 18px 12px #D3D6EA, 21px 12px #D3D6EA, 24px 12px #4FE3FF, 27px 12px #D3D6EA, 9px 15px #D3D6EA, 12px 15px #D3D6EA, 15px 15px #D3D6EA, 18px 15px #D3D6EA, 21px 15px #D3D6EA, 24px 15px #D3D6EA, 27px 15px #D3D6EA, 9px 18px #D3D6EA, 12px 18px #D3D6EA, 15px 18px #06092A, 18px 18px #06092A, 21px 18px #06092A, 24px 18px #D3D6EA, 27px 18px #D3D6EA, 15px 21px #6670BC, 18px 21px #6670BC, 21px 21px #6670BC, 6px 24px #6670BC, 9px 24px #D3D6EA, 12px 24px #D3D6EA, 15px 24px #D3D6EA, 18px 24px #D3D6EA, 21px 24px #D3D6EA, 24px 24px #D3D6EA, 27px 24px #D3D6EA, 30px 24px #6670BC, 6px 27px #6670BC, 9px 27px #D3D6EA, 12px 27px #4651A8, 15px 27px #D3D6EA, 18px 27px #FFD23F, 21px 27px #D3D6EA, 24px 27px #4651A8, 27px 27px #D3D6EA, 30px 27px #6670BC, 6px 30px #6670BC, 9px 30px #D3D6EA, 12px 30px #D3D6EA, 15px 30px #D3D6EA, 18px 30px #D3D6EA, 21px 30px #D3D6EA, 24px 30px #D3D6EA, 27px 30px #D3D6EA, 30px 30px #6670BC, 12px 33px #6670BC, 24px 33px #6670BC, 9px 36px #6670BC, 12px 36px #6670BC, 24px 36px #6670BC, 27px 36px #6670BC; }
+}
+
+@media (max-width: 920px) {
+  .th-retro .brand::after { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .th-retro * { animation: none !important; }
+  .th-retro *::before, .th-retro *::after { animation: none !important; }
+}
+
 /* ---------- SciFi theme ----------
    Built on the dark theme (the editors load their dark styles). The sci-fi look lives in the frame:
    toolbar, sidebar, tabs, dialogs. The text being edited stays plain, high-contrast and in the
@@ -527,7 +705,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 
 /* Toolbar: a dark gradient strip with a glowing edge; square, uppercase controls with corner brackets. */
-.th-scifi #toolbar { background: linear-gradient(#0C1A27, #07111A); border-bottom: 1px solid rgba(63, 208, 240, .35); position: relative; z-index: 1; }
+.th-scifi #toolbar { background: linear-gradient(#0C1A27, #07111A); border-bottom: 1px solid rgba(63, 208, 240, .35); position: relative; z-index: 30; } /* above the editor's floating format bar (z-index 10) so the theme menu opens over it; below dialogs (40) */
 .th-scifi .btn, .th-scifi .seg, .th-scifi .seg-b, .th-scifi .exp, .th-scifi .logo { border-radius: 0; }
 .th-scifi .btn, .th-scifi .seg-b, .th-scifi .exp, .th-scifi .bname { text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
 .th-scifi .btn { font-size: 15px; }
@@ -629,6 +807,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-scifi #editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: 38px; }
 .th-scifi #editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: 20px; }
 .th-scifi #editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 0; }
+/* The format bar that pops up over selected text: solid, so the heading under it doesn't show through. */
+.th-scifi #editor .milkdown .milkdown-toolbar { background: #060F17; border: 1px solid var(--menuline); border-radius: 0; box-shadow: var(--menushadow); }
 
 .th-scifi .drop, .th-scifi .drop .big { border-radius: 0; }
 .th-scifi .drop { position: relative; }
