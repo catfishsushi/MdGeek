@@ -1,5 +1,5 @@
 /* ---------- Themes ----------
-   Each theme is a set of variables on a class on <html> (th-light, th-dark, th-retro, th-scifi); everything below
+   Each theme is a set of variables on a class on <html> (th-light, th-dark, th-retro, th-scifi, th-fantasy); everything below
    reads only the variables. Adding a theme takes one block here plus one entry in THEMES in main.ts. */
 
 .th-light {
@@ -179,6 +179,52 @@
   --mono: 'Geist Mono Variable', ui-monospace, monospace;
   --glow: rgba(63, 208, 240, .35);
   color-scheme: dark;
+}
+
+.th-fantasy {
+  --bg: #E6D3A7;           /* parchment */
+  --side: transparent;
+  --panel: #F4E8CA;        /* the lighter page the document is written on */
+  --panelline: #8A6A42;
+  --ink: #33241A;          /* iron-gall ink: about 11:1 on the page */
+  --ink2: #654B30;         /* about 5.5:1 on the parchment */
+  --ink3: #8C7350;
+  --line: rgba(90, 62, 34, .28);
+  --btn: #F1E3C0;
+  --btnline: #9C7D52;
+  --btnh: #EAD7AA;
+  --btnshadow: 0 1px 0 rgba(255, 250, 235, .6) inset, 0 1px 2px rgba(60, 38, 18, .18);
+  --track: #DCC79A;
+  --trackline: #9C7D52;
+  --on: #F6ECD2;
+  --onink: #7A1A14;
+  --onshadow: 0 1px 2px rgba(60, 38, 18, .25);
+  --acc: #8B1E1E;          /* sealing-wax red */
+  --logoink: #F4E8CA;
+  --accsoft: rgba(139, 30, 30, .09);
+  --accink: #6E1414;
+  --hover: rgba(90, 62, 34, .08);
+  --dir: #3F5A2C;          /* forest green, for folder icons */
+  --code: rgba(120, 90, 50, .1);
+  --ok: #3F5A2C;
+  --shadow: 0 2px 10px rgba(60, 38, 18, .25);
+  --dropline: #9C7D52;
+  --dropbg: rgba(244, 232, 202, .85);
+  --menu: #F4E8CA;
+  --menuline: #8A6A42;
+  --menushadow: 0 10px 28px rgba(50, 30, 12, .35);
+  --warn-bg: #F0DDA8;
+  --warn-line: #A8781E;
+  --del-bg: #F2CFC4;
+  --add-bg: #D6E2BE;
+  --ui: 'EB Garamond Variable', Georgia, serif;
+  --read: 'EB Garamond Variable', Georgia, serif;
+  --disp: 'Cinzel Variable', Georgia, serif;   /* carved Roman capitals, as on the title pages of epic fantasy */
+  --mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --gold: #D9B566;
+  --leather: linear-gradient(#4A2D18, #2E1B0E);
+  --grain: url("./assets/fantasy-parchment.svg");
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -465,8 +511,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 #editor .milkdown .milkdown-top-bar { background: var(--panel); border-bottom: 1px solid var(--line); }
 
-/* The document: centred, at most 740px wide. */
-#editor .milkdown .ProseMirror { max-width: 740px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
+/* The document: centred, at most 925px wide. */
+#editor .milkdown .ProseMirror { max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
 /* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
 #editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
 #editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { font-family: var(--disp); padding: 0; }
@@ -499,7 +545,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .cm-editor.cm-focused { outline: none; }
 .cm-editor, .cm-editor .cm-gutters { background: transparent; }
 .cm-scroller { font-family: var(--mono); font-size: 13.5px; line-height: 1.8; }
-#editor .host > .cm-editor .cm-content { flex: 0 1 740px; max-width: 740px; margin: 0 auto; padding: 44px 48px 64px; }
+#editor .host > .cm-editor .cm-content { flex: 0 1 925px; max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; }
 
 /* Nothing open: a dashed drop-zone card. */
 #empty { flex: 1; display: grid; place-items: center; padding: 24px; }
@@ -796,13 +842,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-scifi #editor .milkdown .ProseMirror,
 .th-scifi #editor .host > .cm-editor .cm-content {
   position: relative;
-  max-width: 760px;
+  max-width: 950px;
   margin: 28px auto 40px;
   padding: 40px 48px 48px;
   background: rgba(4, 11, 18, .8);
   border: 1px solid rgba(63, 208, 240, .28);
 }
-.th-scifi #editor .host > .cm-editor .cm-content { flex-basis: 760px; }
+.th-scifi #editor .host > .cm-editor .cm-content { flex-basis: 950px; }
 .th-scifi #editor .milkdown .ProseMirror { font-size: 15.5px; }
 .th-scifi #editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: 38px; }
 .th-scifi #editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: 20px; }
@@ -831,6 +877,158 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 @media (prefers-reduced-motion: reduce) {
   .th-scifi * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Fantasy theme: an old map and a leather-bound book ----------
+   Built on the light theme (the editors load their light styles). Parchment everywhere, a dark tooled
+   leather toolbar with gold lettering, carved Cinzel capitals for labels and headings, and EB Garamond
+   (a book face) for the document. An imaginary hand-drawn map (assets/fantasy-map.svg) lies faint behind
+   the page. The artwork in assets/fantasy-*.svg is original; colours were checked against WCAG AA. */
+
+.th-fantasy body { background: var(--grain), radial-gradient(ellipse at center, #EEDDB4 40%, #D9C08C 100%) fixed; }
+
+/* Labels in carved capitals. */
+.th-fantasy :is(.bname, .btn, .seg-b, .exp .lbl, .exp button, .sel .k, .sel .v, .menu-h, .opt, .eyebrow, .tab, .dialog-head, .drop h2) {
+  font-family: var(--disp);
+  letter-spacing: .06em;
+}
+.th-fantasy :is(.btn, .seg-b, .exp .lbl, .exp button, .sel .k, .sel .v, .opt, .tab) { font-size: 13px; font-weight: 600; }
+.th-fantasy :is(button, .btn, .seg, .seg-b, .exp, .sel, .menu, .opt, .sw, .ib, .node, .tab, .side-empty, .drop, .dialog, #toast) { border-radius: 3px; }
+
+/* Toolbar: dark leather with a gold double rule, like a book's tooled spine. Its controls re-point the
+   colour variables, so everything inside (the theme menu too) picks up the leather look. */
+.th-fantasy #toolbar {
+  --ink: #F1E0B4;
+  --ink2: #D2B47A;         /* about 8:1 on the leather */
+  --ink3: #A88C5C;
+  --line: rgba(217, 181, 102, .35);
+  --btn: rgba(255, 236, 190, .05);
+  --btnline: rgba(217, 181, 102, .55);
+  --btnh: rgba(217, 181, 102, .16);
+  --btnshadow: none;
+  --track: rgba(0, 0, 0, .25);
+  --trackline: rgba(217, 181, 102, .45);
+  --on: rgba(217, 181, 102, .2);
+  --onink: #FBE7AE;
+  --onshadow: inset 0 0 0 1px rgba(217, 181, 102, .7);
+  --acc: var(--gold);
+  --accsoft: rgba(217, 181, 102, .16);
+  --accink: #FBE7AE;
+  --hover: rgba(217, 181, 102, .1);
+  --menu: #33200F;
+  --menuline: rgba(217, 181, 102, .6);
+  --menushadow: 0 14px 34px rgba(20, 10, 2, .55);
+  background: var(--leather);
+  border-bottom: 3px double var(--gold);
+  box-shadow: 0 3px 8px rgba(40, 22, 8, .35);
+  position: relative;
+  z-index: 30; /* the theme menu opens over the editor's format bar (10), under dialogs (40) */
+  color: var(--ink);
+}
+.th-fantasy .logo { width: 30px; height: 30px; border-radius: 50%; background: url("./assets/fantasy-compass.svg") center 46% / 118% no-repeat, #F4E8CA; color: transparent; border: 1.5px solid var(--gold); }
+.th-fantasy .bname { color: var(--gold); font-size: 17px; font-weight: 700; letter-spacing: .1em; text-shadow: 0 1px 0 #000; }
+.th-fantasy .btn.pri { background: var(--gold); color: #2E1B0E; border-color: var(--gold); }
+
+/* Sidebar: parchment, with a hand-ruled edge. */
+.th-fantasy #sidebar { border-right: 1px solid var(--line); box-shadow: 1px 0 0 rgba(255, 248, 230, .5); }
+.th-fantasy .eyebrow, .th-fantasy .menu-h { color: var(--acc); }
+.th-fantasy .fname { font-size: 16px; }
+.th-fantasy .node { font-size: 15px; }
+.th-fantasy .node.active { color: var(--accink); }
+
+/* The map: parchment with the imaginary map faint on it, and a darker, burnt-looking rim. */
+.th-fantasy #content {
+  margin: 10px 10px 10px 0;
+  border: 1px solid var(--panelline);
+  border-radius: 3px;
+  background: var(--grain), #EAD9B0;
+  box-shadow: inset 0 0 60px rgba(110, 70, 30, .35), var(--shadow);
+}
+.th-fantasy #content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("./assets/fantasy-map.svg") center / cover no-repeat;
+  opacity: .5;
+  pointer-events: none;
+}
+.th-fantasy #content > * { position: relative; }
+
+.th-fantasy #tabs { background: rgba(214, 190, 140, .75); box-shadow: inset 0 -1px 0 var(--panelline); }
+.th-fantasy .tab.active { background: var(--panel); border-color: var(--panelline); color: var(--accink); box-shadow: inset 0 3px 0 var(--acc); }
+.th-fantasy #dochead { background: rgba(244, 232, 202, .85); border-bottom-color: var(--panelline); font-style: italic; font-size: 14px; }
+
+/* The document: a sheet of finer parchment with a double ink frame, laid on the map. */
+.th-fantasy #editor .milkdown .milkdown-top-bar { background: rgba(244, 232, 202, .92); border-bottom-color: var(--panelline); }
+.th-fantasy #editor .milkdown .ProseMirror,
+.th-fantasy #editor .host > .cm-editor .cm-content {
+  position: relative;
+  max-width: 950px;
+  margin: 28px auto 40px;
+  padding: 48px 56px 56px;
+  background: var(--grain), rgba(246, 236, 210, .94);
+  border: 3px double var(--panelline);
+  box-shadow: 0 6px 22px rgba(60, 38, 18, .3);
+}
+.th-fantasy #editor .host > .cm-editor .cm-content { flex-basis: 950px; }
+.th-fantasy #editor .milkdown .ProseMirror { font-size: 18px; line-height: 1.65; }
+.th-fantasy #editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { letter-spacing: .04em; color: var(--ink); }
+.th-fantasy #editor .milkdown .ProseMirror h1 {
+  color: var(--acc);
+  font-size: 36px;
+  letter-spacing: .06em;
+  font-weight: 700;
+  padding-bottom: 26px;
+  background: url("./assets/fantasy-flourish.svg") left bottom / 240px 18px no-repeat;
+}
+.th-fantasy #editor .milkdown .ProseMirror h2 { font-size: 23px; color: var(--accink); }
+/* An illuminated capital opens the first paragraph after a title, as at the start of a chapter. */
+.th-fantasy #editor .milkdown .ProseMirror h1 + p::first-letter {
+  float: left;
+  margin: 6px 8px 0 0;
+  font-family: var(--disp);
+  font-size: 3.4em;
+  line-height: .8;
+  font-weight: 700;
+  color: var(--acc);
+}
+.th-fantasy #editor .milkdown .ProseMirror hr { border: 0; height: 18px; margin: 24px auto; background: url("./assets/fantasy-flourish.svg") center / 240px 18px no-repeat; }
+.th-fantasy #editor .milkdown .ProseMirror blockquote { border-radius: 0; background: transparent; border-left: 3px double var(--panelline); font-style: italic; color: var(--ink2); }
+.th-fantasy #editor .milkdown .ProseMirror a { color: var(--acc); }
+.th-fantasy #editor .milkdown :is(.milkdown-code-block, code) { border-radius: 2px; }
+.th-fantasy #editor .milkdown .milkdown-table-block th { font-family: var(--disp); color: var(--accink); }
+.th-fantasy #editor .milkdown .milkdown-toolbar { background: var(--panel); border: 1px solid var(--panelline); border-radius: 3px; }
+
+/* "File changed on disk": a herald's notice, sealed in red wax. */
+.th-fantasy #banner { background: var(--grain), var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-style: italic; font-size: 14.5px; }
+.th-fantasy #banner::before {
+  content: "";
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #C0453A, #8B1E1E 55%, #5E1010);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .4), inset 0 0 0 3px rgba(0, 0, 0, .15);
+}
+
+/* Nothing open: a compass rose instead of the file icon. */
+.th-fantasy .drop { border: 3px double var(--panelline); box-shadow: var(--shadow); }
+.th-fantasy .drop h2 { color: var(--acc); font-size: 20px; }
+.th-fantasy .drop p { font-size: 15.5px; font-style: italic; }
+.th-fantasy .drop .big { width: 72px; height: 72px; background: url("./assets/fantasy-compass.svg") center / contain no-repeat; }
+.th-fantasy .drop .big svg { display: none; }
+
+.th-fantasy .dialog { border: 3px double var(--panelline); background: var(--grain), var(--panel); }
+.th-fantasy .dialog-head { color: var(--acc); }
+.th-fantasy #toast { background: #33200F; color: #F1E0B4; border: 1px solid var(--gold); }
+
+.th-fantasy ::selection { background: rgba(139, 30, 30, .22); }
+.th-fantasy ::-webkit-scrollbar { width: 11px; height: 11px; }
+.th-fantasy ::-webkit-scrollbar-track { background: rgba(120, 90, 50, .12); }
+.th-fantasy ::-webkit-scrollbar-thumb { background: #A88C5C; border: 2px solid #E6D3A7; border-radius: 6px; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .th-fantasy #content::before { display: none; }
 }
 
 #print-root { display: none; }

@@ -43,7 +43,24 @@ Readability comes first. Styled interfaces like these can be hard to read, so:
 - Keep animation subtle, and turn it off when the OS "reduce motion" setting is on.
 - It is an option alongside light and dark, never the default.
 
-## 6. Make MdGeek open source (FOSS)
+## 6. High priority: fix the dependency vulnerabilities
+
+Found 2026-10-09: `npm audit` in `frontend/` reports 7 vulnerabilities (3 high, 4 low). The only fix it
+offers is `npm audit fix --force`, which would install older, incompatible versions, so don't run that.
+
+- **High (3): `braces`, through `micromatch`, through `vite-plugin-singlefile` 2.3.3.** Deeply nested
+  patterns can make `braces` run out of stack (a denial of service), advisory GHSA-vfj7-8cjw-p6xm.
+  `vite-plugin-singlefile` is a dev dependency used only when building, so the shipped app doesn't
+  contain it; the risk is to the build machine. Check for a newer `vite-plugin-singlefile` that drops
+  the vulnerable `micromatch`, or pin a fixed `braces` with an `overrides` entry in `package.json`.
+- **Low (4): `katex`, through `micromark-extension-math` and `remark-math`, through `@milkdown/crepe`.**
+  Prototype pollution that was already present elsewhere can get around KaTeX's trust setting. This
+  code does ship in the app, because it draws math in the WYSIWYG view. Check for a newer Crepe, or
+  override `katex` to a fixed version and confirm math still renders.
+- After fixing: run `npm audit` again, build both versions (`npm run build:web`, `wails build`), and try
+  the WYSIWYG view, including a math block.
+
+## 7. Make MdGeek open source (FOSS)
 
 Decided 2026-10-06 to do this later, not before the first push to GitHub. To do:
 
@@ -57,10 +74,13 @@ Decided 2026-10-06 to do this later, not before the first push to GitHub. To do:
 - Optional: a `THIRD_PARTY_NOTICES.txt` for the bundled libraries, `SECURITY.md`, `CONTRIBUTING.md`,
   and deciding whether working notes (`REQUIREMENTS.md`, `backlog.md`, `.claude/`) stay public.
 
-## 7. Bug: images without a title break the WYSIWYG view
+## 8. Bug: images without a title break the WYSIWYG view (done)
 
 Found 2026-10-06 while testing the installable browser version (it happens with and without that
 feature's security policy, so it was already there). A Markdown image with no title, such as
 `![pic](https://example.com/a.png)`, doesn't show in WYSIWYG view, and the console shows
 `RangeError: Expected value of type string for attribute caption on type image-block, got null`
 from the editor (Milkdown Crepe's image block). Source view is fine. Not yet checked in the desktop app.
+
+Fixed 2026-10-08 in commit a9cbdea: a missing title now becomes an empty one, which isn't written back,
+so the picture shows and the file stays the same.
