@@ -74,10 +74,13 @@ Decided 2026-10-06 to do this later, not before the first push to GitHub. To do:
 - Optional: a `THIRD_PARTY_NOTICES.txt` for the bundled libraries, `SECURITY.md`, `CONTRIBUTING.md`,
   and deciding whether working notes (`REQUIREMENTS.md`, `backlog.md`, `.claude/`) stay public.
 
-## 8. Bug: images without a title break the WYSIWYG view
+## 8. Bug: images without a title break the WYSIWYG view (done)
 
 Found 2026-10-06 while testing the installable browser version (it happens with and without that
 feature's security policy, so it was already there). A Markdown image with no title, such as
 `![pic](https://example.com/a.png)`, doesn't show in WYSIWYG view, and the console shows
 `RangeError: Expected value of type string for attribute caption on type image-block, got null`
 from the editor (Milkdown Crepe's image block). Source view is fine. Not yet checked in the desktop app.
+
+Fixed 2026-10-08 in commit a9cbdea: a missing title now becomes an empty one, which isn't written back,
+so the picture shows and the file stays the same.
