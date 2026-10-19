@@ -1204,6 +1204,9 @@ if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
   for (const id of ['btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
 }
 
+// Hovering over the logo shows which version is running, to tell whether an update has arrived.
+document.querySelector<HTMLElement>('.brand')!.title = `MdGeek version ${__APP_VERSION__}`;
+
 applyTheme(false);
 renderChrome();
 void loadSavedTheme()
