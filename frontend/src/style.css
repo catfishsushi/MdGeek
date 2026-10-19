@@ -439,9 +439,33 @@ button:disabled { opacity: 0.5; cursor: default; }
   overflow: hidden;
 }
 
+/* The editing area: one pane, or two side by side in split view. Each pane has its own tabs, path bar
+   and editor. The pane you're working in is the one the toolbar and keyboard shortcuts act on. */
+#panes { flex: 1; min-height: 0; display: flex; }
+#panes[hidden], .pane[hidden] { display: none; }
+.pane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.pane + .pane { border-left: 1px solid var(--line); }
+/* In split view, the other pane's current tab loses its accent line, so you can tell which side is in use. */
+#panes.split .pane:not(.focused) .tab.active { box-shadow: none; }
+/* "Move to the other side", at the right end of each pane's tabs. */
+#content .tabs .split { flex: none; align-self: center; margin-left: auto; position: sticky; right: 0; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink3); }
+#content .tabs .split:hover:not(:disabled) { background: var(--btnh); color: var(--ink); }
+#content .tabs .split:disabled { opacity: .35; }
+#content .tabs .split svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#content .tabs.drop-over { outline: 2px dashed var(--acc); outline-offset: -2px; }
+/* The split button's menu: the other open files and "Open file…". main.ts sets top and right. */
+.menu.split-menu { position: fixed; z-index: 35; width: 240px; max-height: 60vh; overflow-y: auto; }
+.split-menu .opt { flex: none; display: block; line-height: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.split-menu .opt:last-child { border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; }
+/* Narrow screens: the two panes stack, one above the other. */
+@media (max-width: 920px) {
+  #panes.split { flex-direction: column; }
+  .pane + .pane { border-left: 0; border-top: 1px solid var(--line); }
+}
+
 /* Open files, above the path bar. */
-#tabs { flex: none; display: flex; gap: 2px; padding: 6px 8px 0; overflow-x: auto; overflow-y: hidden; background: var(--code); box-shadow: inset 0 -1px 0 var(--line); }
-#tabs:empty { display: none; }
+#content .tabs { flex: none; display: flex; gap: 2px; padding: 6px 8px 0; overflow-x: auto; overflow-y: hidden; background: var(--code); box-shadow: inset 0 -1px 0 var(--line); }
+#content .tabs:empty { display: none; }
 .tab {
   height: 34px;
   display: flex;
@@ -467,30 +491,30 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tab .close:hover { background: var(--btnh); color: var(--ink); }
 
 /* Path bar: where the file is, and whether it's saved. */
-#dochead { height: 44px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink2); }
-#dochead[hidden] { display: none; }
+#content .dochead { height: 44px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink2); }
+#content .dochead[hidden] { display: none; }
 .crumb { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; white-space: nowrap; }
 .crumb b { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
 .crumb .sl { color: var(--ink3); }
 .status { display: flex; align-items: center; gap: 16px; flex: none; }
 .status > span { display: inline-flex; align-items: center; gap: 7px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
-#doc-status.dirty .dot { background: var(--acc); }
-#doc-status.warn .dot { background: var(--warn-line); }
+#content .doc-status.dirty .dot { background: var(--acc); }
+#content .doc-status.warn .dot { background: var(--warn-line); }
 
-#banner { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 18px; background: var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-size: 13px; }
-#banner[hidden] { display: none; }
-#banner .msg { flex: 1; }
-#banner button { height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--btnline); background: var(--btn); }
-#banner button:hover { background: var(--btnh); }
+#content .banner { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 18px; background: var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-size: 13px; }
+#content .banner[hidden] { display: none; }
+#content .banner .msg { flex: 1; }
+#content .banner button { height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--btnline); background: var(--btn); }
+#content .banner button:hover { background: var(--btnh); }
 
-#editor { flex: 1; min-height: 0; overflow: hidden; }
+#content .editor { flex: 1; min-height: 0; overflow: hidden; }
 .host { height: 100%; overflow: auto; }
-#editor[hidden] { display: none; }
+#content .editor[hidden] { display: none; }
 
-/* The WYSIWYG editor (Crepe) takes its colours and fonts from the theme. #editor raises specificity above
+/* The WYSIWYG editor (Crepe) takes its colours and fonts from the theme. #content .editor raises specificity above
    Crepe's own stylesheet, which loads later. */
-#editor .milkdown {
+#content .editor .milkdown {
   --crepe-color-background: transparent;
   --crepe-color-on-background: var(--ink);
   --crepe-color-surface: var(--menu);
@@ -509,43 +533,46 @@ button:disabled { opacity: 0.5; cursor: default; }
   --crepe-font-default: var(--read);
   --crepe-font-code: var(--mono);
 }
-#editor .milkdown .milkdown-top-bar { background: var(--panel); border-bottom: 1px solid var(--line); }
+#content .editor .milkdown .milkdown-top-bar { background: var(--panel); border-bottom: 1px solid var(--line); }
 
 /* The document: centred, at most 925px wide. */
-#editor .milkdown .ProseMirror { max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
+#content .editor .milkdown .ProseMirror { max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
 /* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
-#editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
-#editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { font-family: var(--disp); padding: 0; }
-#editor .milkdown .ProseMirror h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.025em; font-weight: 700; margin: 32px 0 12px; }
-#editor .milkdown .ProseMirror h2 { font-size: 21px; line-height: 1.3; letter-spacing: -.01em; font-weight: 600; margin: 32px 0 10px; }
-#editor .milkdown .ProseMirror h3 { font-size: 17px; line-height: 1.4; font-weight: 600; margin: 24px 0 8px; }
-#editor .milkdown .ProseMirror :is(h4, h5) { font-size: 15px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; }
-#editor .milkdown .ProseMirror h6 { font-size: 12px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
-#editor .milkdown .ProseMirror p { line-height: 1.7; padding: 0; }
-#editor .milkdown .ProseMirror > p { margin: 0 0 14px; }
-#editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper { color: var(--acc); }
-#editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper svg { fill: var(--acc); }
-#editor .milkdown .ProseMirror a { color: var(--acc); text-underline-offset: 3px; }
-#editor .milkdown .ProseMirror code { font-family: var(--mono); font-size: .84em; color: var(--ink); background: var(--code); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; line-height: 1.5; }
-#editor .milkdown .milkdown-code-block { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 6px 16px 14px; margin: 0 0 16px; }
-#editor .milkdown .milkdown-code-block .cm-editor,
-#editor .milkdown .milkdown-code-block .cm-gutters { background: transparent; }
-#editor .milkdown .milkdown-code-block .cm-scroller { font-size: 13px; line-height: 1.65; }
-#editor .milkdown .milkdown-code-block .cm-activeLineGutter { background: transparent; color: var(--ink); }
-#editor .milkdown .milkdown-code-block .cm-activeLine { background: var(--hover); }
-#editor .milkdown .ProseMirror blockquote { margin: 0 0 16px; padding: 12px 16px; border-radius: 10px; background: var(--accsoft); color: var(--ink); }
-#editor .milkdown .ProseMirror blockquote::before { display: none; }
-#editor .milkdown .ProseMirror blockquote p { margin: 0; }
-#editor .milkdown .milkdown-table-block { margin: 0 0 16px; font-size: 14px; }
-#editor .milkdown .milkdown-table-block :is(th, td) { border: 0; border-bottom: 1px solid var(--line); padding: 9px 10px; }
-#editor .milkdown .milkdown-table-block th { padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
+#content .editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
+/* Raw HTML anchors like <a name="setup"></a> or <a id="setup"></a> only mark a place for links to jump
+   to, so they're hidden here. They stay in the file, and the Source view still shows them. */
+#content .editor .milkdown .ProseMirror span[data-type="html"]:is([data-value^="<a name=" i], [data-value^="<a id=" i], [data-value="</a>" i]) { display: none; }
+#content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { font-family: var(--disp); padding: 0; }
+#content .editor .milkdown .ProseMirror h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.025em; font-weight: 700; margin: 32px 0 12px; }
+#content .editor .milkdown .ProseMirror h2 { font-size: 21px; line-height: 1.3; letter-spacing: -.01em; font-weight: 600; margin: 32px 0 10px; }
+#content .editor .milkdown .ProseMirror h3 { font-size: 17px; line-height: 1.4; font-weight: 600; margin: 24px 0 8px; }
+#content .editor .milkdown .ProseMirror :is(h4, h5) { font-size: 15px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; }
+#content .editor .milkdown .ProseMirror h6 { font-size: 12px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
+#content .editor .milkdown .ProseMirror p { line-height: 1.7; padding: 0; }
+#content .editor .milkdown .ProseMirror > p { margin: 0 0 14px; }
+#content .editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper { color: var(--acc); }
+#content .editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper svg { fill: var(--acc); }
+#content .editor .milkdown .ProseMirror a { color: var(--acc); text-underline-offset: 3px; }
+#content .editor .milkdown .ProseMirror code { font-family: var(--mono); font-size: .84em; color: var(--ink); background: var(--code); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; line-height: 1.5; }
+#content .editor .milkdown .milkdown-code-block { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 6px 16px 14px; margin: 0 0 16px; }
+#content .editor .milkdown .milkdown-code-block .cm-editor,
+#content .editor .milkdown .milkdown-code-block .cm-gutters { background: transparent; }
+#content .editor .milkdown .milkdown-code-block .cm-scroller { font-size: 13px; line-height: 1.65; }
+#content .editor .milkdown .milkdown-code-block .cm-activeLineGutter { background: transparent; color: var(--ink); }
+#content .editor .milkdown .milkdown-code-block .cm-activeLine { background: var(--hover); }
+#content .editor .milkdown .ProseMirror blockquote { margin: 0 0 16px; padding: 12px 16px; border-radius: 10px; background: var(--accsoft); color: var(--ink); }
+#content .editor .milkdown .ProseMirror blockquote::before { display: none; }
+#content .editor .milkdown .ProseMirror blockquote p { margin: 0; }
+#content .editor .milkdown .milkdown-table-block { margin: 0 0 16px; font-size: 14px; }
+#content .editor .milkdown .milkdown-table-block :is(th, td) { border: 0; border-bottom: 1px solid var(--line); padding: 9px 10px; }
+#content .editor .milkdown .milkdown-table-block th { padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
 
 /* Source view: the same centred column, in the code font. */
 .cm-editor { height: 100%; }
 .cm-editor.cm-focused { outline: none; }
 .cm-editor, .cm-editor .cm-gutters { background: transparent; }
 .cm-scroller { font-family: var(--mono); font-size: 13.5px; line-height: 1.8; }
-#editor .host > .cm-editor .cm-content { flex: 0 1 925px; max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; }
+#content .editor .host > .cm-editor .cm-content { flex: 0 1 925px; max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; }
 
 /* Nothing open: a dashed drop-zone card. */
 #empty { flex: 1; display: grid; place-items: center; padding: 24px; }
@@ -625,7 +652,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-retro body { background: var(--scan), linear-gradient(#000008, #0B0F4A 70%, #1A1060) fixed; }
 
 /* Labels keep the pixel face, with the hard drop shadow of the era. */
-.th-retro :is(.bname, .btn, .seg-b, .exp .lbl, .exp button, .sel .k, .sel .v, .menu-h, .opt, .eyebrow, .tab, .dialog-head, #banner button, .dialog button) {
+.th-retro :is(.bname, .btn, .seg-b, .exp .lbl, .exp button, .sel .k, .sel .v, .menu-h, .opt, .eyebrow, .tab, .dialog-head, #content .banner button, .dialog button) {
   font-family: var(--disp);
   letter-spacing: .03em;
 }
@@ -662,18 +689,18 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-retro .dot { border-radius: 0; }
 
 /* The document: pixel headings in gold. */
-.th-retro #editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { color: var(--acc); letter-spacing: .02em; text-shadow: 2px 2px 0 #000; }
-.th-retro #editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 3px; }
-.th-retro #editor .milkdown .milkdown-top-bar { border-bottom: 2px solid var(--frame); }
+.th-retro #content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { color: var(--acc); letter-spacing: .02em; text-shadow: 2px 2px 0 #000; }
+.th-retro #content .editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 3px; }
+.th-retro #content .editor .milkdown .milkdown-top-bar { border-bottom: 2px solid var(--frame); }
 
 /* The "file changed on disk" banner: a gold warning window with dark red text and a red alert tag. */
-.th-retro #banner {
+.th-retro #content .banner {
   color: #7A0010;
   background-image: var(--dither), linear-gradient(#FFE27A, #FFD23F 55%, #E8B820);
   background-size: 4px 4px, auto;
   border-bottom: 2px solid #000;
 }
-.th-retro #banner::before {
+.th-retro #content .banner::before {
   content: "!! ALERT !!" / ""; /* the empty text keeps screen readers from reading it out */
   flex: none;
   padding: 2px 8px;
@@ -788,7 +815,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 /* Buttons outside the toolbar (banner, dialogs, toast, sidebar): square, glowing on hover. */
 .th-scifi button { border-radius: 0; letter-spacing: 0.04em; transition: box-shadow 0.15s, border-color 0.15s; }
-.th-scifi :is(#banner, #modal, #toast, #sidebar) button:hover:not(:disabled) { border-color: var(--acc); box-shadow: 0 0 8px var(--glow); }
+.th-scifi :is(#content .banner, #modal, #toast, #sidebar) button:hover:not(:disabled) { border-color: var(--acc); box-shadow: 0 0 8px var(--glow); }
 .th-scifi button:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
 /* Small icon buttons (close, remove, refresh) stay plain. */
 .th-scifi .tab .close,
@@ -827,20 +854,20 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .th-scifi #content > * { position: relative; }
 
-.th-scifi #tabs { background: rgba(4, 11, 18, .85); }
+.th-scifi #content .tabs { background: rgba(4, 11, 18, .85); }
 .th-scifi .tab { border-radius: 0; text-transform: uppercase; letter-spacing: .06em; font-size: 14px; font-weight: 600; }
 .th-scifi .tab.active { background: rgba(4, 11, 18, .78); border-color: rgba(63, 208, 240, .35); text-shadow: 0 0 10px rgba(63, 208, 240, .6); }
 .th-scifi .tab .close { border-radius: 0; letter-spacing: 0; }
 
-.th-scifi #dochead { background: rgba(4, 11, 18, .78); font-family: var(--mono); font-size: 12px; letter-spacing: .04em; }
+.th-scifi #content .dochead { background: rgba(4, 11, 18, .78); font-family: var(--mono); font-size: 12px; letter-spacing: .04em; }
 .th-scifi .dot { box-shadow: 0 0 8px currentColor; color: var(--ok); }
-.th-scifi #doc-status.dirty .dot { color: var(--acc); }
-.th-scifi #doc-status.warn .dot { color: var(--warn-line); }
+.th-scifi #content .doc-status.dirty .dot { color: var(--acc); }
+.th-scifi #content .doc-status.warn .dot { color: var(--warn-line); }
 
 /* The document sits on a see-through dark panel with corner brackets, so the text stays readable. */
-.th-scifi #editor .milkdown .milkdown-top-bar { background: #050C13; border-bottom-color: rgba(63, 208, 240, .35); }
-.th-scifi #editor .milkdown .ProseMirror,
-.th-scifi #editor .host > .cm-editor .cm-content {
+.th-scifi #content .editor .milkdown .milkdown-top-bar { background: #050C13; border-bottom-color: rgba(63, 208, 240, .35); }
+.th-scifi #content .editor .milkdown .ProseMirror,
+.th-scifi #content .editor .host > .cm-editor .cm-content {
   position: relative;
   max-width: 950px;
   margin: 28px auto 40px;
@@ -848,13 +875,13 @@ button:disabled { opacity: 0.5; cursor: default; }
   background: rgba(4, 11, 18, .8);
   border: 1px solid rgba(63, 208, 240, .28);
 }
-.th-scifi #editor .host > .cm-editor .cm-content { flex-basis: 950px; }
-.th-scifi #editor .milkdown .ProseMirror { font-size: 15.5px; }
-.th-scifi #editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: 38px; }
-.th-scifi #editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: 20px; }
-.th-scifi #editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 0; }
+.th-scifi #content .editor .host > .cm-editor .cm-content { flex-basis: 950px; }
+.th-scifi #content .editor .milkdown .ProseMirror { font-size: 15.5px; }
+.th-scifi #content .editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: 38px; }
+.th-scifi #content .editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: 20px; }
+.th-scifi #content .editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 0; }
 /* The format bar that pops up over selected text: solid, so the heading under it doesn't show through. */
-.th-scifi #editor .milkdown .milkdown-toolbar { background: #060F17; border: 1px solid var(--menuline); border-radius: 0; box-shadow: var(--menushadow); }
+.th-scifi #content .editor .milkdown .milkdown-toolbar { background: #060F17; border: 1px solid var(--menuline); border-radius: 0; box-shadow: var(--menushadow); }
 
 .th-scifi .drop, .th-scifi .drop .big { border-radius: 0; }
 .th-scifi .drop { position: relative; }
@@ -862,17 +889,17 @@ button:disabled { opacity: 0.5; cursor: default; }
 .th-scifi .drop p { letter-spacing: .04em; }
 
 /* Corner brackets on the document panel and the drop card. */
-.th-scifi #editor .milkdown .ProseMirror::before, .th-scifi #editor .host > .cm-editor .cm-content::before, .th-scifi .drop::before {
+.th-scifi #content .editor .milkdown .ProseMirror::before, .th-scifi #content .editor .host > .cm-editor .cm-content::before, .th-scifi .drop::before {
   content: ''; position: absolute; left: -1px; top: -1px; width: 8px; height: 8px;
   border-left: 2px solid var(--acc); border-top: 2px solid var(--acc); pointer-events: none;
 }
-.th-scifi #editor .milkdown .ProseMirror::after, .th-scifi #editor .host > .cm-editor .cm-content::after, .th-scifi .drop::after {
+.th-scifi #content .editor .milkdown .ProseMirror::after, .th-scifi #content .editor .host > .cm-editor .cm-content::after, .th-scifi .drop::after {
   content: ''; position: absolute; right: -1px; bottom: -1px; width: 8px; height: 8px;
   border-right: 2px solid var(--acc); border-bottom: 2px solid var(--acc); pointer-events: none;
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .th-scifi #editor .milkdown .ProseMirror, .th-scifi #editor .host > .cm-editor .cm-content { background: var(--bg); }
+  .th-scifi #content .editor .milkdown .ProseMirror, .th-scifi #content .editor .host > .cm-editor .cm-content { background: var(--bg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -954,14 +981,30 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .th-fantasy #content > * { position: relative; }
 
-.th-fantasy #tabs { background: rgba(214, 190, 140, .75); box-shadow: inset 0 -1px 0 var(--panelline); }
+/* Drawings in the margins beside the page, as on old sea charts: a dragon, islands and a trireme on the
+   left; a carrack, a sea serpent and more islands on the right. Each is about as wide as the gap beside
+   the page (at most 300px), so
+   they shrink with the window and vanish when the page fills the width. They stay put while the
+   document scrolls. --gap is the space on each side of the 950px page, less the scrollbar. */
+.th-fantasy #content .editor {
+  --gap: clamp(0px, calc((100% - 1000px) / 2), 300px);
+  background:
+    url("./assets/fantasy-dragon.svg") left 14px top 70px / var(--gap) auto no-repeat,
+    url("./assets/fantasy-islands-left.svg") left 20px top 52% / calc(var(--gap) * .85) auto no-repeat,
+    url("./assets/fantasy-islands-right.svg") right 30px bottom 18px / calc(var(--gap) * .8) auto no-repeat,
+    url("./assets/fantasy-trireme.svg") left 14px bottom 24px / var(--gap) auto no-repeat,
+    url("./assets/fantasy-carrack.svg") right 26px top 80px / calc(var(--gap) * .85) auto no-repeat,
+    url("./assets/fantasy-serpent.svg") right 26px top 42% / var(--gap) auto no-repeat; /* above the map's compass rose */
+}
+
+.th-fantasy #content .tabs { background: rgba(214, 190, 140, .75); box-shadow: inset 0 -1px 0 var(--panelline); }
 .th-fantasy .tab.active { background: var(--panel); border-color: var(--panelline); color: var(--accink); box-shadow: inset 0 3px 0 var(--acc); }
-.th-fantasy #dochead { background: rgba(244, 232, 202, .85); border-bottom-color: var(--panelline); font-style: italic; font-size: 14px; }
+.th-fantasy #content .dochead { background: rgba(244, 232, 202, .85); border-bottom-color: var(--panelline); font-style: italic; font-size: 14px; }
 
 /* The document: a sheet of finer parchment with a double ink frame, laid on the map. */
-.th-fantasy #editor .milkdown .milkdown-top-bar { background: rgba(244, 232, 202, .92); border-bottom-color: var(--panelline); }
-.th-fantasy #editor .milkdown .ProseMirror,
-.th-fantasy #editor .host > .cm-editor .cm-content {
+.th-fantasy #content .editor .milkdown .milkdown-top-bar { background: rgba(244, 232, 202, .92); border-bottom-color: var(--panelline); }
+.th-fantasy #content .editor .milkdown .ProseMirror,
+.th-fantasy #content .editor .host > .cm-editor .cm-content {
   position: relative;
   max-width: 950px;
   margin: 28px auto 40px;
@@ -970,10 +1013,10 @@ button:disabled { opacity: 0.5; cursor: default; }
   border: 3px double var(--panelline);
   box-shadow: 0 6px 22px rgba(60, 38, 18, .3);
 }
-.th-fantasy #editor .host > .cm-editor .cm-content { flex-basis: 950px; }
-.th-fantasy #editor .milkdown .ProseMirror { font-size: 18px; line-height: 1.65; }
-.th-fantasy #editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { letter-spacing: .04em; color: var(--ink); }
-.th-fantasy #editor .milkdown .ProseMirror h1 {
+.th-fantasy #content .editor .host > .cm-editor .cm-content { flex-basis: 950px; }
+.th-fantasy #content .editor .milkdown .ProseMirror { font-size: 18px; line-height: 1.65; }
+.th-fantasy #content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { letter-spacing: .04em; color: var(--ink); }
+.th-fantasy #content .editor .milkdown .ProseMirror h1 {
   color: var(--acc);
   font-size: 36px;
   letter-spacing: .06em;
@@ -981,9 +1024,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   padding-bottom: 26px;
   background: url("./assets/fantasy-flourish.svg") left bottom / 240px 18px no-repeat;
 }
-.th-fantasy #editor .milkdown .ProseMirror h2 { font-size: 23px; color: var(--accink); }
+.th-fantasy #content .editor .milkdown .ProseMirror h2 { font-size: 23px; color: var(--accink); }
 /* An illuminated capital opens the first paragraph after a title, as at the start of a chapter. */
-.th-fantasy #editor .milkdown .ProseMirror h1 + p::first-letter {
+.th-fantasy #content .editor .milkdown .ProseMirror h1 + p::first-letter {
   float: left;
   margin: 6px 8px 0 0;
   font-family: var(--disp);
@@ -992,16 +1035,16 @@ button:disabled { opacity: 0.5; cursor: default; }
   font-weight: 700;
   color: var(--acc);
 }
-.th-fantasy #editor .milkdown .ProseMirror hr { border: 0; height: 18px; margin: 24px auto; background: url("./assets/fantasy-flourish.svg") center / 240px 18px no-repeat; }
-.th-fantasy #editor .milkdown .ProseMirror blockquote { border-radius: 0; background: transparent; border-left: 3px double var(--panelline); font-style: italic; color: var(--ink2); }
-.th-fantasy #editor .milkdown .ProseMirror a { color: var(--acc); }
-.th-fantasy #editor .milkdown :is(.milkdown-code-block, code) { border-radius: 2px; }
-.th-fantasy #editor .milkdown .milkdown-table-block th { font-family: var(--disp); color: var(--accink); }
-.th-fantasy #editor .milkdown .milkdown-toolbar { background: var(--panel); border: 1px solid var(--panelline); border-radius: 3px; }
+.th-fantasy #content .editor .milkdown .ProseMirror hr { border: 0; height: 18px; margin: 24px auto; background: url("./assets/fantasy-flourish.svg") center / 240px 18px no-repeat; }
+.th-fantasy #content .editor .milkdown .ProseMirror blockquote { border-radius: 0; background: transparent; border-left: 3px double var(--panelline); font-style: italic; color: var(--ink2); }
+.th-fantasy #content .editor .milkdown .ProseMirror a { color: var(--acc); }
+.th-fantasy #content .editor .milkdown :is(.milkdown-code-block, code) { border-radius: 2px; }
+.th-fantasy #content .editor .milkdown .milkdown-table-block th { font-family: var(--disp); color: var(--accink); }
+.th-fantasy #content .editor .milkdown .milkdown-toolbar { background: var(--panel); border: 1px solid var(--panelline); border-radius: 3px; }
 
 /* "File changed on disk": a herald's notice, sealed in red wax. */
-.th-fantasy #banner { background: var(--grain), var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-style: italic; font-size: 14.5px; }
-.th-fantasy #banner::before {
+.th-fantasy #content .banner { background: var(--grain), var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-style: italic; font-size: 14.5px; }
+.th-fantasy #content .banner::before {
   content: "";
   flex: none;
   width: 22px;
