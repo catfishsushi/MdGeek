@@ -54,11 +54,12 @@
             <div class="side-f"><span id="sidebar-count"></span><span id="sidebar-where"></span></div>
         </aside>
         <section id="content">
-            <!-- One pane, or two side by side in split view. main.ts builds them from the template. -->
+            <div id="tabs" class="tabs" role="tablist"></div>
+            <!-- One file across the width, or two side by side for a split tab. main.ts builds the
+                 two sides from the template. -->
             <div id="panes" hidden></div>
             <template id="pane-tpl">
                 <div class="pane">
-                    <div class="tabs" role="tablist"></div>
                     <div class="dochead" hidden>
                         <div class="crumb"></div>
                         <div class="status">
