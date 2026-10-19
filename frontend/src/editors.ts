@@ -131,7 +131,16 @@ export function headingSlug(text: string): string {
     .replace(/\s/g, '-');
 }
 
-/** A "#section" link scrolls to the heading with that anchor name, in the same window. */
+/** The name in a raw HTML anchor like `<a name="setup">` or `<a id="setup">`, lowercased. */
+function htmlAnchorName(html: string): string | null {
+  const m = /^<a\s[^>]*\b(?:name|id)\s*=\s*["']?([^"'\s>]+)/i.exec(html);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * A "#section" link scrolls to the heading with that anchor name, in the same window, or to a raw HTML
+ * anchor with that name. Those anchors are hidden (see style.css), so it scrolls to whatever follows.
+ */
 function scrollToHeading(parent: HTMLElement, anchor: string): void {
   let wanted = anchor;
   try {
@@ -142,7 +151,14 @@ function scrollToHeading(parent: HTMLElement, anchor: string): void {
   wanted = wanted.toLowerCase();
   const headings = parent.querySelectorAll<HTMLElement>('.ProseMirror :is(h1, h2, h3, h4, h5, h6)');
   const hit = Array.from(headings).find((h) => headingSlug(h.textContent ?? '') === wanted);
-  hit?.scrollIntoView({ block: 'start' });
+  if (hit) {
+    hit.scrollIntoView({ block: 'start' });
+    return;
+  }
+  const anchors = parent.querySelectorAll<HTMLElement>('.ProseMirror span[data-type="html"]');
+  const mark = Array.from(anchors).find((a) => htmlAnchorName(a.dataset.value ?? '') === wanted);
+  // The anchor itself is hidden and has no position, so use the block it sits in.
+  mark?.closest<HTMLElement>('.ProseMirror > *')?.scrollIntoView({ block: 'start' });
 }
 
 // Links open with Ctrl+Click, as in Word or VS Code. A plain click only places the cursor, so the

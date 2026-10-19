@@ -54,16 +54,22 @@
             <div class="side-f"><span id="sidebar-count"></span><span id="sidebar-where"></span></div>
         </aside>
         <section id="content">
-            <div id="tabs" role="tablist"></div>
-            <div id="dochead" hidden>
-                <div id="doc-crumb" class="crumb"></div>
-                <div class="status">
-                    <span id="doc-status" role="status"><i class="dot"></i><span id="doc-status-text">Saved</span></span>
-                    <span>Markdown</span>
+            <!-- One pane, or two side by side in split view. main.ts builds them from the template. -->
+            <div id="panes" hidden></div>
+            <template id="pane-tpl">
+                <div class="pane">
+                    <div class="tabs" role="tablist"></div>
+                    <div class="dochead" hidden>
+                        <div class="crumb"></div>
+                        <div class="status">
+                            <span class="doc-status" role="status"><i class="dot"></i><span class="doc-status-text">Saved</span></span>
+                            <span>Markdown</span>
+                        </div>
+                    </div>
+                    <div class="banner" hidden></div>
+                    <div class="editor"></div>
                 </div>
-            </div>
-            <div id="banner" hidden></div>
-            <div id="editor"></div>
+            </template>
             <div id="empty">
                 <div class="drop">
                     <div class="big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13l1.5 3 1.5-3 1.5 3 1.5-3"/></svg></div>

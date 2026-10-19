@@ -31,25 +31,66 @@ interface Tab {
   saveTimer: number | null;
   saving: boolean;
   needsPermission: boolean; // the browser must be asked, from a click, before this file can be saved
+  scroll: number; // where the editor was scrolled to (0 to 1) when this tab was last hidden
+}
+
+/**
+ * One side of the editing area. There are always two; the right one shows only in split view, which
+ * is on whenever it has tabs. A file is open in at most one pane.
+ */
+interface Pane {
+  el: HTMLElement;
+  tabsEl: HTMLElement;
+  docHeadEl: HTMLElement;
+  bannerEl: HTMLElement;
+  editorEl: HTMLElement;
+  tabs: Tab[];
+  active: Tab | null; // the tab picked in this pane
+  shown: Tab | null; // the tab the editor was last built for; differs from active until it's rebuilt
+  editor: EditorHandle | null;
+  mountToken: number;
 }
 
 const AUTOSAVE_MS = 800;
 const POLL_MS = 2000;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const tabsEl = $('tabs');
-const bannerEl = $('banner');
-const editorEl = $('editor');
+const panesEl = $('panes');
 const emptyEl = $('empty');
-const docHeadEl = $('dochead');
 const toastEl = $('toast');
 const modalEl = $('modal');
 
-let tabs: Tab[] = [];
-let active: Tab | null = null;
-let editor: EditorHandle | null = null;
-let mountToken = 0;
+function makePane(): Pane {
+  const el = $<HTMLTemplateElement>('pane-tpl').content.firstElementChild!.cloneNode(true) as HTMLElement;
+  panesEl.appendChild(el);
+  const part = (cls: string) => el.querySelector<HTMLElement>(cls)!;
+  const pane: Pane = {
+    el,
+    tabsEl: part('.tabs'),
+    docHeadEl: part('.dochead'),
+    bannerEl: part('.banner'),
+    editorEl: part('.editor'),
+    tabs: [],
+    active: null,
+    shown: null,
+    editor: null,
+    mountToken: 0,
+  };
+  // Clicking or typing in a pane makes it the one the toolbar and shortcuts act on.
+  el.addEventListener('pointerdown', () => focusPane(pane), true);
+  el.addEventListener('focusin', () => focusPane(pane));
+  return pane;
+}
+
+const panes = [makePane(), makePane()] as const;
+let focused: Pane = panes[0];
 let defaultView: View = 'wysiwyg';
+
+const isSplit = () => panes[1].tabs.length > 0;
+const allTabs = () => [...panes[0].tabs, ...panes[1].tabs];
+/** The pane a tab is in, or undefined once it's closed. */
+const paneOf = (tab: Tab) => panes.find((p) => p.tabs.includes(tab));
+const otherPane = (pane: Pane) => (pane === panes[0] ? panes[1] : panes[0]);
 
 const isDirty = (t: Tab) => t.content !== t.savedContent;
 
@@ -200,7 +241,7 @@ function applyTheme(remount: boolean): void {
     opt.classList.toggle('on', on);
     opt.setAttribute('aria-selected', String(on));
   }
-  if (remount) void mountEditor(editor?.getScroll());
+  if (remount) for (const p of panes) void mountEditor(p, p.editor?.getScroll());
 }
 
 /** Applies the theme saved in the settings, if any. Runs before any file is opened. */
@@ -214,16 +255,17 @@ async function loadSavedTheme(): Promise<void> {
   applyTheme(false);
 }
 
-// ---------- tabs and editor ----------
+// ---------- panes, tabs and editor ----------
 
 /** The path bar above the document: where the file is, and whether it's saved. */
-function renderDocHead(): void {
-  docHeadEl.hidden = !active;
-  if (!active) return;
-  const crumb = $('doc-crumb');
+function renderDocHead(pane: Pane): void {
+  const tab = pane.active;
+  pane.docHeadEl.hidden = !tab;
+  if (!tab) return;
+  const crumb = pane.docHeadEl.querySelector<HTMLElement>('.crumb')!;
   crumb.replaceChildren();
-  crumb.title = active.path;
-  const parts = crumbParts(active.path);
+  crumb.title = tab.path;
+  const parts = crumbParts(tab.path);
   parts.forEach((part, i) => {
     if (i > 0) {
       const sl = document.createElement('span');
@@ -235,7 +277,7 @@ function renderDocHead(): void {
     el.textContent = part;
     crumb.append(el);
   });
-  renderStatus();
+  renderStatus(pane);
 }
 
 /** The file's folders from the listed folder it's in (or just its own folder), then its name. */
@@ -247,8 +289,8 @@ function crumbParts(path: string): string[] {
   return top ? [top, ...parts] : parts;
 }
 
-function renderStatus(): void {
-  const tab = active;
+function renderStatus(pane: Pane): void {
+  const tab = pane.active;
   if (!tab) return;
   const [state, text] = tab.conflict
     ? ['warn', 'Changed on disk']
@@ -257,75 +299,120 @@ function renderStatus(): void {
       : isDirty(tab)
         ? ['dirty', 'Unsaved changes']
         : ['', 'Saved'];
-  $('doc-status').className = state;
-  $('doc-status-text').textContent = text;
+  pane.docHeadEl.querySelector('.doc-status')!.className = 'doc-status ' + state;
+  pane.docHeadEl.querySelector('.doc-status-text')!.textContent = text;
 }
 
+const SPLIT_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>';
+
+/** Tabs in both panes, plus each pane's "move to the other side" button. */
 function renderTabs(): void {
-  renderStatus();
-  tabsEl.replaceChildren();
-  for (const tab of tabs) {
-    const el = document.createElement('div');
-    el.className = 'tab' + (tab === active ? ' active' : '');
-    el.title = tab.path;
-    el.draggable = true;
-
-    const name = document.createElement('span');
-    name.textContent = basename(tab.path);
-    el.appendChild(name);
-    if (tab.conflict) {
-      const c = document.createElement('span');
-      c.className = 'conflict';
-      c.textContent = '!';
-      c.title = 'Changed on disk';
-      el.appendChild(c);
-    } else if (isDirty(tab)) {
-      const d = document.createElement('span');
-      d.className = 'dirty';
-      d.textContent = '●';
-      d.title = 'Not saved yet';
-      el.appendChild(d);
+  for (const pane of panes) {
+    renderStatus(pane);
+    pane.tabsEl.replaceChildren(...pane.tabs.map((tab) => tabElement(pane, tab)));
+    if (!pane.tabs.length) continue;
+    const split = document.createElement('button');
+    split.className = 'split';
+    split.innerHTML = SPLIT_SVG;
+    const label = !isSplit()
+      ? 'Split view: pick a file to show beside this one (Ctrl+\\)'
+      : pane === panes[0]
+        ? 'Move to the right side (Ctrl+\\)'
+        : 'Move to the left side (Ctrl+\\)';
+    split.title = label;
+    split.setAttribute('aria-label', label);
+    if (!isSplit()) {
+      split.setAttribute('aria-haspopup', 'menu');
+      split.setAttribute('aria-expanded', String(!splitMenu.hidden));
     }
-    const close = document.createElement('button');
-    close.className = 'close';
-    close.textContent = '×';
-    close.title = 'Close (Ctrl+W)';
-    close.addEventListener('click', (e) => {
-      e.stopPropagation();
-      void closeTab(tab);
-    });
-    el.appendChild(close);
-
-    el.addEventListener('click', () => activate(tab));
-    el.addEventListener('auxclick', (e) => {
-      if (e.button === 1) void closeTab(tab);
-    });
-    el.addEventListener('dragstart', (e) => e.dataTransfer?.setData('text/mdgeek-tab', tab.path));
-    el.addEventListener('dragover', (e) => {
-      if (e.dataTransfer?.types.includes('text/mdgeek-tab')) {
-        e.preventDefault();
-        el.classList.add('drag-over');
-      }
-    });
-    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-    el.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const from = tabs.find((t) => t.path === e.dataTransfer?.getData('text/mdgeek-tab'));
-      if (from && from !== tab) {
-        tabs.splice(tabs.indexOf(from), 1);
-        tabs.splice(tabs.indexOf(tab), 0, from);
-      }
-      renderTabs();
-    });
-    tabsEl.appendChild(el);
+    split.addEventListener('click', () => splitAction(pane));
+    pane.tabsEl.appendChild(split);
   }
 }
 
-function renderBanner(): void {
+function tabElement(pane: Pane, tab: Tab): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'tab' + (tab === pane.active ? ' active' : '');
+  el.title = tab.path;
+  el.draggable = true;
+
+  const name = document.createElement('span');
+  name.textContent = basename(tab.path);
+  el.appendChild(name);
+  if (tab.conflict) {
+    const c = document.createElement('span');
+    c.className = 'conflict';
+    c.textContent = '!';
+    c.title = 'Changed on disk';
+    el.appendChild(c);
+  } else if (isDirty(tab)) {
+    const d = document.createElement('span');
+    d.className = 'dirty';
+    d.textContent = '●';
+    d.title = 'Not saved yet';
+    el.appendChild(d);
+  }
+  const close = document.createElement('button');
+  close.className = 'close';
+  close.textContent = '×';
+  close.title = 'Close (Ctrl+W)';
+  close.addEventListener('click', (e) => {
+    e.stopPropagation();
+    void closeTab(tab);
+  });
+  el.appendChild(close);
+
+  el.addEventListener('click', () => activate(tab));
+  el.addEventListener('auxclick', (e) => {
+    if (e.button === 1) void closeTab(tab);
+  });
+  el.addEventListener('dragstart', (e) => e.dataTransfer?.setData('text/mdgeek-tab', tab.path));
+  el.addEventListener('dragover', (e) => {
+    if (e.dataTransfer?.types.includes('text/mdgeek-tab')) {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.add('drag-over');
+    }
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const from = draggedTab(e);
+    if (from && from !== tab) moveTab(from, pane, tab);
+    else renderTabs();
+  });
+  return el;
+}
+
+const draggedTab = (e: DragEvent) => allTabs().find((t) => t.path === e.dataTransfer?.getData('text/mdgeek-tab'));
+
+// A tab dropped on a pane's tab bar, but not on another tab, goes to the end of that pane.
+for (const pane of panes) {
+  pane.tabsEl.addEventListener('dragover', (e) => {
+    if (e.dataTransfer?.types.includes('text/mdgeek-tab')) {
+      e.preventDefault();
+      pane.tabsEl.classList.add('drop-over');
+    }
+  });
+  pane.tabsEl.addEventListener('dragleave', (e) => {
+    if (!pane.tabsEl.contains(e.relatedTarget as Node | null)) pane.tabsEl.classList.remove('drop-over');
+  });
+  pane.tabsEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    pane.tabsEl.classList.remove('drop-over');
+    const from = draggedTab(e);
+    if (from) moveTab(from, pane);
+  });
+}
+
+function renderBanner(pane: Pane): void {
+  const { bannerEl } = pane;
   bannerEl.replaceChildren();
-  const tab = active;
+  const tab = pane.active;
   if (tab?.needsPermission && !tab.conflict) {
-    renderPermissionBanner(tab);
+    renderPermissionBanner(pane, tab);
     return;
   }
   if (!tab || !tab.conflict) {
@@ -351,7 +438,7 @@ function renderBanner(): void {
 }
 
 /** A file opened from File Explorer (or a remembered folder) needs the user's OK before it can be saved. */
-function renderPermissionBanner(tab: Tab): void {
+function renderPermissionBanner(pane: Pane, tab: Tab): void {
   const msg = document.createElement('span');
   msg.className = 'msg';
   msg.textContent = `MdGeek needs permission to save ${basename(tab.path)}. Your edits are kept until then.`;
@@ -363,20 +450,34 @@ function renderPermissionBanner(tab: Tab): void {
       return;
     }
     tab.needsPermission = false;
-    renderBanner();
-    renderStatus();
+    renderChrome();
     await saveNow(tab);
   });
-  bannerEl.append(msg, allow);
-  bannerEl.hidden = false;
+  pane.bannerEl.append(msg, allow);
+  pane.bannerEl.hidden = false;
 }
 
 function renderChrome(): void {
+  const any = allTabs().length > 0;
+  emptyEl.hidden = any;
+  panesEl.hidden = !any;
+  panesEl.classList.toggle('split', isSplit());
+  panes[1].el.hidden = !isSplit();
+  for (const pane of panes) {
+    renderDocHead(pane);
+    renderBanner(pane);
+  }
   renderTabs();
-  renderDocHead();
-  renderBanner();
-  emptyEl.hidden = tabs.length > 0;
-  editorEl.hidden = tabs.length === 0;
+  renderFocus();
+}
+
+/**
+ * Marks the pane in use and points the toolbar at it. Redraws nothing else, because it runs as a click
+ * starts: rebuilding the tabs then would remove the button being clicked.
+ */
+function renderFocus(): void {
+  for (const pane of panes) pane.el.classList.toggle('focused', pane === focused);
+  const active = focused.active;
   $('btn-export-html').toggleAttribute('disabled', !active);
   $('btn-export-pdf').toggleAttribute('disabled', !active);
   document.querySelectorAll<HTMLElement>('#view-toggle button').forEach((b) => {
@@ -388,19 +489,27 @@ function renderChrome(): void {
   tree.setActive(active?.path ?? null);
 }
 
-/** (Re)creates the editor for the active tab. Each mount gets a fresh host element. */
-async function mountEditor(scroll?: number): Promise<void> {
-  const token = ++mountToken;
-  editor?.destroy();
-  editor = null;
-  editorEl.replaceChildren();
+function focusPane(pane: Pane): void {
+  if (focused === pane || !pane.tabs.length) return;
+  focused = pane;
+  renderFocus();
+}
+
+/** (Re)creates a pane's editor for its active tab. Each mount gets a fresh host element. */
+async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
+  const token = ++pane.mountToken;
+  if (pane.shown && pane.editor) pane.shown.scroll = pane.editor.getScroll();
+  pane.editor?.destroy();
+  pane.editor = null;
+  pane.editorEl.replaceChildren();
+  const tab = pane.active;
+  pane.shown = tab;
   renderChrome();
-  const tab = active;
   if (!tab) return;
 
   const host = document.createElement('div');
   host.className = 'host';
-  editorEl.appendChild(host);
+  pane.editorEl.appendChild(host);
   const onChange = (text: string) => onEdit(tab, text);
 
   let handle: EditorHandle;
@@ -413,32 +522,188 @@ async function mountEditor(scroll?: number): Promise<void> {
     toast('Could not open editor: ' + e);
     return;
   }
-  if (token !== mountToken) {
+  if (token !== pane.mountToken) {
     handle.destroy(); // another mount started while this one was loading
     return;
   }
-  editor = handle;
-  if (scroll !== undefined) requestAnimationFrame(() => handle.setScroll(scroll));
-  handle.focus();
+  pane.editor = handle;
+  const at = scroll ?? tab.scroll;
+  if (at) requestAnimationFrame(() => handle.setScroll(at));
+  if (pane === focused) handle.focus();
+}
+
+/**
+ * Keeps the panes tidy after tabs open, close or move: the left side is never empty while the right
+ * side has tabs, and the split closes when the right side empties. Then rebuilds any editor whose tab
+ * changed.
+ */
+function refresh(): void {
+  const [left, right] = panes;
+  if (!left.tabs.length && right.tabs.length) {
+    left.tabs = right.tabs;
+    left.active = right.active;
+    right.tabs = [];
+    right.active = null;
+  }
+  if (!focused.tabs.length) focused = left;
+  for (const p of panes) if (p.shown !== p.active) void mountEditor(p);
+  renderChrome();
 }
 
 function activate(tab: Tab): void {
-  if (active === tab) return;
-  active = tab;
-  void mountEditor();
+  const pane = paneOf(tab);
+  if (!pane) return;
+  pane.active = tab;
+  focused = pane;
+  refresh();
 }
 
+/** Takes a tab out of its pane, picking the next tab there if it was the active one. */
+function removeFromPane(pane: Pane, tab: Tab): void {
+  const i = pane.tabs.indexOf(tab);
+  pane.tabs.splice(i, 1);
+  if (pane.active === tab) pane.active = pane.tabs[Math.min(i, pane.tabs.length - 1)] ?? null;
+}
+
+/** Moves a tab to a pane, before another tab or at the end. Moving it to the other pane also opens it there. */
+function moveTab(tab: Tab, to: Pane, before?: Tab): void {
+  const from = paneOf(tab);
+  if (!from) return;
+  const insert = () => {
+    const i = before ? to.tabs.indexOf(before) : -1;
+    to.tabs.splice(i < 0 ? to.tabs.length : i, 0, tab);
+  };
+  if (from === to) {
+    from.tabs.splice(from.tabs.indexOf(tab), 1);
+    insert();
+    renderTabs();
+    return;
+  }
+  // Keep its place in the document. The editor showing it may be rebuilt after the new one.
+  if (from.shown === tab && from.editor) tab.scroll = from.editor.getScroll();
+  removeFromPane(from, tab);
+  insert();
+  to.active = tab;
+  focused = to;
+  refresh();
+}
+
+/**
+ * The split button and Ctrl+\. Without a split, opens the menu for picking what to show on the right.
+ * In split view, moves the pane's current tab to the other side.
+ */
+function splitAction(pane: Pane): void {
+  if (!isSplit()) {
+    if (splitMenu.hidden) openSplitMenu(pane);
+    else closeSplitMenu(true);
+    return;
+  }
+  if (pane.active) moveTab(pane.active, otherPane(pane));
+}
+
+// ---------- split menu ----------
+// Lists the other open files, plus "Open file…". The pick opens on the right, beside the current file.
+// It follows the menu button pattern: arrow keys, Home/End, Enter or Space to pick, Esc or Tab to close.
+// It lives outside the tab bar, which scrolls sideways and would clip it.
+
+const splitMenu = document.createElement('div');
+splitMenu.className = 'menu split-menu';
+splitMenu.setAttribute('role', 'menu');
+splitMenu.setAttribute('aria-label', 'Show beside');
+splitMenu.hidden = true;
+$('app').appendChild(splitMenu);
+let splitMenuPane: Pane = panes[0];
+
+const splitButton = (pane: Pane) => pane.tabsEl.querySelector<HTMLElement>('.split');
+
+function openSplitMenu(pane: Pane): void {
+  const btn = splitButton(pane);
+  if (!btn) return;
+  const items: [string, () => void][] = pane.tabs
+    .filter((t) => t !== pane.active)
+    .map((t) => [basename(t.path), () => moveTab(t, panes[1])]);
+  items.push(['Open file…', () => void pickFiles(panes[1])]);
+  const head = document.createElement('div');
+  head.className = 'menu-h';
+  head.setAttribute('aria-hidden', 'true');
+  head.textContent = 'Show beside';
+  const opts = items.map(([label, run]) => {
+    const opt = document.createElement('div');
+    opt.className = 'opt';
+    opt.setAttribute('role', 'menuitem');
+    opt.tabIndex = -1;
+    opt.textContent = label;
+    opt.title = label;
+    opt.addEventListener('click', () => {
+      closeSplitMenu(false);
+      run();
+    });
+    return opt;
+  });
+  splitMenu.replaceChildren(head, ...opts);
+  // Right-aligned under the button, as the theme menu is.
+  const r = btn.getBoundingClientRect();
+  splitMenu.style.top = `${r.bottom + 6}px`;
+  splitMenu.style.right = `${document.documentElement.clientWidth - r.right}px`;
+  splitMenu.hidden = false;
+  splitMenuPane = pane;
+  btn.setAttribute('aria-expanded', 'true');
+  opts[0].focus();
+}
+
+function closeSplitMenu(refocus: boolean): void {
+  if (splitMenu.hidden) return;
+  splitMenu.hidden = true;
+  // Look the button up again: the tab bar may have been redrawn while the menu was open.
+  const btn = splitButton(splitMenuPane);
+  btn?.setAttribute('aria-expanded', 'false');
+  if (refocus) btn?.focus();
+}
+
+splitMenu.addEventListener('keydown', (e) => {
+  const opts = Array.from(splitMenu.querySelectorAll<HTMLElement>('.opt'));
+  const i = opts.indexOf(document.activeElement as HTMLElement);
+  const n = opts.length;
+  const go = (j: number) => {
+    e.preventDefault();
+    opts[(j + n) % n].focus();
+  };
+  if (e.key === 'ArrowDown') go(i + 1);
+  else if (e.key === 'ArrowUp') go(i - 1);
+  else if (e.key === 'Home') go(0);
+  else if (e.key === 'End') go(n - 1);
+  else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    opts[i]?.click();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    closeSplitMenu(true);
+  } else if (e.key === 'Tab') {
+    closeSplitMenu(false);
+  }
+});
+// A click anywhere outside the menu and its button closes it. The button's own click toggles it.
+document.addEventListener('pointerdown', (e) => {
+  const t = e.target as Node;
+  if (!splitMenu.hidden && !splitMenu.contains(t) && !splitButton(splitMenuPane)?.contains(t)) closeSplitMenu(false);
+});
+window.addEventListener('resize', () => closeSplitMenu(false));
+
 function switchView(view: View): void {
-  if (!active || active.view === view) return;
-  active.view = view;
+  const pane = focused;
+  const tab = pane.active;
+  if (!tab || tab.view === view) return;
+  tab.view = view;
   defaultView = view;
-  void mountEditor(editor?.getScroll());
+  void mountEditor(pane, pane.editor?.getScroll());
 }
 
 // ---------- opening files ----------
 
-async function openFile(path: string): Promise<void> {
-  const existing = tabs.find((t) => t.path === path);
+/** Opens a file in a pane (the one in use, unless given). A file that's already open is shown where it is. */
+async function openFile(path: string, pane: Pane = focused): Promise<void> {
+  const existing = allTabs().find((t) => t.path === path);
   if (existing) {
     activate(existing);
     return;
@@ -455,10 +720,12 @@ async function openFile(path: string): Promise<void> {
       saveTimer: null,
       saving: false,
       needsPermission: false,
+      scroll: 0,
     };
-    tabs.push(tab);
-    active = tab;
-    await mountEditor();
+    pane.tabs.push(tab);
+    pane.active = tab;
+    focused = pane;
+    refresh();
   } catch (e) {
     toast(`Could not open ${basename(path)}: ${e}`);
   }
@@ -469,7 +736,7 @@ async function followLink(tab: Tab, href: string): Promise<void> {
   const target = resolveLink(dirname(tab.path), href);
   if (!target) return;
   if (target.kind === 'local' && isMarkdownPath(target.path)) {
-    await openFile(target.path);
+    await openFile(target.path, paneOf(tab));
     return;
   }
   try {
@@ -480,13 +747,16 @@ async function followLink(tab: Tab, href: string): Promise<void> {
 }
 
 /** Folders replace what the left pane shows. Files open in tabs and are listed in the pane unless already shown there. */
-async function openPaths(paths: string[]): Promise<void> {
+/** With a pane given, files open there, and ones already open elsewhere move there. */
+async function openPaths(paths: string[], pane?: Pane): Promise<void> {
   for (const p of paths) {
     if (await backend.isDir(p)) {
       await tree.setRoot(p);
     } else {
-      await openFile(p);
-      const opened = tabs.some((t) => t.path === p);
+      const open = allTabs().find((t) => t.path === p);
+      if (open && pane) moveTab(open, pane);
+      else await openFile(p, pane);
+      const opened = allTabs().some((t) => t.path === p);
       if (opened && isMarkdownPath(p) && !tree.shows(p)) await tree.add([{ path: p, isDir: false }]);
     }
   }
@@ -514,14 +784,10 @@ async function closeTab(tab: Tab): Promise<void> {
     if (isDirty(tab)) return; // the save failed; keep the tab so nothing is lost
   }
   if (tab.saveTimer !== null) window.clearTimeout(tab.saveTimer);
-  const i = tabs.indexOf(tab);
-  tabs.splice(i, 1);
-  if (active === tab) {
-    active = tabs[Math.min(i, tabs.length - 1)] ?? null;
-    await mountEditor();
-  } else {
-    renderChrome();
-  }
+  const pane = paneOf(tab);
+  if (!pane) return; // already closed while it was saving
+  removeFromPane(pane, tab);
+  refresh();
 }
 
 // ---------- autosave and conflicts ----------
@@ -559,8 +825,7 @@ async function saveNow(tab: Tab): Promise<void> {
   } catch (e) {
     if (e instanceof NeedsPermission) {
       tab.needsPermission = true;
-      renderBanner();
-      renderStatus();
+      renderChrome();
     } else {
       toast(`Could not save ${basename(tab.path)}: ${e}`);
     }
@@ -588,8 +853,7 @@ async function handleDiskChange(tab: Tab): Promise<void> {
     tab.content = tab.savedContent = disk.content;
     tab.modTime = disk.modTime;
     toast(`${basename(tab.path)} changed on disk and was reloaded.`);
-    if (tab === active) await mountEditor(editor?.getScroll());
-    else renderTabs();
+    await reloadIfShown(tab);
     return;
   }
   if (tab.saveTimer !== null) {
@@ -599,6 +863,13 @@ async function handleDiskChange(tab: Tab): Promise<void> {
   tab.conflict = { disk: disk.content, diskModTime: disk.modTime };
   renderChrome();
   toast(`${basename(tab.path)} was changed outside MdGeek.`);
+}
+
+/** After a tab's text was replaced from disk: rebuilds the editor showing it, if one is. */
+async function reloadIfShown(tab: Tab): Promise<void> {
+  const pane = panes.find((p) => p.shown === tab);
+  if (pane) await mountEditor(pane, pane.editor?.getScroll());
+  else renderTabs();
 }
 
 async function reviewConflict(tab: Tab): Promise<Resolution> {
@@ -615,8 +886,7 @@ async function resolveConflict(tab: Tab, choice: 'mine' | 'theirs'): Promise<voi
   tab.modTime = c.diskModTime;
   if (choice === 'theirs') {
     tab.content = tab.savedContent = c.disk;
-    if (tab === active) await mountEditor(editor?.getScroll());
-    else renderTabs();
+    await reloadIfShown(tab);
   } else {
     renderChrome();
     await saveNow(tab); // overwrites the disk version with ours
@@ -624,7 +894,7 @@ async function resolveConflict(tab: Tab, choice: 'mine' | 'theirs'): Promise<voi
 }
 
 async function pollDisk(): Promise<void> {
-  for (const tab of tabs) {
+  for (const tab of allTabs()) {
     if (tab.saving || tab.conflict) continue;
     try {
       const mt = await backend.statFile(tab.path);
@@ -638,11 +908,11 @@ window.setInterval(() => void pollDisk(), POLL_MS);
 window.addEventListener('focus', () => void pollDisk());
 
 async function flushAll(): Promise<void> {
-  await Promise.all(tabs.map((t) => saveNow(t)));
+  await Promise.all(allTabs().map((t) => saveNow(t)));
 }
 window.addEventListener('blur', () => void flushAll());
 
-backend.onClose(flushAll, () => tabs.some(isDirty));
+backend.onClose(flushAll, () => allTabs().some(isDirty));
 
 // A new version of the browser app is ready. Switching reloads the page, so save everything first and
 // stay on this version if anything couldn't be saved.
@@ -653,7 +923,7 @@ backend.onUpdateReady((apply) => {
       label: 'Reload',
       run: async () => {
         await flushAll();
-        if (tabs.some(isDirty)) {
+        if (allTabs().some(isDirty)) {
           toast("Couldn't save everything, so MdGeek didn't reload.");
           return;
         }
@@ -667,6 +937,7 @@ backend.onUpdateReady((apply) => {
 // ---------- export ----------
 
 async function exportHtml(): Promise<void> {
+  const active = focused.active;
   if (!active) return;
   const name = basename(active.path).replace(/\.(md|markdown)$/i, '');
   const html = renderStandalone(active.content, name);
@@ -679,6 +950,7 @@ async function exportHtml(): Promise<void> {
 }
 
 async function exportPdf(): Promise<void> {
+  const active = focused.active;
   if (!active) return;
   const root = $('print-root');
   root.innerHTML = `<style>${documentCss}</style>` + (await renderPrintable(active.content, active.path));
@@ -694,7 +966,8 @@ async function exportPdf(): Promise<void> {
 
 // ---------- toolbar, keys, startup ----------
 
-async function pickFiles(): Promise<void> {
+/** Shows the "open file" dialog. The files open in the pane given, or the one in use. */
+async function pickFiles(pane?: Pane): Promise<void> {
   let paths: string[];
   try {
     paths = await backend.pickFiles();
@@ -702,7 +975,7 @@ async function pickFiles(): Promise<void> {
     toast('Could not open: ' + e);
     return;
   }
-  if (paths.length) await openPaths(paths);
+  if (paths.length) await openPaths(paths, pane);
 }
 
 async function pickFolder(): Promise<void> {
@@ -733,6 +1006,8 @@ window.addEventListener(
   (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const key = e.key.toLowerCase();
+    // Shortcuts act on the pane in use.
+    const { tabs, active } = focused;
     if (key === 'o') {
       e.preventDefault();
       void (e.shiftKey ? pickFolder() : pickFiles());
@@ -749,6 +1024,9 @@ window.addEventListener(
       e.preventDefault();
       const step = e.shiftKey ? -1 : 1;
       activate(tabs[(tabs.indexOf(active) + step + tabs.length) % tabs.length]);
+    } else if (e.code === 'Backslash' && active) {
+      e.preventDefault();
+      splitAction(focused);
     }
   },
   true,
@@ -763,13 +1041,20 @@ const tree = new Tree(
 
 backend.onOpenPaths((paths) => void openPaths(paths));
 
-// Files dropped from File Explorer: on the left pane they're listed there, anywhere else they open.
+// Files dropped from File Explorer: on the left pane they're listed there, anywhere else they open, on
+// the side of a split view they were dropped on.
 // The x and y are page coordinates, so the page can tell which part of the window got the drop.
 const sidebar = $('sidebar');
 backend.onFileDrop((x, y, paths) => {
   sidebar.classList.remove('drop-over');
-  if (document.elementFromPoint(x, y)?.closest('#sidebar')) void addToSidebar(paths);
-  else void openPaths(paths);
+  const target = document.elementFromPoint(x, y);
+  if (target?.closest('#sidebar')) {
+    void addToSidebar(paths);
+    return;
+  }
+  const pane = panes.find((p) => p.el.contains(target));
+  if (pane) focusPane(pane);
+  void openPaths(paths);
 });
 sidebar.addEventListener('dragover', (e) => {
   if (e.dataTransfer?.types.includes('Files')) sidebar.classList.add('drop-over');
