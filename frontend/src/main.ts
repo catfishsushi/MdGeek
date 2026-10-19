@@ -92,6 +92,86 @@ const allTabs = () => [...panes[0].tabs, ...panes[1].tabs];
 const paneOf = (tab: Tab) => panes.find((p) => p.tabs.includes(tab));
 const otherPane = (pane: Pane) => (pane === panes[0] ? panes[1] : panes[0]);
 
+// ---------- split divider ----------
+// The bar between the two sides follows the separator pattern: drag it with the mouse or a finger, or
+// focus it and use the arrow keys (Shift for bigger steps), Home and End. Double-click or Enter puts
+// it back in the middle. The position is remembered between sessions.
+
+/** The left (or, stacked on a narrow screen, the top) side's share of the space, as the user set it. */
+let splitRatio = 0.5;
+
+const splitter = document.createElement('div');
+splitter.className = 'splitter';
+splitter.tabIndex = 0;
+splitter.hidden = true;
+splitter.title = 'Drag to resize. Double-click to make both sides equal.';
+splitter.setAttribute('role', 'separator');
+splitter.setAttribute('aria-label', 'Resize the two sides');
+splitter.setAttribute('aria-valuemin', '0');
+splitter.setAttribute('aria-valuemax', '100');
+panesEl.insertBefore(splitter, panes[1].el);
+
+const isStacked = () => getComputedStyle(panesEl).flexDirection === 'column';
+
+/**
+ * Sizes the two sides for a ratio and returns the ratio actually used. Neither side gets smaller than
+ * 280px wide (120px tall when stacked), or half the space if there isn't room for that.
+ */
+function applySplit(ratio: number): number {
+  const stacked = isStacked();
+  const size = stacked ? panesEl.clientHeight : panesEl.clientWidth;
+  const min = size > 0 ? Math.min(0.5, (stacked ? 120 : 280) / size) : 0;
+  const r = Math.min(1 - min, Math.max(min, ratio));
+  panes[0].el.style.flexGrow = String(r);
+  panes[1].el.style.flexGrow = String(1 - r);
+  splitter.setAttribute('aria-orientation', stacked ? 'horizontal' : 'vertical');
+  splitter.setAttribute('aria-valuenow', String(Math.round(r * 100)));
+  return r;
+}
+
+function setSplit(ratio: number): void {
+  splitRatio = applySplit(ratio);
+  backend.setSetting('splitRatio', splitRatio.toFixed(3)).catch(() => {});
+}
+
+splitter.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  splitter.setPointerCapture(e.pointerId);
+  splitter.classList.add('dragging');
+  panesEl.classList.add('resizing');
+});
+splitter.addEventListener('pointermove', (e) => {
+  if (!splitter.hasPointerCapture(e.pointerId)) return;
+  const box = panesEl.getBoundingClientRect();
+  splitRatio = applySplit(isStacked() ? (e.clientY - box.top) / box.height : (e.clientX - box.left) / box.width);
+});
+// Fires when the button is released, and also if the drag is interrupted.
+splitter.addEventListener('lostpointercapture', () => {
+  splitter.classList.remove('dragging');
+  panesEl.classList.remove('resizing');
+  setSplit(splitRatio);
+});
+splitter.addEventListener('dblclick', () => setSplit(0.5));
+splitter.addEventListener('keydown', (e) => {
+  const step = e.shiftKey ? 0.1 : 0.02;
+  const stacked = isStacked();
+  const moves: Record<string, number> = {
+    [stacked ? 'ArrowUp' : 'ArrowLeft']: splitRatio - step,
+    [stacked ? 'ArrowDown' : 'ArrowRight']: splitRatio + step,
+    Home: 0,
+    End: 1,
+    Enter: 0.5,
+  };
+  if (!(e.key in moves)) return;
+  e.preventDefault();
+  setSplit(moves[e.key]);
+});
+// Re-fit to the window, without forgetting the position the user picked.
+window.addEventListener('resize', () => {
+  if (isSplit()) applySplit(splitRatio);
+});
+
 const isDirty = (t: Tab) => t.content !== t.savedContent;
 
 // ---------- small helpers ----------
@@ -244,13 +324,19 @@ function applyTheme(remount: boolean): void {
   if (remount) for (const p of panes) void mountEditor(p, p.editor?.getScroll());
 }
 
-/** Applies the theme saved in the settings, if any. Runs before any file is opened. */
+/** Applies the theme and split position saved in the settings, if any. Runs before any file is opened. */
 async function loadSavedTheme(): Promise<void> {
   try {
     const saved = await backend.getSetting('theme');
     if (isTheme(saved)) themeSetting = saved;
   } catch {
     // no saved theme; keep the default
+  }
+  try {
+    const r = parseFloat(await backend.getSetting('splitRatio'));
+    if (r > 0 && r < 1) splitRatio = r;
+  } catch {
+    // no saved split position; keep the middle
   }
   applyTheme(false);
 }
@@ -463,6 +549,8 @@ function renderChrome(): void {
   panesEl.hidden = !any;
   panesEl.classList.toggle('split', isSplit());
   panes[1].el.hidden = !isSplit();
+  splitter.hidden = !isSplit();
+  if (isSplit()) applySplit(splitRatio);
   for (const pane of panes) {
     renderDocHead(pane);
     renderBanner(pane);
