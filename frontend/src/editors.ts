@@ -14,6 +14,7 @@ import crepeCommon from '@milkdown/crepe/theme/common/style.css?inline';
 import crepeLight from '@milkdown/crepe/theme/frame.css?inline';
 import crepeDark from '@milkdown/crepe/theme/frame-dark.css?inline';
 import { backend } from './backend';
+import { keepFormatting } from './keep-format';
 import { dirname, localImagePath } from './paths';
 
 export interface EditorHandle {
@@ -250,20 +251,22 @@ export async function createWysiwygEditor(
     ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet }));
   });
 
-  let ready = false;
+  // What the editor writes for the file as loaded. Edits are merged into the original text against it,
+  // so lines the user didn't touch keep their formatting (see keep-format.ts).
+  let written: string | null = null;
   crepe.on((listener) => {
     listener.markdownUpdated((_ctx, md, prev) => {
-      if (ready && md !== prev) onChange(md);
+      if (written !== null && md !== prev) onChange(keepFormatting(text, written, md));
     });
   });
   await crepe.create();
-  ready = true;
+  written = crepe.getMarkdown();
   labelTopBar(parent);
   watchLinks(parent, onLink);
 
   return {
     destroy: () => {
-      ready = false;
+      written = null;
       void crepe.destroy();
     },
     focus: () => parent.querySelector<HTMLElement>('.ProseMirror')?.focus(),
