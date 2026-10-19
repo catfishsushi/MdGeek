@@ -34,19 +34,26 @@ interface Tab {
   scroll: number; // where the editor was scrolled to (0 to 1) when this tab was last hidden
 }
 
+/** Two files shown side by side. In the tab bar they're one joined tab. */
+interface Split {
+  left: Tab;
+  right: Tab;
+}
+
+/** One entry in the tab bar: a single file, or a split pair. */
+type Entry = Tab | Split;
+
 /**
- * One side of the editing area. There are always two; the right one shows only in split view, which
- * is on whenever it has tabs. A file is open in at most one pane.
+ * One side of the editing area. The right one shows only while a split tab is the current one.
+ * A file is open in at most one entry, so it can never show on both sides.
  */
 interface Pane {
   el: HTMLElement;
-  tabsEl: HTMLElement;
   docHeadEl: HTMLElement;
   bannerEl: HTMLElement;
   editorEl: HTMLElement;
-  tabs: Tab[];
-  active: Tab | null; // the tab picked in this pane
-  shown: Tab | null; // the tab the editor was last built for; differs from active until it's rebuilt
+  active: Tab | null; // the file this side should show
+  shown: Tab | null; // the file the editor was last built for; differs from active until it's rebuilt
   editor: EditorHandle | null;
   mountToken: number;
 }
@@ -55,6 +62,7 @@ const AUTOSAVE_MS = 800;
 const POLL_MS = 2000;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const tabsEl = $('tabs');
 const panesEl = $('panes');
 const emptyEl = $('empty');
 const toastEl = $('toast');
@@ -66,31 +74,32 @@ function makePane(): Pane {
   const part = (cls: string) => el.querySelector<HTMLElement>(cls)!;
   const pane: Pane = {
     el,
-    tabsEl: part('.tabs'),
     docHeadEl: part('.dochead'),
     bannerEl: part('.banner'),
     editorEl: part('.editor'),
-    tabs: [],
     active: null,
     shown: null,
     editor: null,
     mountToken: 0,
   };
-  // Clicking or typing in a pane makes it the one the toolbar and shortcuts act on.
+  // Clicking or typing in a side makes it the one the toolbar and shortcuts act on.
   el.addEventListener('pointerdown', () => focusPane(pane), true);
   el.addEventListener('focusin', () => focusPane(pane));
   return pane;
 }
 
 const panes = [makePane(), makePane()] as const;
+let entries: Entry[] = [];
+let current: Entry | null = null; // the tab bar entry being shown
 let focused: Pane = panes[0];
 let defaultView: View = 'wysiwyg';
 
-const isSplit = () => panes[1].tabs.length > 0;
-const allTabs = () => [...panes[0].tabs, ...panes[1].tabs];
-/** The pane a tab is in, or undefined once it's closed. */
-const paneOf = (tab: Tab) => panes.find((p) => p.tabs.includes(tab));
-const otherPane = (pane: Pane) => (pane === panes[0] ? panes[1] : panes[0]);
+const isSplitEntry = (e: Entry): e is Split => 'left' in e;
+const filesOf = (e: Entry): Tab[] => (isSplitEntry(e) ? [e.left, e.right] : [e]);
+const isSplit = () => !!current && isSplitEntry(current);
+const allTabs = () => entries.flatMap(filesOf);
+/** The tab bar entry a file is in, or undefined once it's closed. */
+const entryOf = (tab: Tab) => entries.find((e) => filesOf(e).includes(tab));
 
 // ---------- split divider ----------
 // The bar between the two sides follows the separator pattern: drag it with the mouse or a finger, or
@@ -341,9 +350,9 @@ async function loadSavedTheme(): Promise<void> {
   applyTheme(false);
 }
 
-// ---------- panes, tabs and editor ----------
+// ---------- tabs, splits and editors ----------
 
-/** The path bar above the document: where the file is, and whether it's saved. */
+/** The path bar above a document: where the file is, and whether it's saved. */
 function renderDocHead(pane: Pane): void {
   const tab = pane.active;
   pane.docHeadEl.hidden = !tab;
@@ -392,52 +401,43 @@ function renderStatus(pane: Pane): void {
 const SPLIT_SVG =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>';
 
-/** Tabs in both panes, plus each pane's "move to the other side" button. */
+/** The tab bar: one tab per file, a joined tab per split pair, then the split button. */
 function renderTabs(): void {
-  for (const pane of panes) {
-    renderStatus(pane);
-    pane.tabsEl.replaceChildren(...pane.tabs.map((tab) => tabElement(pane, tab)));
-    if (!pane.tabs.length) continue;
+  for (const pane of panes) renderStatus(pane);
+  tabsEl.replaceChildren(...entries.map(entryElement));
+  // Only a single file can be split. A split tab is already split; Ctrl+\ pulls it apart.
+  if (current && !isSplitEntry(current)) {
     const split = document.createElement('button');
     split.className = 'split';
     split.innerHTML = SPLIT_SVG;
-    const label = !isSplit()
-      ? 'Split view: pick a file to show beside this one (Ctrl+\\)'
-      : pane === panes[0]
-        ? 'Move to the right side (Ctrl+\\)'
-        : 'Move to the left side (Ctrl+\\)';
+    const label = 'Split view: pick a file to show beside this one (Ctrl+\\)';
     split.title = label;
     split.setAttribute('aria-label', label);
-    if (!isSplit()) {
-      split.setAttribute('aria-haspopup', 'menu');
-      split.setAttribute('aria-expanded', String(!splitMenu.hidden));
-    }
-    split.addEventListener('click', () => splitAction(pane));
-    pane.tabsEl.appendChild(split);
+    split.setAttribute('aria-haspopup', 'menu');
+    split.setAttribute('aria-expanded', String(!splitMenu.hidden));
+    split.addEventListener('click', () => splitAction());
+    tabsEl.appendChild(split);
   }
+  renderFocus();
 }
 
-function tabElement(pane: Pane, tab: Tab): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 'tab' + (tab === pane.active ? ' active' : '');
-  el.title = tab.path;
-  el.draggable = true;
-
+/** A file's name, its "unsaved" or "changed on disk" mark, and its close button. */
+function fileParts(tab: Tab): HTMLElement[] {
   const name = document.createElement('span');
   name.textContent = basename(tab.path);
-  el.appendChild(name);
+  const parts: HTMLElement[] = [name];
   if (tab.conflict) {
     const c = document.createElement('span');
     c.className = 'conflict';
     c.textContent = '!';
     c.title = 'Changed on disk';
-    el.appendChild(c);
+    parts.push(c);
   } else if (isDirty(tab)) {
     const d = document.createElement('span');
     d.className = 'dirty';
     d.textContent = '●';
     d.title = 'Not saved yet';
-    el.appendChild(d);
+    parts.push(d);
   }
   const close = document.createElement('button');
   close.className = 'close';
@@ -447,50 +447,69 @@ function tabElement(pane: Pane, tab: Tab): HTMLElement {
     e.stopPropagation();
     void closeTab(tab);
   });
-  el.appendChild(close);
+  parts.push(close);
+  return parts;
+}
 
-  el.addEventListener('click', () => activate(tab));
-  el.addEventListener('auxclick', (e) => {
-    if (e.button === 1) void closeTab(tab);
-  });
-  el.addEventListener('dragstart', (e) => e.dataTransfer?.setData('text/mdgeek-tab', tab.path));
+function entryElement(entry: Entry): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'tab' + (entry === current ? ' active' : '');
+  el.draggable = true;
+  if (isSplitEntry(entry)) {
+    // A joined tab: each half shows its own file, and clicking one works in that side.
+    el.classList.add('joined');
+    el.title = `${entry.left.path}\n${entry.right.path}\nCtrl+\\ to separate`;
+    const half = (tab: Tab) => {
+      const h = document.createElement('span');
+      h.className = 'half';
+      h.dataset.path = tab.path;
+      h.append(...fileParts(tab));
+      h.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activate(tab);
+      });
+      h.addEventListener('auxclick', (e) => {
+        if (e.button === 1) {
+          e.stopPropagation();
+          void closeTab(tab);
+        }
+      });
+      return h;
+    };
+    const join = document.createElement('span');
+    join.className = 'join';
+    join.innerHTML = SPLIT_SVG;
+    el.append(half(entry.left), join, half(entry.right));
+  } else {
+    el.title = entry.path;
+    el.append(...fileParts(entry));
+    el.addEventListener('click', () => activate(entry));
+    el.addEventListener('auxclick', (e) => {
+      if (e.button === 1) void closeTab(entry);
+    });
+  }
+
+  // Dragging reorders the tab bar. A split pair moves as one.
+  const key = filesOf(entry)[0].path;
+  el.addEventListener('dragstart', (e) => e.dataTransfer?.setData('text/mdgeek-tab', key));
   el.addEventListener('dragover', (e) => {
     if (e.dataTransfer?.types.includes('text/mdgeek-tab')) {
       e.preventDefault();
-      e.stopPropagation();
       el.classList.add('drag-over');
     }
   });
   el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
   el.addEventListener('drop', (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    const from = draggedTab(e);
-    if (from && from !== tab) moveTab(from, pane, tab);
-    else renderTabs();
+    const dragged = allTabs().find((t) => t.path === e.dataTransfer?.getData('text/mdgeek-tab'));
+    const from = dragged && entryOf(dragged);
+    if (from && from !== entry) {
+      entries.splice(entries.indexOf(from), 1);
+      entries.splice(entries.indexOf(entry), 0, from);
+    }
+    renderTabs();
   });
   return el;
-}
-
-const draggedTab = (e: DragEvent) => allTabs().find((t) => t.path === e.dataTransfer?.getData('text/mdgeek-tab'));
-
-// A tab dropped on a pane's tab bar, but not on another tab, goes to the end of that pane.
-for (const pane of panes) {
-  pane.tabsEl.addEventListener('dragover', (e) => {
-    if (e.dataTransfer?.types.includes('text/mdgeek-tab')) {
-      e.preventDefault();
-      pane.tabsEl.classList.add('drop-over');
-    }
-  });
-  pane.tabsEl.addEventListener('dragleave', (e) => {
-    if (!pane.tabsEl.contains(e.relatedTarget as Node | null)) pane.tabsEl.classList.remove('drop-over');
-  });
-  pane.tabsEl.addEventListener('drop', (e) => {
-    e.preventDefault();
-    pane.tabsEl.classList.remove('drop-over');
-    const from = draggedTab(e);
-    if (from) moveTab(from, pane);
-  });
 }
 
 function renderBanner(pane: Pane): void {
@@ -544,28 +563,29 @@ function renderPermissionBanner(pane: Pane, tab: Tab): void {
 }
 
 function renderChrome(): void {
-  const any = allTabs().length > 0;
+  const any = entries.length > 0;
   emptyEl.hidden = any;
   panesEl.hidden = !any;
   panesEl.classList.toggle('split', isSplit());
   panes[1].el.hidden = !isSplit();
   splitter.hidden = !isSplit();
   if (isSplit()) applySplit(splitRatio);
+  else for (const p of panes) p.el.style.flexGrow = ''; // one file fills the width again
   for (const pane of panes) {
     renderDocHead(pane);
     renderBanner(pane);
   }
   renderTabs();
-  renderFocus();
 }
 
 /**
- * Marks the pane in use and points the toolbar at it. Redraws nothing else, because it runs as a click
+ * Marks the side in use and points the toolbar at it. Redraws nothing else, because it runs as a click
  * starts: rebuilding the tabs then would remove the button being clicked.
  */
 function renderFocus(): void {
   for (const pane of panes) pane.el.classList.toggle('focused', pane === focused);
   const active = focused.active;
+  tabsEl.querySelectorAll<HTMLElement>('.half').forEach((h) => h.classList.toggle('on', h.dataset.path === active?.path));
   $('btn-export-html').toggleAttribute('disabled', !active);
   $('btn-export-pdf').toggleAttribute('disabled', !active);
   document.querySelectorAll<HTMLElement>('#view-toggle button').forEach((b) => {
@@ -578,12 +598,12 @@ function renderFocus(): void {
 }
 
 function focusPane(pane: Pane): void {
-  if (focused === pane || !pane.tabs.length) return;
+  if (focused === pane || !pane.active) return;
   focused = pane;
   renderFocus();
 }
 
-/** (Re)creates a pane's editor for its active tab. Each mount gets a fresh host element. */
+/** (Re)creates a side's editor for its file. Each mount gets a fresh host element. */
 async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
   const token = ++pane.mountToken;
   if (pane.shown && pane.editor) pane.shown.scroll = pane.editor.getScroll();
@@ -620,79 +640,59 @@ async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
   if (pane === focused) handle.focus();
 }
 
-/**
- * Keeps the panes tidy after tabs open, close or move: the left side is never empty while the right
- * side has tabs, and the split closes when the right side empties. Then rebuilds any editor whose tab
- * changed.
- */
+/** Shows the current tab bar entry: one file across the whole width, or a split pair side by side. */
 function refresh(): void {
-  const [left, right] = panes;
-  if (!left.tabs.length && right.tabs.length) {
-    left.tabs = right.tabs;
-    left.active = right.active;
-    right.tabs = [];
-    right.active = null;
-  }
-  if (!focused.tabs.length) focused = left;
+  const [left, right] = current ? filesOf(current) : [];
+  panes[0].active = left ?? null;
+  panes[1].active = right ?? null;
+  if (!focused.active) focused = panes[0];
+  // Note every place in a document before any editor is rebuilt, since a file can move between sides.
+  for (const p of panes) if (p.shown !== p.active && p.shown && p.editor) p.shown.scroll = p.editor.getScroll();
   for (const p of panes) if (p.shown !== p.active) void mountEditor(p);
   renderChrome();
 }
 
+/** Shows a file's tab. If it's half of a split, the split shows and that side is the one in use. */
 function activate(tab: Tab): void {
-  const pane = paneOf(tab);
-  if (!pane) return;
-  pane.active = tab;
-  focused = pane;
+  const entry = entryOf(tab);
+  if (!entry) return;
+  current = entry;
+  focused = isSplitEntry(entry) && entry.right === tab ? panes[1] : panes[0];
   refresh();
 }
 
-/** Takes a tab out of its pane, picking the next tab there if it was the active one. */
-function removeFromPane(pane: Pane, tab: Tab): void {
-  const i = pane.tabs.indexOf(tab);
-  pane.tabs.splice(i, 1);
-  if (pane.active === tab) pane.active = pane.tabs[Math.min(i, pane.tabs.length - 1)] ?? null;
-}
-
-/** Moves a tab to a pane, before another tab or at the end. Moving it to the other pane also opens it there. */
-function moveTab(tab: Tab, to: Pane, before?: Tab): void {
-  const from = paneOf(tab);
-  if (!from) return;
-  const insert = () => {
-    const i = before ? to.tabs.indexOf(before) : -1;
-    to.tabs.splice(i < 0 ? to.tabs.length : i, 0, tab);
-  };
-  if (from === to) {
-    from.tabs.splice(from.tabs.indexOf(tab), 1);
-    insert();
-    renderTabs();
-    return;
-  }
-  // Keep its place in the document. The editor showing it may be rebuilt after the new one.
-  if (from.shown === tab && from.editor) tab.scroll = from.editor.getScroll();
-  removeFromPane(from, tab);
-  insert();
-  to.active = tab;
-  focused = to;
+/** Joins a single file's tab with the current one. The current file stays on the left. */
+function joinWith(tab: Tab): void {
+  const cur = current;
+  if (!cur || isSplitEntry(cur) || cur === tab || entryOf(tab) !== tab) return;
+  entries.splice(entries.indexOf(tab), 1);
+  const split: Split = { left: cur, right: tab };
+  entries.splice(entries.indexOf(cur), 1, split);
+  current = split;
+  focused = panes[1];
   refresh();
 }
 
-/**
- * The split button and Ctrl+\. Without a split, opens the menu for picking what to show on the right.
- * In split view, moves the pane's current tab to the other side.
- */
-function splitAction(pane: Pane): void {
-  if (!isSplit()) {
-    if (splitMenu.hidden) openSplitMenu(pane);
-    else closeSplitMenu(true);
-    return;
-  }
-  if (pane.active) moveTab(pane.active, otherPane(pane));
+/** Turns a split back into two ordinary tabs, keeping the side in use on screen. */
+function separate(split: Split): void {
+  entries.splice(entries.indexOf(split), 1, split.left, split.right);
+  if (current === split) current = focused === panes[1] ? split.right : split.left;
+  focused = panes[0];
+  refresh();
+}
+
+/** The split button and Ctrl+\: on a single file, opens the menu for picking what goes beside it. On a split, separates it. */
+function splitAction(): void {
+  if (!current) return;
+  if (isSplitEntry(current)) separate(current);
+  else if (splitMenu.hidden) openSplitMenu();
+  else closeSplitMenu(true);
 }
 
 // ---------- split menu ----------
-// Lists the other open files, plus "Open file…". The pick opens on the right, beside the current file.
-// It follows the menu button pattern: arrow keys, Home/End, Enter or Space to pick, Esc or Tab to close.
-// It lives outside the tab bar, which scrolls sideways and would clip it.
+// Lists the other open files, plus "Open file…". The pick joins the current file in a split tab, on the
+// right. It follows the menu button pattern: arrow keys, Home/End, Enter or Space to pick, Esc or Tab to
+// close. It lives outside the tab bar, which scrolls sideways and would clip it.
 
 const splitMenu = document.createElement('div');
 splitMenu.className = 'menu split-menu';
@@ -700,17 +700,16 @@ splitMenu.setAttribute('role', 'menu');
 splitMenu.setAttribute('aria-label', 'Show beside');
 splitMenu.hidden = true;
 $('app').appendChild(splitMenu);
-let splitMenuPane: Pane = panes[0];
 
-const splitButton = (pane: Pane) => pane.tabsEl.querySelector<HTMLElement>('.split');
+const splitButton = () => tabsEl.querySelector<HTMLElement>('.split');
 
-function openSplitMenu(pane: Pane): void {
-  const btn = splitButton(pane);
+function openSplitMenu(): void {
+  const btn = splitButton();
   if (!btn) return;
-  const items: [string, () => void][] = pane.tabs
-    .filter((t) => t !== pane.active)
-    .map((t) => [basename(t.path), () => moveTab(t, panes[1])]);
-  items.push(['Open file…', () => void pickFiles(panes[1])]);
+  // Files already in another split stay where they are.
+  const singles = entries.filter((e): e is Tab => !isSplitEntry(e) && e !== current);
+  const items: [string, () => void][] = singles.map((t) => [basename(t.path), () => joinWith(t)]);
+  items.push(['Open file…', () => void pickFileBeside()]);
   const head = document.createElement('div');
   head.className = 'menu-h';
   head.setAttribute('aria-hidden', 'true');
@@ -734,7 +733,6 @@ function openSplitMenu(pane: Pane): void {
   splitMenu.style.top = `${r.bottom + 6}px`;
   splitMenu.style.right = `${document.documentElement.clientWidth - r.right}px`;
   splitMenu.hidden = false;
-  splitMenuPane = pane;
   btn.setAttribute('aria-expanded', 'true');
   opts[0].focus();
 }
@@ -743,7 +741,7 @@ function closeSplitMenu(refocus: boolean): void {
   if (splitMenu.hidden) return;
   splitMenu.hidden = true;
   // Look the button up again: the tab bar may have been redrawn while the menu was open.
-  const btn = splitButton(splitMenuPane);
+  const btn = splitButton();
   btn?.setAttribute('aria-expanded', 'false');
   if (refocus) btn?.focus();
 }
@@ -774,7 +772,7 @@ splitMenu.addEventListener('keydown', (e) => {
 // A click anywhere outside the menu and its button closes it. The button's own click toggles it.
 document.addEventListener('pointerdown', (e) => {
   const t = e.target as Node;
-  if (!splitMenu.hidden && !splitMenu.contains(t) && !splitButton(splitMenuPane)?.contains(t)) closeSplitMenu(false);
+  if (!splitMenu.hidden && !splitMenu.contains(t) && !splitButton()?.contains(t)) closeSplitMenu(false);
 });
 window.addEventListener('resize', () => closeSplitMenu(false));
 
@@ -789,16 +787,11 @@ function switchView(view: View): void {
 
 // ---------- opening files ----------
 
-/** Opens a file in a pane (the one in use, unless given). A file that's already open is shown where it is. */
-async function openFile(path: string, pane: Pane = focused): Promise<void> {
-  const existing = allTabs().find((t) => t.path === path);
-  if (existing) {
-    activate(existing);
-    return;
-  }
+/** Reads a file into a new tab, not yet in the tab bar. Returns null (after saying why) if it can't be read. */
+async function loadTab(path: string): Promise<Tab | null> {
   try {
     const data = await backend.readFile(path);
-    const tab: Tab = {
+    return {
       path,
       content: data.content,
       savedContent: data.content,
@@ -810,13 +803,49 @@ async function openFile(path: string, pane: Pane = focused): Promise<void> {
       needsPermission: false,
       scroll: 0,
     };
-    pane.tabs.push(tab);
-    pane.active = tab;
-    focused = pane;
-    refresh();
   } catch (e) {
     toast(`Could not open ${basename(path)}: ${e}`);
+    return null;
   }
+}
+
+/** Opens a file in its own tab across the full width. A file that's already open is shown where it is. */
+async function openFile(path: string): Promise<void> {
+  const existing = allTabs().find((t) => t.path === path);
+  if (existing) {
+    activate(existing);
+    return;
+  }
+  const tab = await loadTab(path);
+  if (!tab || allTabs().some((t) => t.path === path)) return; // opened twice at once; keep the first
+  entries.push(tab);
+  activate(tab);
+}
+
+/** "Open file…" in the split menu: the first file picked goes beside the current one, any others get their own tabs. */
+async function pickFileBeside(): Promise<void> {
+  const beside = current;
+  let paths: string[];
+  try {
+    paths = (await backend.pickFiles()).filter((p) => isMarkdownPath(p));
+  } catch (e) {
+    toast('Could not open: ' + e);
+    return;
+  }
+  if (!paths.length) return;
+  const [first, ...rest] = paths;
+  const tab = allTabs().find((t) => t.path === first) ?? (await loadTab(first));
+  if (!tab) return;
+  if (!entryOf(tab)) entries.push(tab);
+  for (const p of rest) {
+    if (allTabs().some((t) => t.path === p)) continue;
+    const t = await loadTab(p);
+    if (t) entries.push(t);
+  }
+  for (const p of paths) if (!tree.shows(p)) await tree.add([{ path: p, isDir: false }]);
+  // Join only if the file is on its own and the current tab is still the one the menu was opened from.
+  if (current === beside && entryOf(tab) === tab) joinWith(tab);
+  else activate(tab);
 }
 
 /** Ctrl+Click on a link: Markdown files open in a tab, anything else in its default app. */
@@ -824,7 +853,7 @@ async function followLink(tab: Tab, href: string): Promise<void> {
   const target = resolveLink(dirname(tab.path), href);
   if (!target) return;
   if (target.kind === 'local' && isMarkdownPath(target.path)) {
-    await openFile(target.path, paneOf(tab));
+    await openFile(target.path);
     return;
   }
   try {
@@ -835,15 +864,12 @@ async function followLink(tab: Tab, href: string): Promise<void> {
 }
 
 /** Folders replace what the left pane shows. Files open in tabs and are listed in the pane unless already shown there. */
-/** With a pane given, files open there, and ones already open elsewhere move there. */
-async function openPaths(paths: string[], pane?: Pane): Promise<void> {
+async function openPaths(paths: string[]): Promise<void> {
   for (const p of paths) {
     if (await backend.isDir(p)) {
       await tree.setRoot(p);
     } else {
-      const open = allTabs().find((t) => t.path === p);
-      if (open && pane) moveTab(open, pane);
-      else await openFile(p, pane);
+      await openFile(p);
       const opened = allTabs().some((t) => t.path === p);
       if (opened && isMarkdownPath(p) && !tree.shows(p)) await tree.add([{ path: p, isDir: false }]);
     }
@@ -863,6 +889,7 @@ async function addToSidebar(paths: string[]): Promise<void> {
   if (skipped) toast(`Skipped ${skipped} file${skipped > 1 ? 's' : ''}: only Markdown files and folders can be listed.`);
 }
 
+/** Closes a file. Closing half of a split leaves the other file as an ordinary tab in the same place. */
 async function closeTab(tab: Tab): Promise<void> {
   if (tab.conflict) {
     const res = await reviewConflict(tab);
@@ -872,9 +899,17 @@ async function closeTab(tab: Tab): Promise<void> {
     if (isDirty(tab)) return; // the save failed; keep the tab so nothing is lost
   }
   if (tab.saveTimer !== null) window.clearTimeout(tab.saveTimer);
-  const pane = paneOf(tab);
-  if (!pane) return; // already closed while it was saving
-  removeFromPane(pane, tab);
+  const entry = entryOf(tab);
+  if (!entry) return; // already closed while it was saving
+  const i = entries.indexOf(entry);
+  if (isSplitEntry(entry)) {
+    const other = entry.left === tab ? entry.right : entry.left;
+    entries.splice(i, 1, other);
+    if (current === entry) current = other;
+  } else {
+    entries.splice(i, 1);
+    if (current === entry) current = entries[Math.min(i, entries.length - 1)] ?? null;
+  }
   refresh();
 }
 
@@ -1054,8 +1089,7 @@ async function exportPdf(): Promise<void> {
 
 // ---------- toolbar, keys, startup ----------
 
-/** Shows the "open file" dialog. The files open in the pane given, or the one in use. */
-async function pickFiles(pane?: Pane): Promise<void> {
+async function pickFiles(): Promise<void> {
   let paths: string[];
   try {
     paths = await backend.pickFiles();
@@ -1063,7 +1097,7 @@ async function pickFiles(pane?: Pane): Promise<void> {
     toast('Could not open: ' + e);
     return;
   }
-  if (paths.length) await openPaths(paths, pane);
+  if (paths.length) await openPaths(paths);
 }
 
 async function pickFolder(): Promise<void> {
@@ -1094,8 +1128,8 @@ window.addEventListener(
   (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const key = e.key.toLowerCase();
-    // Shortcuts act on the pane in use.
-    const { tabs, active } = focused;
+    // Shortcuts act on the file in use (in a split, the side last clicked or typed in).
+    const active = focused.active;
     if (key === 'o') {
       e.preventDefault();
       void (e.shiftKey ? pickFolder() : pickFiles());
@@ -1108,13 +1142,14 @@ window.addEventListener(
     } else if (key === 'e' && active) {
       e.preventDefault();
       switchView(active.view === 'wysiwyg' ? 'source' : 'wysiwyg');
-    } else if (e.key === 'Tab' && tabs.length > 1 && active) {
+    } else if (e.key === 'Tab' && entries.length > 1 && current) {
       e.preventDefault();
       const step = e.shiftKey ? -1 : 1;
-      activate(tabs[(tabs.indexOf(active) + step + tabs.length) % tabs.length]);
-    } else if (e.code === 'Backslash' && active) {
+      const next = entries[(entries.indexOf(current) + step + entries.length) % entries.length];
+      activate(filesOf(next)[0]);
+    } else if (e.code === 'Backslash' && current) {
       e.preventDefault();
-      splitAction(focused);
+      splitAction();
     }
   },
   true,
@@ -1129,20 +1164,13 @@ const tree = new Tree(
 
 backend.onOpenPaths((paths) => void openPaths(paths));
 
-// Files dropped from File Explorer: on the left pane they're listed there, anywhere else they open, on
-// the side of a split view they were dropped on.
-// The x and y are page coordinates, so the page can tell which part of the window got the drop.
+// Files dropped from File Explorer: on the left pane they're listed there, anywhere else they open in
+// their own tabs. The x and y are page coordinates, so the page can tell which part of the window got the drop.
 const sidebar = $('sidebar');
 backend.onFileDrop((x, y, paths) => {
   sidebar.classList.remove('drop-over');
-  const target = document.elementFromPoint(x, y);
-  if (target?.closest('#sidebar')) {
-    void addToSidebar(paths);
-    return;
-  }
-  const pane = panes.find((p) => p.el.contains(target));
-  if (pane) focusPane(pane);
-  void openPaths(paths);
+  if (document.elementFromPoint(x, y)?.closest('#sidebar')) void addToSidebar(paths);
+  else void openPaths(paths);
 });
 sidebar.addEventListener('dragover', (e) => {
   if (e.dataTransfer?.types.includes('Files')) sidebar.classList.add('drop-over');

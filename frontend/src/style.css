@@ -439,8 +439,8 @@ button:disabled { opacity: 0.5; cursor: default; }
   overflow: hidden;
 }
 
-/* The editing area: one pane, or two side by side in split view. Each pane has its own tabs, path bar
-   and editor. The pane you're working in is the one the toolbar and keyboard shortcuts act on. */
+/* The editing area: one file across the width, or two side by side for a split tab. Each side has its
+   own path bar and editor. The side you're working in is the one the toolbar and shortcuts act on. */
 #panes { flex: 1; min-height: 0; display: flex; }
 #panes[hidden], .pane[hidden] { display: none; }
 .pane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
@@ -469,14 +469,19 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* While dragging, the editors mustn't select text or swallow the pointer. */
 #panes.resizing { cursor: col-resize; user-select: none; }
 #panes.resizing .pane { pointer-events: none; }
-/* In split view, the other pane's current tab loses its accent line, so you can tell which side is in use. */
-#panes.split .pane:not(.focused) .tab.active { box-shadow: none; }
-/* "Move to the other side", at the right end of each pane's tabs. */
+/* "Split view", at the right end of the tab bar. Shown only while a single file is on screen. */
 #content .tabs .split { flex: none; align-self: center; margin-left: auto; position: sticky; right: 0; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink3); }
-#content .tabs .split:hover:not(:disabled) { background: var(--btnh); color: var(--ink); }
-#content .tabs .split:disabled { opacity: .35; }
-#content .tabs .split svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-#content .tabs.drop-over { outline: 2px dashed var(--acc); outline-offset: -2px; }
+#content .tabs .split:hover { background: var(--btnh); color: var(--ink); }
+#content :is(.tabs .split, .tab .join) svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* A split pair is one joined tab: each half has its own name and close button, with the split icon
+   between. In the one on screen, the half in use takes the accent colour and the other is plain, so
+   you can tell which side the toolbar acts on. */
+.tab.joined { gap: 6px; }
+.tab .half { display: inline-flex; align-items: center; gap: 6px; height: 100%; }
+.tab .join { display: grid; place-items: center; color: var(--ink3); }
+.tab .join svg { width: 14px; height: 14px; }
+#content .tab.joined.active .half:not(.on) { color: var(--ink2); }
+#content .tab.joined.active .half.on { color: var(--accink); }
 /* The split button's menu: the other open files and "Open file…". main.ts sets top and right. */
 .menu.split-menu { position: fixed; z-index: 35; width: 240px; max-height: 60vh; overflow-y: auto; }
 .split-menu .opt { flex: none; display: block; line-height: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
