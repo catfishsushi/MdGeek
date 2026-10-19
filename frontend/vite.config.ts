@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -59,12 +60,26 @@ function addContentSecurityPolicy(html: string): string {
   return html.replace('<head>', `<head>\n  <meta http-equiv="Content-Security-Policy" content="${policy}">`);
 }
 
-export default defineConfig(({ mode }) =>
-  mode === 'web'
+/**
+ * The version shown when hovering over the logo: the date and short ID of the commit it was built
+ * from, like "2026-10-19 (e2a80dd)", so it can be matched against the GitHub history.
+ */
+function appVersion(): string {
+  try {
+    return execSync('git log -1 --format="%cs (%h)"', { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown (built outside git)';
+  }
+}
+
+export default defineConfig(({ mode }) => {
+  const define = { __APP_VERSION__: JSON.stringify(appVersion()) };
+  return mode === 'web'
     ? {
+        define,
         plugins: [viteSingleFile(), installable()],
         publicDir: 'public-web',
         build: { outDir: 'dist-web' },
       }
-    : { publicDir: false },
-);
+    : { define, publicDir: false };
+});
