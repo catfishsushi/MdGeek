@@ -444,7 +444,31 @@ button:disabled { opacity: 0.5; cursor: default; }
 #panes { flex: 1; min-height: 0; display: flex; }
 #panes[hidden], .pane[hidden] { display: none; }
 .pane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.pane + .pane { border-left: 1px solid var(--line); }
+
+/* The divider between the two sides. Drag it, or focus it and use the arrow keys, to change their
+   widths; double-click or Enter puts it back in the middle. A grip in the centre shows where to hold. */
+.splitter { flex: none; position: relative; width: 9px; margin: 0 -4px; z-index: 5; cursor: col-resize; touch-action: none; outline: none; }
+.splitter[hidden] { display: none; }
+.splitter::before { content: ""; position: absolute; inset: 0 4px; background: var(--line); transition: background .15s, inset .15s; }
+.splitter::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: 4px;
+  border: 1px solid var(--btnline);
+  background: radial-gradient(circle, var(--ink2) 1.3px, transparent 1.8px) center / 4px 7px repeat-y, var(--btn);
+  box-shadow: var(--btnshadow);
+  transition: border-color .15s;
+}
+.splitter:hover::before, .splitter.dragging::before, .splitter:focus-visible::before { inset: 0 3px; background: var(--acc); }
+.splitter:hover::after, .splitter.dragging::after, .splitter:focus-visible::after { border-color: var(--acc); }
+/* While dragging, the editors mustn't select text or swallow the pointer. */
+#panes.resizing { cursor: col-resize; user-select: none; }
+#panes.resizing .pane { pointer-events: none; }
 /* In split view, the other pane's current tab loses its accent line, so you can tell which side is in use. */
 #panes.split .pane:not(.focused) .tab.active { box-shadow: none; }
 /* "Move to the other side", at the right end of each pane's tabs. */
@@ -460,7 +484,12 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* Narrow screens: the two panes stack, one above the other. */
 @media (max-width: 920px) {
   #panes.split { flex-direction: column; }
-  .pane + .pane { border-left: 0; border-top: 1px solid var(--line); }
+  /* Stacked, the divider runs across and resizes up and down. */
+  .splitter { width: auto; height: 9px; margin: -4px 0; cursor: row-resize; }
+  .splitter::before { inset: 4px 0; }
+  .splitter:hover::before, .splitter.dragging::before, .splitter:focus-visible::before { inset: 3px 0; }
+  .splitter::after { width: 44px; height: 10px; background: radial-gradient(circle, var(--ink2) 1.3px, transparent 1.8px) center / 7px 4px repeat-x, var(--btn); }
+  #panes.resizing { cursor: row-resize; }
 }
 
 /* Open files, above the path bar. */
