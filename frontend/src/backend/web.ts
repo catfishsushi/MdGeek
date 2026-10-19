@@ -354,18 +354,24 @@ export const webBackend: Backend = {
       if (reg.waiting) offer(reg.waiting);
       watch(reg.installing); // a download that started before this code ran
       reg.addEventListener('updatefound', () => watch(reg.installing));
-      // The browser checks for a new version when the app starts. An app left open for days would
-      // miss it, so check again every hour, and whenever the window comes back into view (at most
-      // every five minutes).
+      // The browser checks for a new version when the app starts. An app left open all day would miss
+      // it, so check again every 15 minutes, and whenever the window comes back into view or is
+      // clicked into from another program (at most every five minutes). A window that stays on
+      // screen never "comes back into view", so the click counts too. Each check fetches only the
+      // small sw.js file.
       let lastCheck = Date.now();
       const check = () => {
         lastCheck = Date.now();
         void reg.update().catch(() => undefined);
       };
-      window.setInterval(check, 60 * 60 * 1000);
+      const checkSoon = () => {
+        if (Date.now() - lastCheck > 5 * 60 * 1000) check();
+      };
+      window.setInterval(check, 15 * 60 * 1000);
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && Date.now() - lastCheck > 5 * 60 * 1000) check();
+        if (document.visibilityState === 'visible') checkSoon();
       });
+      window.addEventListener('focus', checkSoon);
     });
   },
 };
