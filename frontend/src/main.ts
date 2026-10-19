@@ -476,9 +476,16 @@ function entryElement(entry: Entry): HTMLElement {
       });
       return h;
     };
-    const join = document.createElement('span');
+    // The split icon between the names separates the pair into two ordinary tabs.
+    const join = document.createElement('button');
     join.className = 'join';
     join.innerHTML = SPLIT_SVG;
+    join.title = 'Separate into two tabs (Ctrl+\\)';
+    join.setAttribute('aria-label', 'Separate into two tabs');
+    join.addEventListener('click', (e) => {
+      e.stopPropagation();
+      separate(entry);
+    });
     el.append(half(entry.left), join, half(entry.right));
   } else {
     el.title = entry.path;
@@ -676,8 +683,10 @@ function joinWith(tab: Tab): void {
 /** Turns a split back into two ordinary tabs, keeping the side in use on screen. */
 function separate(split: Split): void {
   entries.splice(entries.indexOf(split), 1, split.left, split.right);
-  if (current === split) current = focused === panes[1] ? split.right : split.left;
-  focused = panes[0];
+  if (current === split) {
+    current = focused === panes[1] ? split.right : split.left;
+    focused = panes[0];
+  }
   refresh();
 }
 
