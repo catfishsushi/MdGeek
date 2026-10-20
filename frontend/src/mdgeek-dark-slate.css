@@ -1,0 +1,166 @@
+/* ==========================================================================
+   MdGeek: Dark Slate theme + .mdGeek terminal wordmark
+   --------------------------------------------------------------------------
+   The Dark theme's colours and fonts, and the ".mdGeek" wordmark that the Light and Dark themes show
+   in place of the "M↓ MdGeek" logo. Adapted from the design file to MdGeek's markup: the colours are
+   set through the theme variables in style.css, on .th-dark (the class main.ts puts on <html> for the
+   Dark theme). The other themes keep their own logos. Loaded after style.css, so these rules win.
+   Fonts (Inter, JetBrains Mono) are bundled from npm in main.ts, so they work offline.
+   ========================================================================== */
+
+.th-dark {
+  /* Interface (chrome) */
+  --md-chrome:   #121821;  /* header, sidebar, tab strip */
+  --md-surface:  #18202b;  /* active tab, file bar, formatting toolbar, menus */
+  --md-raised:   #243042;  /* buttons, selected segment, pressed tool */
+  --md-border:   #263142;  /* all 1px dividers and outlines */
+  --md-text:     #e6ebf2;  /* primary UI text */
+  --md-muted:    #97a3b6;  /* secondary UI text and icons (passes 4.5:1) */
+  --md-accent:   #7c9cff;  /* periwinkle highlight: active file icon, list bullets, focus */
+  --md-selected: #1f2a40;  /* selected row in the file tree */
+
+  /* Writing area: stays white on black */
+  --md-content:      #050506;
+  --md-content-text: #e4e4e7;
+  --md-heading:      #ffffff;
+  --md-code-bg:      #141416;
+  --md-code-border:  #26262b;
+
+  /* Saved status pill (muted gray-green) */
+  --md-saved-bg:   rgba(167, 196, 176, 0.08);
+  --md-saved-text: #a9c3b2;
+  --md-saved-dot:  #6f9a7e;
+
+  /* The same colours in the names the rest of the app reads (see the .th-light block in style.css). */
+  --bg: var(--md-chrome);
+  --side: transparent;
+  --panel: var(--md-surface);
+  --panelline: var(--md-border);
+  --ink: var(--md-text);
+  --ink2: var(--md-muted);
+  --ink3: #6f7b8f;
+  --line: var(--md-border);
+  --btn: var(--md-raised);
+  --btnline: var(--md-border);
+  --btnh: #2c3a50;
+  --btnshadow: none;
+  --track: var(--md-surface);
+  --trackline: var(--md-border);
+  --on: var(--md-raised);
+  --onink: var(--md-text);
+  --onshadow: 0 1px 2px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .04);
+  --acc: var(--md-accent);
+  --accsoft: var(--md-selected);
+  --accink: var(--md-text);
+  --hover: var(--md-surface);
+  --dir: var(--md-muted);
+  --code: var(--md-code-bg);
+  --ok: var(--md-saved-dot);
+  --menu: var(--md-surface);
+  --menuline: var(--md-border);
+  --ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --read: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --disp: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The tab strip is chrome, not the code-box colour style.css gives it. */
+.th-dark #content .tabs { background: var(--md-chrome); }
+.th-dark .node.active .ic { color: var(--md-accent); }
+
+/* Writing area: white on black, for both views. The formatting toolbar above it keeps the surface colour. */
+.th-dark #content .editor { background: var(--md-content); }
+.th-dark #content .editor .milkdown { --crepe-color-on-background: var(--md-content-text); }
+.th-dark #content .editor .host > .cm-editor { color: var(--md-content-text); }
+.th-dark #content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, strong) { color: var(--md-heading); }
+.th-dark #content .editor .milkdown .ProseMirror code,
+.th-dark #content .editor .milkdown .milkdown-code-block { border-color: var(--md-code-border); }
+
+/* The "Saved" status is a small pill. Unsaved and problem states keep their dot colours from style.css. */
+.th-dark #content .doc-status {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--md-saved-bg);
+  color: var(--md-saved-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+.th-dark #content .doc-status .dot { width: 6px; height: 6px; }
+/* "Markdown", next to it, is a small outlined badge. */
+.th-dark #content .status > span:last-child {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--md-border);
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   .mdGeek wordmark (Light and Dark themes)
+   Types itself out once on load, then the cursor blinks 5 times and stays solid.
+   The black terminal window and green look the same in both themes.
+   -------------------------------------------------------------------------- */
+:root {
+  --md-term:        #4cf58a;
+  --md-term-glow:   rgba(76, 245, 138, 0.45);
+  --md-term-window: #0b110d;
+  --md-term-edge:   #0b110d;
+}
+.th-dark {
+  --md-term-window: #070b08;
+  --md-term-edge:   #1b2a20;
+}
+
+.md-wordmark { display: none; }
+:is(.th-light, .th-dark) .brand .logo,
+:is(.th-light, .th-dark) .brand .bname { display: none; }
+:is(.th-light, .th-dark) .md-wordmark {
+  display: inline-flex;
+  align-items: center;
+  /* Sized for the finished text, so the toolbar buttons beside it don't slide along while it types:
+     border and padding 24px, prompt 1ch + 7px, text 7ch, cursor 12px. */
+  width: calc(8ch + 43px);
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 8px;
+  background: var(--md-term-window);
+  border: 1px solid var(--md-term-edge);
+  box-shadow: inset 0 0 12px rgba(76, 245, 138, 0.06);
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--md-term);
+  text-shadow: 0 0 6px var(--md-term-glow);
+  user-select: none;
+}
+.md-wordmark__prompt { opacity: 0.5; margin-right: 7px; }
+.md-wordmark__text {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 7ch;
+  animation: md-type 1.2s steps(7, end) 0.3s both;
+}
+.md-wordmark__cursor {
+  display: inline-block;
+  width: 9px;
+  height: 17px;
+  margin-left: 3px;
+  background: var(--md-term);
+  box-shadow: 0 0 6px var(--md-term-glow);
+  animation: md-blink 1.06s steps(1) 1.6s 5;   /* 5 blinks, then solid */
+}
+@keyframes md-type  { from { width: 0; } to { width: 7ch; } }
+@keyframes md-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .md-wordmark__text, .md-wordmark__cursor { animation: none; }
+}
+/* Narrow windows: just the prompt and cursor, like the other words the toolbar drops. */
+@media (max-width: 920px) {
+  .md-wordmark__text { display: none; }
+  :is(.th-light, .th-dark) .md-wordmark { width: auto; }
+}

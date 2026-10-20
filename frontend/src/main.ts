@@ -9,7 +9,11 @@ import '@fontsource-variable/eb-garamond/wght-italic.css';
 import '@fontsource/rajdhani/latin-500.css';
 import '@fontsource/rajdhani/latin-600.css';
 import '@fontsource/rajdhani/latin-700.css';
+import '@fontsource-variable/inter/wght.css';
+import '@fontsource-variable/jetbrains-mono/wght.css';
 import './style.css';
+import './mdgeek-dark-slate.css'; // the Dark theme and the .mdGeek wordmark
+
 import { backend } from './backend';
 import { NeedsPermission } from './backend/errors';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle } from './editors';
@@ -219,7 +223,7 @@ function toast(msg: string, action?: ToastAction): void {
 // `dark` themes load the editors' dark styles; style.css recolors the rest.
 const THEMES: { id: ThemeSetting; label: string; swatch: [string, string]; dark: boolean }[] = [
   { id: 'light', label: 'Light', swatch: ['#FFFFFF', '#2F54EB'], dark: false },
-  { id: 'dark', label: 'Dark', swatch: ['#14161B', '#8FA8FF'], dark: true },
+  { id: 'dark', label: 'Dark', swatch: ['#121821', '#7C9CFF'], dark: true },
   { id: 'retro', label: 'Retro', swatch: ['#141C78', '#FFD23F'], dark: true },
   { id: 'scifi', label: 'SciFi', swatch: ['#07101A', '#3FD0F0'], dark: true },
   { id: 'fantasy', label: 'Fantasy', swatch: ['#EAD9B0', '#8B1E1E'], dark: false },
