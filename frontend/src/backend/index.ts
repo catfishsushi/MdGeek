@@ -52,6 +52,11 @@ export interface Backend {
    */
   onUpdateReady(fn: (apply: () => void) => void): void;
   /**
+   * Looks for a new version now. 'found' means the onUpdateReady notice will show (or already has).
+   * The desktop app always answers 'latest'.
+   */
+  checkForUpdate(): Promise<'found' | 'latest' | 'offline'>;
+  /**
    * Asks for permission to save this file. Must run from a click. Returns whether it was given.
    * Saves throw NeedsPermission (./errors) when this is needed.
    */

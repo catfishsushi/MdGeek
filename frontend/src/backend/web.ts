@@ -25,6 +25,11 @@ const swRegistration: Promise<ServiceWorkerRegistration | null> =
       })
     : Promise.resolve(null);
 
+/** Shows the "new version" notice; set by onUpdateReady. */
+let updateReady: ((apply: () => void) => void) | null = null;
+/** Offers a downloaded new version to the user; set once the service worker is ready. */
+let offerWorker: ((worker: ServiceWorker) => void) | null = null;
+
 /** Picked and dropped items, by the top-level name they were given. */
 const roots = new Map<string, Handle>();
 
@@ -336,16 +341,18 @@ export const webBackend: Backend = {
   },
 
   onUpdateReady(fn) {
+    updateReady = fn;
     void swRegistration.then((reg) => {
       if (!reg) return;
       // Only an update if a version is already running; the very first install needs no reload.
-      const offer = (worker: ServiceWorker) => {
+      offerWorker = (worker: ServiceWorker) => {
         if (!navigator.serviceWorker.controller) return;
         fn(() => {
           navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
           worker.postMessage({ type: 'activate-now' });
         });
       };
+      const offer = offerWorker;
       const watch = (worker: ServiceWorker | null) => {
         worker?.addEventListener('statechange', () => {
           if (worker.state === 'installed') offer(worker);
@@ -373,5 +380,38 @@ export const webBackend: Backend = {
       });
       window.addEventListener('focus', checkSoon);
     });
+  },
+
+  async checkForUpdate() {
+    const reg = await swRegistration;
+    if (reg) {
+      await reg.update().catch(() => undefined);
+      if (reg.waiting) {
+        offerWorker?.(reg.waiting); // shows the notice again, in case it was missed
+        return 'found';
+      }
+      if (reg.installing) return 'found'; // the notice shows once the download finishes
+    }
+    // Also ask the website which version it has. If it's newer but the update didn't arrive the usual
+    // way, Reload starts fresh from the website, as Ctrl+Shift+R does.
+    let html: string;
+    try {
+      html = await (await fetch('./', { cache: 'no-store' })).text();
+    } catch {
+      return 'offline';
+    }
+    const live = new DOMParser()
+      .parseFromString(html, 'text/html')
+      .querySelector('meta[name="mdgeek-version"]')
+      ?.getAttribute('content');
+    if (!live || live === __APP_VERSION__) return 'latest';
+    updateReady?.(async () => {
+      if ('serviceWorker' in navigator) {
+        for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+      }
+      if ('caches' in window) for (const k of await caches.keys()) await caches.delete(k);
+      location.reload();
+    });
+    return 'found';
   },
 };

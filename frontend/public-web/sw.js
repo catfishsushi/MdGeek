@@ -33,6 +33,8 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  // "Check for updates" asks the website itself which version it has, so it must not get the saved copy.
+  if (req.cache === 'no-store') return;
   // Ignore the query string so "./?source=pwa" style start URLs still match.
   const url = new URL(req.url);
   url.search = '';

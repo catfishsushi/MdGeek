@@ -269,6 +269,12 @@ button:disabled { opacity: 0.5; cursor: default; }
 .grp { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .grp.end { justify-content: flex-end; }
 .brand { display: flex; align-items: center; gap: 9px; margin-right: 4px; }
+/* The logo is a button for the version panel, but looks like plain branding until hovered. */
+button.brand { padding: 2px 6px 2px 2px; margin-left: -2px; border: 0; border-radius: 9px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover); }
+.menu.about-menu { left: 0; right: auto; width: 240px; }
+.about-version { padding: 0 12px 8px; font-size: 13px; color: var(--ink2); }
+.about-menu .opt { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; }
 .logo { width: 26px; height: 26px; border-radius: 7px; background: var(--acc); color: var(--logoink); display: grid; place-items: center; font: 700 11px/1 var(--mono); letter-spacing: -.04em; }
 .bname { font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
 .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
@@ -368,6 +374,10 @@ button:disabled { opacity: 0.5; cursor: default; }
   resize: horizontal;
   overflow: hidden;
 }
+#sidebar[hidden] { display: none; }
+/* The Explorer show/hide button: the picture's left strip is filled in while the Explorer is showing. */
+#app #btn-sidebar .strip { stroke: none; }
+#app #btn-sidebar[aria-expanded="true"] .strip { fill: currentColor; opacity: .45; }
 #sidebar-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 6px 4px 12px 6px; }
 .side-name { min-width: 0; }
 .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink2); }

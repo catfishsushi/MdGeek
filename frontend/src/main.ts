@@ -31,7 +31,7 @@ interface Tab {
   saveTimer: number | null;
   saving: boolean;
   needsPermission: boolean; // the browser must be asked, from a click, before this file can be saved
-  scroll: number; // where the editor was scrolled to (0 to 1) when this tab was last hidden
+  scroll: number; // the file line at the top of the editor when this tab was last hidden (see EditorHandle)
 }
 
 /** Two files shown side by side. In the tab bar they're one joined tab. */
@@ -346,6 +346,11 @@ async function loadSavedTheme(): Promise<void> {
     if (r > 0 && r < 1) splitRatio = r;
   } catch {
     // no saved split position; keep the middle
+  }
+  try {
+    if ((await backend.getSetting('sidebarHidden')) === 'true') showSidebar(false, false);
+  } catch {
+    // no saved setting; the Explorer shows
   }
   applyTheme(false);
 }
@@ -895,6 +900,7 @@ async function addToSidebar(paths: string[]): Promise<void> {
     else skipped++;
   }
   await tree.add(items);
+  if (items.length) showSidebar(true);
   if (skipped) toast(`Skipped ${skipped} file${skipped > 1 ? 's' : ''}: only Markdown files and folders can be listed.`);
 }
 
@@ -1117,8 +1123,21 @@ async function pickFolder(): Promise<void> {
     toast('Could not open: ' + e);
     return;
   }
-  if (dir) await tree.setRoot(dir);
+  if (dir) {
+    await tree.setRoot(dir);
+    showSidebar(true);
+  }
 }
+
+/** Shows or hides the Explorer pane, and remembers the choice for next time if save is true. */
+function showSidebar(show: boolean, save = true): void {
+  const btn = $('btn-sidebar');
+  $('sidebar').hidden = !show;
+  btn.setAttribute('aria-expanded', String(show));
+  btn.title = `${show ? 'Hide' : 'Show'} the Explorer pane (Ctrl+Shift+E)`;
+  if (save) backend.setSetting('sidebarHidden', String(!show)).catch(() => {});
+}
+$('btn-sidebar').addEventListener('click', () => showSidebar($('sidebar').hidden));
 
 $('btn-open-file').addEventListener('click', () => void pickFiles());
 $('btn-open-folder').addEventListener('click', () => void pickFolder());
@@ -1139,7 +1158,10 @@ window.addEventListener(
     const key = e.key.toLowerCase();
     // Shortcuts act on the file in use (in a split, the side last clicked or typed in).
     const active = focused.active;
-    if (key === 'o') {
+    if (key === 'e' && e.shiftKey) {
+      e.preventDefault();
+      showSidebar($('sidebar').hidden);
+    } else if (key === 'o') {
       e.preventDefault();
       void (e.shiftKey ? pickFolder() : pickFiles());
     } else if (key === 's' && active) {
@@ -1204,8 +1226,56 @@ if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
   for (const id of ['btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
 }
 
-// Hovering over the logo shows which version is running, to tell whether an update has arrived.
-document.querySelector<HTMLElement>('.brand')!.title = `MdGeek version ${__APP_VERSION__}`;
+// ---------- version panel ----------
+// The logo opens a small panel with the running version and, in the browser version, "Check for
+// updates". The desktop app is updated by installing a new version, so it shows the version only.
+
+const aboutBtn = $<HTMLButtonElement>('about-btn');
+const aboutMenu = $('about-menu');
+const checkBtn = $<HTMLButtonElement>('btn-check-updates');
+const isWeb = import.meta.env.MODE === 'web';
+$('about-version').textContent = `Version ${__APP_VERSION__}`;
+aboutBtn.title = `MdGeek version ${__APP_VERSION__}` + (isWeb ? '. Click to check for updates.' : '');
+checkBtn.hidden = !isWeb;
+
+function closeAboutMenu(refocus: boolean): void {
+  if (aboutMenu.hidden) return;
+  aboutMenu.hidden = true;
+  aboutBtn.setAttribute('aria-expanded', 'false');
+  if (refocus) aboutBtn.focus();
+}
+
+aboutBtn.addEventListener('click', () => {
+  if (!aboutMenu.hidden) return closeAboutMenu(true);
+  aboutMenu.hidden = false;
+  aboutBtn.setAttribute('aria-expanded', 'true');
+  if (isWeb) checkBtn.focus();
+});
+aboutMenu.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeAboutMenu(true);
+  } else if (e.key === 'Tab') {
+    closeAboutMenu(false);
+  }
+});
+document.addEventListener('pointerdown', (e) => {
+  if (!$('about-dd').contains(e.target as Node)) closeAboutMenu(false);
+});
+
+checkBtn.addEventListener('click', async () => {
+  closeAboutMenu(true);
+  checkBtn.disabled = true;
+  toast('Checking for updates…');
+  try {
+    const result = await backend.checkForUpdate();
+    // 'found': the "new version" notice with its Reload button takes over the message area.
+    if (result === 'latest') toast(`You have the latest version: ${__APP_VERSION__}.`);
+    else if (result === 'offline') toast("Couldn't reach the MdGeek website to check. Try again when you're online.");
+  } finally {
+    checkBtn.disabled = false;
+  }
+});
 
 applyTheme(false);
 renderChrome();
