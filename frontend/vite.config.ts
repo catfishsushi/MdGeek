@@ -19,6 +19,8 @@ function installable(): Plugin {
     apply: 'build',
     // Only the browser build links the manifest, so the desktop app doesn't ask for a missing file.
     transformIndexHtml: () => [
+      // "Check for updates" reads this from the website to see whether it has a newer version.
+      { tag: 'meta', attrs: { name: 'mdgeek-version', content: VERSION }, injectTo: 'head' },
       { tag: 'link', attrs: { rel: 'manifest', href: './manifest.webmanifest' }, injectTo: 'head' },
       { tag: 'meta', attrs: { name: 'theme-color', content: '#EEEFF1' }, injectTo: 'head' },
       { tag: 'link', attrs: { rel: 'icon', href: './icon-192.png' }, injectTo: 'head' },
@@ -72,8 +74,10 @@ function appVersion(): string {
   }
 }
 
+const VERSION = appVersion();
+
 export default defineConfig(({ mode }) => {
-  const define = { __APP_VERSION__: JSON.stringify(appVersion()) };
+  const define = { __APP_VERSION__: JSON.stringify(VERSION) };
   return mode === 'web'
     ? {
         define,

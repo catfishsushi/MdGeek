@@ -8,7 +8,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { Crepe } from '@milkdown/crepe';
-import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { editorViewCtx, editorViewOptionsCtx, remarkCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import type { Fragment, Node as ProseNode } from '@milkdown/kit/prose/model';
 import { $remark } from '@milkdown/kit/utils';
 import crepeCommon from '@milkdown/crepe/theme/common/style.css?inline';
 import crepeLight from '@milkdown/crepe/theme/frame.css?inline';
@@ -20,10 +21,15 @@ import { dirname, localImagePath } from './paths';
 export interface EditorHandle {
   destroy(): void;
   focus(): void;
-  /** 0 (top) to 1 (bottom), used to keep roughly the same place when switching views. */
+  /**
+   * The Markdown line at the top of the view, counting from 0, with a fraction for how far into it.
+   * Both views use lines of the file, so switching views keeps the same place.
+   */
   getScroll(): number;
-  setScroll(ratio: number): void;
+  setScroll(line: number): void;
 }
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 /** Crepe's light and dark themes both style `.milkdown`, so only one stylesheet is loaded at a time. */
 export function applyCrepeTheme(dark: boolean): void {
@@ -34,15 +40,6 @@ export function applyCrepeTheme(dark: boolean): void {
     document.head.appendChild(el);
   }
   el.textContent = crepeCommon + '\n' + (dark ? crepeDark : crepeLight);
-}
-
-function ratioOf(el: HTMLElement): number {
-  const max = el.scrollHeight - el.clientHeight;
-  return max > 0 ? el.scrollTop / max : 0;
-}
-
-function setRatio(el: HTMLElement, ratio: number): void {
-  el.scrollTop = ratio * (el.scrollHeight - el.clientHeight);
 }
 
 export function createSourceEditor(
@@ -72,8 +69,19 @@ export function createSourceEditor(
   return {
     destroy: () => view.destroy(),
     focus: () => view.focus(),
-    getScroll: () => ratioOf(view.scrollDOM),
-    setScroll: (r) => setRatio(view.scrollDOM, r),
+    getScroll: () => {
+      if (view.scrollDOM.scrollTop <= 0) return 0;
+      const top = view.scrollDOM.getBoundingClientRect().top - view.documentTop;
+      const block = view.lineBlockAtHeight(top);
+      return view.state.doc.lineAt(block.from).number - 1 + clamp01((top - block.top) / block.height);
+    },
+    setScroll: (at) => {
+      const doc = view.state.doc;
+      const line = doc.line(Math.min(doc.lines, Math.floor(at) + 1));
+      // A spot partway into a long wrapped line, so its later rows land at the top.
+      const pos = line.from + Math.round((at % 1) * line.length);
+      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'start' }) });
+    },
   };
 }
 
@@ -218,6 +226,36 @@ const imageTitleFix = $remark('mdgeek-image-title-fix', () => () => (tree: unkno
   walk(tree as MdNode);
 });
 
+/**
+ * Copied text for "paste as plain text". Crepe copies Markdown, so a few words copied from a table cell
+ * came with the table's pipes. Anything with a table in it is copied as plain text instead: cells
+ * separated by tabs and rows by line breaks, which also pastes into a spreadsheet as cells.
+ * Returns "" for everything else, which leaves it to Crepe.
+ */
+function tablePlainText(content: Fragment): string {
+  let hasTable = false;
+  content.descendants((n) => {
+    if (n.type.name === 'table') hasTable = true;
+    return !hasTable;
+  });
+  if (!hasTable) return '';
+  const plain = (node: ProseNode): string => {
+    if (node.isText) return node.text ?? '';
+    if (node.isTextblock)
+      return node.textBetween(0, node.content.size, '', (leaf) => (leaf.type.name === 'hardbreak' ? '\n' : ''));
+    const parts: string[] = [];
+    node.forEach((child) => parts.push(plain(child)));
+    if (node.type.name === 'table') return parts.join('\n');
+    if (node.type.name.endsWith('_row')) return parts.join('\t');
+    return parts.join('\n\n');
+  };
+  const blocks: string[] = [];
+  content.forEach((node) => blocks.push(plain(node)));
+  return blocks.join('\n\n');
+}
+
+type MdBlock = { type: string; position?: { start: { line: number }; end: { line: number } } };
+
 export async function createWysiwygEditor(
   parent: HTMLElement,
   text: string,
@@ -249,16 +287,42 @@ export async function createWysiwygEditor(
   const bullet = detectBullet(text);
   crepe.editor.config((ctx) => {
     ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet }));
+    ctx.update(editorViewOptionsCtx, (prev) => ({
+      ...prev,
+      clipboardTextSerializer: (slice) => tablePlainText(slice.content),
+    }));
   });
 
   // What the editor writes for the file as loaded. Edits are merged into the original text against it,
   // so lines the user didn't touch keep their formatting (see keep-format.ts).
   let written: string | null = null;
+  let fileText = text; // the file as it stands, edits included
   crepe.on((listener) => {
     listener.markdownUpdated((_ctx, md, prev) => {
-      if (written !== null && md !== prev) onChange(keepFormatting(text, written, md));
+      if (written !== null && md !== prev) onChange((fileText = keepFormatting(text, written, md)));
     });
   });
+
+  /**
+   * Each top-level block on screen with the file lines it came from (end exclusive). Blocks are paired
+   * with the file's top-level Markdown blocks in order; link definitions ("[x]: url") are left out
+   * because they don't appear in the editor. Returns [] if the two don't line up.
+   */
+  function blockLines(): { el: HTMLElement; from: number; to: number }[] {
+    const view = crepe.editor.ctx.get(editorViewCtx);
+    const tree = crepe.editor.ctx.get(remarkCtx).parse(fileText) as { children: MdBlock[] };
+    const md = tree.children.filter((n) => n.type !== 'definition');
+    const doc = view.state.doc;
+    // Crepe may add an empty paragraph at the end so there's somewhere to type.
+    if (doc.childCount !== md.length && doc.childCount !== md.length + 1) return [];
+    const out: { el: HTMLElement; from: number; to: number }[] = [];
+    doc.forEach((_node, offset, i) => {
+      const pos = md[i]?.position;
+      const el = view.nodeDOM(offset);
+      if (pos && el instanceof HTMLElement) out.push({ el, from: pos.start.line - 1, to: pos.end.line });
+    });
+    return out;
+  }
   await crepe.create();
   written = crepe.getMarkdown();
   labelTopBar(parent);
@@ -269,8 +333,25 @@ export async function createWysiwygEditor(
       written = null;
       void crepe.destroy();
     },
-    focus: () => parent.querySelector<HTMLElement>('.ProseMirror')?.focus(),
-    getScroll: () => ratioOf(parent),
-    setScroll: (r) => setRatio(parent, r),
+    // Through the editor rather than the page element: a plain focus() put the cursor at the start and
+    // scrolled there, losing the place kept when switching views.
+    focus: () => crepe.editor.ctx.get(editorViewCtx).focus(),
+    getScroll: () => {
+      if (parent.scrollTop <= 0) return 0;
+      const top = parent.getBoundingClientRect().top;
+      const blocks = blockLines();
+      const b = blocks.find((x) => x.el.getBoundingClientRect().bottom > top) ?? blocks.at(-1);
+      if (!b) return 0;
+      const r = b.el.getBoundingClientRect();
+      return b.from + clamp01((top - r.top) / r.height) * (b.to - b.from);
+    },
+    setScroll: (at) => {
+      const blocks = blockLines();
+      const b = blocks.findLast((x) => x.from <= at) ?? blocks[0];
+      if (!b) return;
+      const r = b.el.getBoundingClientRect();
+      const into = b.to > b.from ? clamp01((at - b.from) / (b.to - b.from)) : 0;
+      parent.scrollTop += r.top - parent.getBoundingClientRect().top + into * r.height;
+    },
   };
 }

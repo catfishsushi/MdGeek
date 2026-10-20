@@ -34,6 +34,7 @@ export const wailsBackend: Backend = {
   },
   // The desktop app is updated by installing a new version.
   onUpdateReady() {},
+  checkForUpdate: async () => 'latest',
   allowSaving: async () => true,
   // The desktop app starts with an empty left pane, as it always has.
   rememberedItems: async () => [],
