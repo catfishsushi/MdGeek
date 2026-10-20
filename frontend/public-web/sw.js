@@ -6,7 +6,7 @@
 // the user clicks Reload in the "new version" message), so code is never swapped under unsaved edits.
 const VERSION = '__VERSION__';
 const CACHE = `mdgeek-${VERSION}`;
-const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'].map(
+const FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'].map(
   (f) => new URL(f, self.registration.scope).href,
 );
 

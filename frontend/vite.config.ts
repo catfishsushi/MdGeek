@@ -23,6 +23,7 @@ function installable(): Plugin {
       { tag: 'meta', attrs: { name: 'mdgeek-version', content: VERSION }, injectTo: 'head' },
       { tag: 'link', attrs: { rel: 'manifest', href: './manifest.webmanifest' }, injectTo: 'head' },
       { tag: 'meta', attrs: { name: 'theme-color', content: '#EEEFF1' }, injectTo: 'head' },
+      { tag: 'link', attrs: { rel: 'icon', href: './icon.svg', type: 'image/svg+xml' }, injectTo: 'head' },
       { tag: 'link', attrs: { rel: 'icon', href: './icon-192.png' }, injectTo: 'head' },
     ],
     closeBundle() {
