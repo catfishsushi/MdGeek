@@ -56,6 +56,10 @@ interface Pane {
   docHeadEl: HTMLElement;
   bannerEl: HTMLElement;
   editorEl: HTMLElement;
+  findEl: HTMLElement;
+  findInput: HTMLInputElement;
+  findIndex: number; // the current match, counting from 0
+  findTotal: number;
   active: Tab | null; // the file this side should show
   shown: Tab | null; // the file the editor was last built for; differs from active until it's rebuilt
   editor: EditorHandle | null;
@@ -71,6 +75,7 @@ const panesEl = $('panes');
 const emptyEl = $('empty');
 const toastEl = $('toast');
 const modalEl = $('modal');
+const isWeb = import.meta.env.MODE === 'web';
 
 function makePane(): Pane {
   const el = $<HTMLTemplateElement>('pane-tpl').content.firstElementChild!.cloneNode(true) as HTMLElement;
@@ -81,6 +86,10 @@ function makePane(): Pane {
     docHeadEl: part('.dochead'),
     bannerEl: part('.banner'),
     editorEl: part('.editor'),
+    findEl: part('.findbar'),
+    findInput: part('.find-input') as HTMLInputElement,
+    findIndex: 0,
+    findTotal: 0,
     active: null,
     shown: null,
     editor: null,
@@ -89,6 +98,52 @@ function makePane(): Pane {
   // Clicking or typing in a side makes it the one the toolbar and shortcuts act on.
   el.addEventListener('pointerdown', () => focusPane(pane), true);
   el.addEventListener('focusin', () => focusPane(pane));
+
+  part('.doc-find').addEventListener('click', () => openFind(pane));
+  pane.findInput.addEventListener('input', () => runFind(pane, true));
+  pane.findInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      stepFind(pane, e.shiftKey ? -1 : 1);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeFind(pane);
+    }
+  });
+  part('.find-prev').addEventListener('click', () => stepFind(pane, -1));
+  part('.find-next').addEventListener('click', () => stepFind(pane, 1));
+  part('.find-close').addEventListener('click', () => closeFind(pane));
+
+  // The browser version never learns where files really are, so it can't copy the path or open Explorer.
+  const reveal = part('.doc-reveal');
+  const crumb = part('.crumb');
+  if (isWeb) {
+    reveal.remove();
+  } else {
+    reveal.addEventListener('click', () => {
+      const tab = pane.active;
+      if (tab) backend.showInFolder(tab.path).catch((e) => toast('Could not open File Explorer: ' + e));
+    });
+    crumb.tabIndex = 0;
+    crumb.setAttribute('role', 'button');
+    crumb.classList.add('copy');
+    const copy = () => {
+      const tab = pane.active;
+      if (tab)
+        backend.copyText(tab.path).then(
+          () => toast('Copied the full path'),
+          (e) => toast('Could not copy the path: ' + e),
+        );
+    };
+    crumb.addEventListener('click', copy);
+    crumb.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        copy();
+      }
+    });
+  }
   return pane;
 }
 
@@ -368,7 +423,7 @@ function renderDocHead(pane: Pane): void {
   if (!tab) return;
   const crumb = pane.docHeadEl.querySelector<HTMLElement>('.crumb')!;
   crumb.replaceChildren();
-  crumb.title = tab.path;
+  crumb.title = isWeb ? tab.path : `${tab.path}\nClick to copy the full path`;
   const parts = crumbParts(tab.path);
   parts.forEach((part, i) => {
     if (i > 0) {
@@ -628,6 +683,7 @@ async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
   pane.editorEl.replaceChildren();
   const tab = pane.active;
   pane.shown = tab;
+  if (!tab) pane.findEl.hidden = true;
   renderChrome();
   if (!tab) return;
 
@@ -653,7 +709,9 @@ async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
   pane.editor = handle;
   const at = scroll ?? tab.scroll;
   if (at) requestAnimationFrame(() => handle.setScroll(at));
-  if (pane === focused) handle.focus();
+  // Mark the matches again in the new editor, without moving away from the place just restored.
+  if (!pane.findEl.hidden) runFind(pane, false);
+  if (pane === focused) (pane.findEl.hidden ? handle : pane.findInput).focus();
 }
 
 /** Shows the current tab bar entry: one file across the whole width, or a split pair side by side. */
@@ -793,6 +851,54 @@ document.addEventListener('pointerdown', (e) => {
   if (!splitMenu.hidden && !splitMenu.contains(t) && !splitButton()?.contains(t)) closeSplitMenu(false);
 });
 window.addEventListener('resize', () => closeSplitMenu(false));
+
+// ---------- find ----------
+// Each side has its own find bar under its path bar, so in a split each file is searched on its own.
+// Ctrl+F opens it in the side in use.
+
+function openFind(pane: Pane): void {
+  if (!pane.active) return;
+  const wasOpen = !pane.findEl.hidden;
+  pane.findEl.hidden = false;
+  pane.findInput.focus();
+  pane.findInput.select();
+  if (!wasOpen) runFind(pane, true);
+}
+
+/** Searches again for what's in the box. Starts from the first match if restart, else keeps the place. */
+function runFind(pane: Pane, restart: boolean): void {
+  const text = pane.findInput.value;
+  pane.findTotal = pane.editor?.find(text) ?? 0;
+  pane.findIndex = restart ? 0 : Math.min(pane.findIndex, Math.max(0, pane.findTotal - 1));
+  if (pane.findTotal) pane.editor?.showMatch(pane.findIndex, restart);
+  renderFindCount(pane);
+}
+
+function stepFind(pane: Pane, step: number): void {
+  if (!pane.findTotal) return;
+  pane.findIndex = (pane.findIndex + step + pane.findTotal) % pane.findTotal;
+  pane.editor?.showMatch(pane.findIndex);
+  renderFindCount(pane);
+}
+
+function renderFindCount(pane: Pane): void {
+  const el = pane.findEl.querySelector('.find-count')!;
+  el.textContent = pane.findTotal
+    ? `${pane.findIndex + 1} of ${pane.findTotal}`
+    : pane.findInput.value
+      ? 'No results'
+      : '';
+}
+
+/** Closes the find bar, leaving the current match selected in the document. */
+function closeFind(pane: Pane): void {
+  if (pane.findEl.hidden) return;
+  pane.findEl.hidden = true;
+  if (pane.findTotal) pane.editor?.selectMatch(pane.findIndex);
+  pane.editor?.find('');
+  pane.findTotal = 0;
+  pane.editor?.focus();
+}
 
 function switchView(view: View): void {
   const pane = focused;
@@ -938,6 +1044,8 @@ function onEdit(tab: Tab, text: string): void {
   const wasDirty = isDirty(tab);
   tab.content = text;
   if (wasDirty !== isDirty(tab)) renderTabs();
+  // The marks are tied to the old text, so find again; scrolling would pull the view away from typing.
+  for (const p of panes) if (p.shown === tab && !p.findEl.hidden) runFind(p, false);
   if (tab.saveTimer !== null) window.clearTimeout(tab.saveTimer);
   if (!tab.conflict && !tab.needsPermission) tab.saveTimer = window.setTimeout(() => void saveNow(tab), AUTOSAVE_MS);
 }
@@ -1177,6 +1285,9 @@ window.addEventListener(
     } else if (key === 'e' && active) {
       e.preventDefault();
       switchView(active.view === 'wysiwyg' ? 'source' : 'wysiwyg');
+    } else if (key === 'f' && !e.shiftKey && active) {
+      e.preventDefault();
+      openFind(focused);
     } else if (e.key === 'Tab' && entries.length > 1 && current) {
       e.preventDefault();
       const step = e.shiftKey ? -1 : 1;
@@ -1237,7 +1348,6 @@ if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
 const aboutBtn = $<HTMLButtonElement>('about-btn');
 const aboutMenu = $('about-menu');
 const checkBtn = $<HTMLButtonElement>('btn-check-updates');
-const isWeb = import.meta.env.MODE === 'web';
 $('about-version').textContent = `Version ${__APP_VERSION__}`;
 aboutBtn.title = `MdGeek version ${__APP_VERSION__}` + (isWeb ? '. Click to check for updates.' : '');
 checkBtn.hidden = !isWeb;

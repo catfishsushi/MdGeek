@@ -236,6 +236,12 @@ export const webBackend: Backend = {
     throw new Error('the browser version can only open Markdown files and web links');
   },
 
+  copyText: (text) => navigator.clipboard.writeText(text),
+
+  async showInFolder() {
+    throw new Error('the browser version cannot open File Explorer');
+  },
+
   getSetting: async (key) => setting(key),
 
   async setSetting(key, value) {

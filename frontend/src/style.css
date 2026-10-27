@@ -546,6 +546,31 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
 #content .doc-status.dirty .dot { background: var(--acc); }
 #content .doc-status.warn .dot { background: var(--warn-line); }
+/* The path bar's buttons: find in this file, and show it in File Explorer (desktop app only). In the
+   desktop app, clicking the path copies it. */
+.status .doc-acts { gap: 2px; margin-right: -8px; }
+.status .ib { width: 28px; height: 28px; }
+.crumb.copy { cursor: pointer; border-radius: 4px; }
+.crumb.copy:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.crumb.copy:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+@media (max-width: 920px) {
+  .status .doc-kind { display: none; }
+}
+
+/* Find in this file: a row under the path bar. */
+#content .findbar { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px 10px 6px 18px; border-bottom: 1px solid var(--line); background: var(--code); }
+#content .findbar[hidden] { display: none; }
+.findbar > svg { color: var(--ink3); }
+.findbar .find-input { flex: 1; min-width: 0; max-width: 360px; height: 28px; padding: 0 8px; border: 1px solid var(--btnline); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; font-size: 13px; }
+.findbar .find-input:focus { outline: 2px solid var(--acc); outline-offset: -1px; }
+.findbar .find-count { min-width: 64px; font-size: 12px; color: var(--ink2); white-space: nowrap; }
+.findbar .ib { width: 28px; height: 28px; }
+/* Matches: amber in every theme, stronger for the current one. The WYSIWYG view uses the browser's
+   highlights (see editors.ts), the source view CodeMirror marks. */
+::highlight(find-match) { background-color: rgba(255, 196, 0, .35); }
+::highlight(find-current) { background-color: rgba(255, 140, 0, .75); }
+#content .editor .cm-editor .find-match { background-color: rgba(255, 196, 0, .35); }
+#content .editor .cm-editor .find-current { background-color: rgba(255, 140, 0, .75); }
 
 #content .banner { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 18px; background: var(--warn-bg); border-bottom: 1px solid var(--warn-line); font-size: 13px; }
 #content .banner[hidden] { display: none; }

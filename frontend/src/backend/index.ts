@@ -36,6 +36,9 @@ export interface Backend {
   saveExport(defaultName: string, content: string): Promise<string>;
   /** Opens a web link, or a local file that isn't Markdown, outside the app. */
   openLink(target: string): Promise<void>;
+  copyText(text: string): Promise<void>;
+  /** Opens File Explorer on the file's folder with the file selected. The browser version can't. */
+  showInFolder(path: string): Promise<void>;
   getSetting(key: string): Promise<string>;
   setSetting(key: string, value: string): Promise<void>;
   /** A URL the page can load an image from, for an image at this path. */

@@ -20,6 +20,8 @@ export function SaveExport(arg1:string,arg2:string):Promise<string>;
 
 export function SetSetting(arg1:string,arg2:string):Promise<void>;
 
+export function ShowInFolder(arg1:string):Promise<void>;
+
 export function StartupPaths():Promise<Array<string>>;
 
 export function StatFile(arg1:string):Promise<number>;

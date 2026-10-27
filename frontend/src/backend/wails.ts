@@ -1,5 +1,5 @@
 // The desktop build: every call goes to the Go code in app.go, links.go, and settings.go.
-import { EventsEmit, EventsOn, OnFileDrop } from '../../wailsjs/runtime/runtime';
+import { ClipboardSetText, EventsEmit, EventsOn, OnFileDrop } from '../../wailsjs/runtime/runtime';
 import * as Go from '../../wailsjs/go/main/App';
 import type { Backend } from './index';
 
@@ -14,6 +14,10 @@ export const wailsBackend: Backend = {
   pickFolder: () => Go.PickFolder(),
   saveExport: (name, content) => Go.SaveExport(name, content),
   openLink: (target) => Go.OpenLink(target),
+  async copyText(text) {
+    if (!(await ClipboardSetText(text))) throw new Error('the clipboard is not available');
+  },
+  showInFolder: (path) => Go.ShowInFolder(path),
   getSetting: (key) => Go.GetSetting(key),
   setSetting: (key, value) => Go.SetSetting(key, value),
   // Served by the localFiles handler in app.go.

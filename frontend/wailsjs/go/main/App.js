@@ -38,6 +38,10 @@ export function SetSetting(arg1, arg2) {
   return window['go']['main']['App']['SetSetting'](arg1, arg2);
 }
 
+export function ShowInFolder(arg1) {
+  return window['go']['main']['App']['ShowInFolder'](arg1);
+}
+
 export function StartupPaths() {
   return window['go']['main']['App']['StartupPaths']();
 }
