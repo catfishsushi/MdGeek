@@ -12,6 +12,7 @@ export const wailsBackend: Backend = {
   writeFile: (path, content) => Go.WriteFile(path, content),
   pickFiles: async () => (await Go.PickFiles()) ?? [],
   pickFolder: () => Go.PickFolder(),
+  newFile: (near) => Go.NewFile(near),
   saveExport: (name, content) => Go.SaveExport(name, content),
   openLink: (target) => Go.OpenLink(target),
   async copyText(text) {

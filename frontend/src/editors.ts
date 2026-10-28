@@ -1,9 +1,10 @@
 // The two editors: CodeMirror (source view) and Milkdown Crepe (WYSIWYG view).
 // Both are given the Markdown text and report edits through onChange.
 import { EditorState, StateEffect, StateField } from '@codemirror/state';
-import { Decoration, DecorationSet, EditorView, drawSelection, keymap } from '@codemirror/view';
+import { Decoration, DecorationSet, EditorView, drawSelection, highlightActiveLine, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { HighlightStyle, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags as t } from '@lezer/highlight';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -84,6 +85,55 @@ function textRanges(el: Element, text: string): Range[] {
   });
 }
 
+/**
+ * How the source view is coloured. 'light' and 'dark' are CodeMirror's own styles. 'themed' takes every
+ * colour from the app theme's variables (--head, --em, --codeink, --listmk and the rest; see Neutral and
+ * Dusk in style.css), so one style serves both a light and a dark theme.
+ */
+export type SourceLook = 'light' | 'dark' | 'themed';
+
+const themedHighlight = HighlightStyle.define([
+  // The Markdown itself
+  { tag: t.heading, color: 'var(--head)', fontWeight: '600' },
+  { tag: t.heading1, color: 'var(--head)', fontWeight: '700' },
+  { tag: t.emphasis, color: 'var(--em)', fontStyle: 'italic' },
+  { tag: t.strong, color: 'var(--head)', fontWeight: '650' },
+  { tag: t.strikethrough, color: 'var(--ink2)', textDecoration: 'line-through' },
+  { tag: t.link, color: 'var(--acc)' },
+  { tag: t.url, color: 'var(--ink2)', textDecoration: 'underline', textUnderlineOffset: '3px' },
+  { tag: t.monospace, color: 'var(--codeink)' },
+  { tag: t.quote, color: 'var(--ink2)', fontStyle: 'italic' },
+  { tag: t.list, color: 'var(--listmk)' },
+  { tag: t.contentSeparator, color: 'var(--ink3)' },
+  // The marks around the text (#, **, `, >, [ ]) fade back so the words stand out.
+  { tag: [t.processingInstruction, t.meta, t.labelName], color: 'var(--ink3)' },
+  // Code blocks, in whatever language they're tagged with
+  { tag: [t.keyword, t.operatorKeyword, t.modifier, t.controlKeyword], color: 'var(--acc)' },
+  { tag: [t.string, t.special(t.string), t.regexp], color: 'var(--codeink)' },
+  { tag: [t.number, t.bool, t.atom, t.null], color: 'var(--listmk)' },
+  { tag: t.comment, color: 'var(--ink3)', fontStyle: 'italic' },
+  { tag: [t.typeName, t.className, t.namespace], color: 'var(--em)' },
+  { tag: [t.function(t.variableName), t.definition(t.variableName), t.function(t.propertyName)], color: 'var(--head)' },
+  { tag: [t.propertyName, t.attributeName], color: 'var(--accink)' },
+  { tag: t.tagName, color: 'var(--acc)' },
+  { tag: t.invalid, color: 'var(--warn-line)' },
+]);
+
+// Selection, cursor and the current line, in the theme's colours. Set here rather than in style.css
+// because CodeMirror's own selection rule is more specific than a stylesheet rule would comfortably be.
+const themedChrome = EditorView.theme({
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground': {
+    background: 'var(--sel)',
+  },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--acc)', borderLeftWidth: '2px' },
+  '.cm-activeLine': { background: 'var(--curline)' },
+});
+
+function lookExtensions(look: SourceLook) {
+  if (look === 'themed') return [syntaxHighlighting(themedHighlight), themedChrome, highlightActiveLine()];
+  return [syntaxHighlighting(defaultHighlightStyle, { fallback: true }), ...(look === 'dark' ? [oneDark] : [])];
+}
+
 /** Crepe's light and dark themes both style `.milkdown`, so only one stylesheet is loaded at a time. */
 export function applyCrepeTheme(dark: boolean): void {
   let el = document.getElementById('crepe-theme') as HTMLStyleElement | null;
@@ -98,7 +148,7 @@ export function applyCrepeTheme(dark: boolean): void {
 export function createSourceEditor(
   parent: HTMLElement,
   text: string,
-  dark: boolean,
+  look: SourceLook,
   onChange: (text: string) => void,
 ): EditorHandle {
   const view = new EditorView({
@@ -110,9 +160,8 @@ export function createSourceEditor(
         drawSelection(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown({ codeLanguages: languages }),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        ...lookExtensions(look),
         EditorView.lineWrapping,
-        ...(dark ? [oneDark] : []),
         findMarks,
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChange(u.state.doc.toString());

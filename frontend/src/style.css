@@ -1,5 +1,5 @@
 /* ---------- Themes ----------
-   Each theme is a set of variables on a class on <html> (th-light, th-dark, th-retro, th-scifi, th-fantasy); everything below
+   Each theme is a set of variables on a class on <html> (th-light, th-dark, th-retro, th-scifi, th-fantasy, th-neutral, th-dusk); everything below
    reads only the variables. Adding a theme takes one block here plus one entry in THEMES in main.ts. */
 
 .th-light {
@@ -225,6 +225,111 @@
   --leather: linear-gradient(#4A2D18, #2E1B0E);
   --grain: url("./assets/fantasy-parchment.svg");
   color-scheme: light;
+}
+
+/* Neutral: warm stone and charcoal, low-chroma accents, no images or textures.
+   Built on the light theme (the editors load their light styles). */
+.th-neutral {
+  --bg: #E4E1DA;           /* warm stone window */
+  --side: transparent;
+  --panel: #EDEBE6;        /* editor panel */
+  --panelline: #D8D4CC;
+  --ink: #3A3835;          /* warm charcoal: about 10:1 on the panel */
+  --ink2: #67625A;         /* about 4.7:1 on the window, 5:1 on the panel */
+  --ink3: #948F86;         /* faint text and icons */
+  --line: #DAD6CE;
+  --btn: #F1EFEA;
+  --btnline: #CFCAC1;
+  --btnh: #E8E5DF;
+  --btnshadow: 0 1px 1px rgba(58, 56, 53, .05);
+  --track: #DAD6CE;
+  --trackline: transparent;
+  --on: #F3F1EC;
+  --onink: #3A3835;
+  --onshadow: 0 1px 2px rgba(58, 56, 53, .14), 0 0 0 1px rgba(58, 56, 53, .04);
+  --acc: #4D6A7A;          /* muted slate blue */
+  --logoink: #F3F1EC;
+  --accsoft: #DCE1E1;
+  --accink: #34505F;
+  --hover: rgba(58, 56, 53, .06);
+  --dir: #536450;          /* sage, for folder icons */
+  --code: #E5E2DC;
+  --ok: #536450;
+  --shadow: 0 1px 2px rgba(58, 56, 53, .05), 0 8px 24px rgba(58, 56, 53, .06);
+  --dropline: #C9C4BB;
+  --dropbg: #EFEDE8;
+  --menu: #F3F1EC;
+  --menuline: #D8D4CC;
+  --menushadow: 0 12px 32px rgba(58, 56, 53, .14), 0 2px 6px rgba(58, 56, 53, .06);
+  --warn-bg: #F1E6C4;
+  --warn-line: #B3913F;
+  --del-bg: #EED6CF;
+  --add-bg: #DCE5D3;
+  --ui: 'Geist Variable', system-ui, sans-serif;
+  --read: 'Geist Variable', system-ui, sans-serif;
+  --disp: 'Geist Variable', system-ui, sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, monospace;
+  /* Document colours, used by the Neutral/Dusk rules near the end of the file */
+  --head: #2F3A40;         /* headings: a slightly cool ink */
+  --em: #6B5A6E;           /* italics: muted plum */
+  --codeink: #536450;      /* inline code: sage */
+  --listmk: #7E5F4B;       /* list bullets: clay */
+  --quote: #CFCAC1;        /* blockquote rule */
+  --sel: #D3D8D5;          /* text selection */
+  --curline: #E5E2DC;      /* current line in Source view */
+  color-scheme: light;
+}
+
+/* Dusk: Neutral's dark companion. A soft graphite, well above th-dark's near-black.
+   Built on the dark theme (the editors load their dark styles). */
+.th-dusk {
+  --bg: #33322F;
+  --side: transparent;
+  --panel: #3B3A36;
+  --panelline: #4D4B46;
+  --ink: #E2DDD3;          /* soft bone: about 10:1 on the panel */
+  --ink2: #B3AEA4;         /* about 5:1 on the panel */
+  --ink3: #8A857C;
+  --line: #4A4843;
+  --btn: #42413C;
+  --btnline: #57544E;
+  --btnh: #4A4843;
+  --btnshadow: none;
+  --track: #33322F;
+  --trackline: #4A4843;
+  --on: #4F4D48;
+  --onink: #EDE8DE;
+  --onshadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 1px 2px rgba(0, 0, 0, .3);
+  --acc: #9DB6C2;          /* muted slate blue */
+  --logoink: #2A2927;
+  --accsoft: rgba(157, 182, 194, .16);
+  --accink: #CFDDE4;
+  --hover: rgba(255, 255, 255, .05);
+  --dir: #ADC0A5;
+  --code: #34332F;
+  --ok: #ADC0A5;
+  --shadow: 0 0 0 1px rgba(0, 0, 0, .15), 0 10px 28px rgba(0, 0, 0, .25);
+  --dropline: #5A5751;
+  --dropbg: rgba(255, 255, 255, .02);
+  --menu: #43423D;
+  --menuline: #57544E;
+  --menushadow: 0 16px 40px rgba(0, 0, 0, .35), 0 0 0 1px rgba(0, 0, 0, .2);
+  --warn-bg: #4A3F22;
+  --warn-line: #B8913A;
+  --del-bg: #50302B;
+  --add-bg: #2F4230;
+  --ui: 'Geist Variable', system-ui, sans-serif;
+  --read: 'Geist Variable', system-ui, sans-serif;
+  --disp: 'Geist Variable', system-ui, sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --head: #EDE8DE;
+  --em: #C7B2CA;
+  --codeink: #ADC0A5;
+  --listmk: #D0A88E;
+  --quote: #5A5751;
+  --sel: #4C5352;
+  --curline: #43423E;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -1149,6 +1254,31 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 @media (prefers-reduced-transparency: reduce) {
   .th-fantasy #content::before { display: none; }
 }
+
+/* ---------- Neutral and Dusk ----------
+   Quiet themes for long writing sessions: flat colour only (no images, textures or gradients), and the
+   document gets a few muted accents so headings, italics, code and lists are told apart without shouting. */
+
+:is(.th-neutral, .th-dusk) ::selection { background: var(--sel); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown { --crepe-color-selected: var(--sel); }
+
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5) { color: var(--head); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror em { color: var(--em); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror a { color: var(--acc); text-decoration-color: color-mix(in srgb, var(--acc) 45%, transparent); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror a:hover { color: var(--head); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror code { color: var(--codeink); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .milkdown-code-block code { color: var(--ink); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper { color: var(--listmk); }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper svg { fill: var(--listmk); }
+/* Blockquotes: a thin rule and italic secondary text instead of a tinted box. */
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror blockquote { background: transparent; border-radius: 0; border-left: 3px solid var(--quote); padding: 2px 0 2px 18px; color: var(--ink2); font-style: italic; }
+:is(.th-neutral, .th-dusk) #content .editor .milkdown .ProseMirror hr { border: 0; border-top: 1px solid var(--line); }
+
+/* Source view: the current line and the selection in the theme's colours. */
+:is(.th-neutral, .th-dusk) #content .editor .host > .cm-editor .cm-activeLine { background: var(--curline); }
+:is(.th-neutral, .th-dusk) #content .editor .host > .cm-editor.cm-focused .cm-selectionBackground,
+:is(.th-neutral, .th-dusk) #content .editor .host > .cm-editor .cm-selectionBackground { background: var(--sel); }
+:is(.th-neutral, .th-dusk) .cm-editor .cm-cursor { border-left-color: var(--acc); }
 
 #print-root { display: none; }
 

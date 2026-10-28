@@ -16,14 +16,14 @@ import './mdgeek-dark-slate.css'; // the Dark theme and the .mdGeek wordmark
 
 import { backend } from './backend';
 import { NeedsPermission } from './backend/errors';
-import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle } from './editors';
+import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle, SourceLook } from './editors';
 import { showDiff, Resolution } from './diffview';
 import { basename, dirname, isMarkdownPath, resolveLink } from './paths';
 import { documentCss, renderPrintable, renderStandalone } from './render';
 import { Tree, TreeItem } from './tree';
 
 type View = 'wysiwyg' | 'source';
-type ThemeSetting = 'light' | 'dark' | 'retro' | 'scifi' | 'fantasy';
+type ThemeSetting = 'light' | 'dark' | 'retro' | 'scifi' | 'fantasy' | 'neutral' | 'dusk';
 
 interface Tab {
   path: string;
@@ -275,13 +275,16 @@ function toast(msg: string, action?: ToastAction): void {
 // ---------- theme ----------
 
 /** The themes, in menu order. Adding one takes an entry here plus a `.th-<id>` block in style.css. */
-// `dark` themes load the editors' dark styles; style.css recolors the rest.
-const THEMES: { id: ThemeSetting; label: string; swatch: [string, string]; dark: boolean }[] = [
+// `dark` themes load the editors' dark styles; style.css recolors the rest. `docColors` themes set the
+// document colour variables (--head, --em and so on), which the Source view then uses for its colours.
+const THEMES: { id: ThemeSetting; label: string; swatch: [string, string]; dark: boolean; docColors?: boolean }[] = [
   { id: 'light', label: 'Light', swatch: ['#FFFFFF', '#2F54EB'], dark: false },
   { id: 'dark', label: 'Dark', swatch: ['#121821', '#7C9CFF'], dark: true },
   { id: 'retro', label: 'Retro', swatch: ['#141C78', '#FFD23F'], dark: true },
   { id: 'scifi', label: 'SciFi', swatch: ['#07101A', '#3FD0F0'], dark: true },
   { id: 'fantasy', label: 'Fantasy', swatch: ['#EAD9B0', '#8B1E1E'], dark: false },
+  { id: 'neutral', label: 'Neutral', swatch: ['#E4E1DA', '#4D6A7A'], dark: false, docColors: true },
+  { id: 'dusk', label: 'Dusk', swatch: ['#33322F', '#9DB6C2'], dark: true, docColors: true },
 ];
 const THEME_ORDER = THEMES.map((t) => t.id);
 const THEME_NAMES = Object.fromEntries(THEMES.map((t) => [t.id, t.label])) as Record<ThemeSetting, string>;
@@ -290,7 +293,9 @@ const isTheme = (v: string): v is ThemeSetting => (THEME_ORDER as string[]).incl
 // Light until the saved choice arrives from the saved settings (see loadSavedTheme).
 let themeSetting: ThemeSetting = 'light';
 
-const isDark = () => THEMES.find((t) => t.id === themeSetting)?.dark ?? false;
+const currentTheme = () => THEMES.find((t) => t.id === themeSetting);
+const isDark = () => currentTheme()?.dark ?? false;
+const sourceLook = (): SourceLook => (currentTheme()?.docColors ? 'themed' : isDark() ? 'dark' : 'light');
 
 // The theme drop-down is built by hand because a native <select> list can't be styled. It follows the
 // listbox pattern: arrow keys, Home/End, Enter or Space to pick, Esc or Tab to close.
@@ -405,6 +410,11 @@ async function loadSavedTheme(): Promise<void> {
     if (r > 0 && r < 1) splitRatio = r;
   } catch {
     // no saved split position; keep the middle
+  }
+  try {
+    lastWorkPath = await backend.getSetting('lastWorkPath');
+  } catch {
+    // nothing remembered; New starts where the system dialog chooses
   }
   try {
     if ((await backend.getSetting('sidebarHidden')) === 'true') showSidebar(false, false);
@@ -672,6 +682,7 @@ function focusPane(pane: Pane): void {
   if (focused === pane || !pane.active) return;
   focused = pane;
   renderFocus();
+  rememberWorkPath(pane.active.path);
 }
 
 /** (Re)creates a side's editor for its file. Each mount gets a fresh host element. */
@@ -696,7 +707,7 @@ async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
   try {
     handle =
       tab.view === 'source'
-        ? createSourceEditor(host, tab.content, isDark(), onChange)
+        ? createSourceEditor(host, tab.content, sourceLook(), onChange)
         : await createWysiwygEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href));
   } catch (e) {
     toast('Could not open editor: ' + e);
@@ -733,6 +744,38 @@ function activate(tab: Tab): void {
   current = entry;
   focused = isSplitEntry(entry) && entry.right === tab ? panes[1] : panes[0];
   refresh();
+  rememberWorkPath(tab.path);
+}
+
+// ---------- new files ----------
+// New asks where to save, starting in the folder of the file last worked on (remembered between
+// sessions), then opens the new empty file in a tab.
+
+/** The file last shown or typed in, so New can start in its folder. */
+let lastWorkPath = '';
+
+function rememberWorkPath(path: string): void {
+  if (path === lastWorkPath) return;
+  lastWorkPath = path;
+  backend.setSetting('lastWorkPath', path).catch(() => {});
+}
+
+async function newFile(): Promise<void> {
+  // The file in use now, else the last one remembered, else the folder listed in the Explorer pane.
+  const near = focused.active?.path || lastWorkPath || tree.firstFolder() || '';
+  let path: string;
+  try {
+    path = await backend.newFile(near);
+  } catch (e) {
+    toast('Could not create the file: ' + e);
+    return;
+  }
+  if (!path) return; // cancelled
+  await openFile(path);
+  if (!allTabs().some((t) => t.path === path)) return;
+  // A file inside a listed folder shows up once the folder is read again; any other file is added.
+  if (tree.rootFor(path)) await tree.refresh();
+  else if (!tree.shows(path)) await tree.add([{ path, isDir: false }]);
 }
 
 /** Joins a single file's tab with the current one. The current file stays on the left. */
@@ -1251,6 +1294,8 @@ function showSidebar(show: boolean, save = true): void {
 }
 $('btn-sidebar').addEventListener('click', () => showSidebar($('sidebar').hidden));
 
+$('btn-new-file').addEventListener('click', () => void newFile());
+$('btn-empty-new').addEventListener('click', () => void newFile());
 $('btn-open-file').addEventListener('click', () => void pickFiles());
 $('btn-open-folder').addEventListener('click', () => void pickFolder());
 $('btn-empty-file').addEventListener('click', () => void pickFiles());
@@ -1273,6 +1318,9 @@ window.addEventListener(
     if (key === 'e' && e.shiftKey) {
       e.preventDefault();
       showSidebar($('sidebar').hidden);
+    } else if (key === 'n' && !e.shiftKey) {
+      e.preventDefault();
+      void newFile();
     } else if (key === 'o') {
       e.preventDefault();
       void (e.shiftKey ? pickFolder() : pickFiles());
@@ -1333,12 +1381,14 @@ for (const type of ['click', 'auxclick'] as const) {
     if ((e.target as Element).closest?.('a[href]')) e.preventDefault();
   });
 }
+// Browsers keep Ctrl+N for a new window, so only the desktop app offers it.
+if (isWeb) $('btn-new-file').title = 'New file';
 // The browser version needs the File System Access API, which only Edge and Chrome on a computer have.
 if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
   emptyEl.querySelector('h2')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
   emptyEl.querySelector('.hint')?.remove();
   emptyEl.querySelector('.acts')?.remove();
-  for (const id of ['btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
+  for (const id of ['btn-new-file', 'btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
 }
 
 // ---------- version panel ----------

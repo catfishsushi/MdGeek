@@ -32,6 +32,12 @@ export interface Backend {
   pickFiles(): Promise<string[]>;
   /** Shows the "open folder" dialog. Returns "" if cancelled. */
   pickFolder(): Promise<string>;
+  /**
+   * Asks where to save a new Markdown file, starting in the folder of near (a file or folder path; ""
+   * lets the system choose), and creates it empty. Returns its path, or "" if cancelled. Choosing a file
+   * that already exists opens it unchanged.
+   */
+  newFile(near: string): Promise<string>;
   /** Asks where to save an exported file and writes it. Returns where it went, or "" if cancelled. */
   saveExport(defaultName: string, content: string): Promise<string>;
   /** Opens a web link, or a local file that isn't Markdown, outside the app. */
