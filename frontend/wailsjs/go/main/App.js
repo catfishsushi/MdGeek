@@ -14,6 +14,10 @@ export function ListDir(arg1) {
   return window['go']['main']['App']['ListDir'](arg1);
 }
 
+export function NewFile(arg1) {
+  return window['go']['main']['App']['NewFile'](arg1);
+}
+
 export function OpenLink(arg1) {
   return window['go']['main']['App']['OpenLink'](arg1);
 }
@@ -36,6 +40,10 @@ export function SaveExport(arg1, arg2) {
 
 export function SetSetting(arg1, arg2) {
   return window['go']['main']['App']['SetSetting'](arg1, arg2);
+}
+
+export function ShowInFolder(arg1) {
+  return window['go']['main']['App']['ShowInFolder'](arg1);
 }
 
 export function StartupPaths() {

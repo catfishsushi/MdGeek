@@ -8,6 +8,8 @@ export function IsDir(arg1:string):Promise<boolean>;
 
 export function ListDir(arg1:string):Promise<Array<main.Entry>>;
 
+export function NewFile(arg1:string):Promise<string>;
+
 export function OpenLink(arg1:string):Promise<void>;
 
 export function PickFiles():Promise<Array<string>>;
@@ -19,6 +21,8 @@ export function ReadFile(arg1:string):Promise<main.FileData>;
 export function SaveExport(arg1:string,arg2:string):Promise<string>;
 
 export function SetSetting(arg1:string,arg2:string):Promise<void>;
+
+export function ShowInFolder(arg1:string):Promise<void>;
 
 export function StartupPaths():Promise<Array<string>>;
 

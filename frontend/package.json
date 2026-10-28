@@ -33,6 +33,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/pixelify-sans": "^5.3.0",
     "@fontsource/rajdhani": "^5.3.0",
+    "@lezer/highlight": "^1.2.5",
     "@milkdown/crepe": "^7.22.2",
     "diff": "^9.0.0",
     "dompurify": "^3.4.16",

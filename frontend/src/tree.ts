@@ -81,6 +81,11 @@ export class Tree {
     return this.roots.some((r) => (r.isDir ? isInside(path, r.path) : samePath(r.path, path)));
   }
 
+  /** The first folder listed in the pane, or null if only files (or nothing) are listed. */
+  firstFolder(): string | null {
+    return this.roots.find((r) => r.isDir)?.path ?? null;
+  }
+
   /** The listed folder that contains the path, if any. */
   rootFor(path: string): string | null {
     return this.roots.find((r) => r.isDir && isInside(path, r.path))?.path ?? null;

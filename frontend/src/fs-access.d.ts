@@ -6,10 +6,19 @@ interface FilePickerAcceptType {
   accept: Record<string, string[]>;
 }
 
+/**
+ * id: dialogs sharing an id start in the folder one of them was last used in.
+ * startIn: start in this folder (or the folder this file is in) instead.
+ */
+interface FilePickerStart {
+  id?: string;
+  startIn?: FileSystemHandle;
+}
+
 interface Window {
-  showOpenFilePicker(options?: { multiple?: boolean; types?: FilePickerAcceptType[] }): Promise<FileSystemFileHandle[]>;
+  showOpenFilePicker(options?: FilePickerStart & { multiple?: boolean; types?: FilePickerAcceptType[] }): Promise<FileSystemFileHandle[]>;
   showDirectoryPicker(options?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
-  showSaveFilePicker(options?: { suggestedName?: string; types?: FilePickerAcceptType[] }): Promise<FileSystemFileHandle>;
+  showSaveFilePicker(options?: FilePickerStart & { suggestedName?: string; types?: FilePickerAcceptType[] }): Promise<FileSystemFileHandle>;
   /** Files sent to the installed app from File Explorer. Missing outside installed apps and in other browsers. */
   launchQueue?: LaunchQueue;
 }

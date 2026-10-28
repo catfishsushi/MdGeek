@@ -59,3 +59,27 @@ func (a *App) OpenLink(target string) error {
 	}
 	return cmd.Start()
 }
+
+// ShowInFolder opens the file manager on the folder a file is in, with the file selected where the
+// system allows it (Windows and macOS). Nothing is run or opened besides the folder.
+func (a *App) ShowInFolder(path string) error {
+	p := filepath.Clean(path)
+	if !filepath.IsAbs(p) {
+		return errors.New("not a full file path")
+	}
+	if _, err := os.Stat(p); err != nil {
+		return errors.New("file not found")
+	}
+
+	var cmd *exec.Cmd
+	switch goruntime.GOOS {
+	case "windows":
+		// Explorer reads "/select," and the path as separate arguments, quoted or not.
+		cmd = exec.Command("explorer", "/select,", p)
+	case "darwin":
+		cmd = exec.Command("open", "-R", p)
+	default:
+		cmd = exec.Command("xdg-open", filepath.Dir(p))
+	}
+	return cmd.Start()
+}

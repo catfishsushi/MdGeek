@@ -36,6 +36,9 @@ const roots = new Map<string, Handle>();
 /** Every path register() handed out, with its handle, so the left pane can be saved without lookups. */
 const registered = new Map<string, Handle>();
 
+/** Open and New share this, so the browser starts both dialogs in the folder either was last used in. */
+const PICKER_ID = 'mdgeek-markdown';
+
 const isMarkdown = (name: string) => /\.(md|markdown)$/i.test(name);
 const isCancel = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
@@ -193,6 +196,7 @@ export const webBackend: Backend = {
     let handles: FileSystemFileHandle[];
     try {
       handles = await window.showOpenFilePicker({
+        id: PICKER_ID,
         multiple: true,
         types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown'] } }],
       });
@@ -200,8 +204,9 @@ export const webBackend: Backend = {
       if (isCancel(e)) return [];
       throw e;
     }
-    // Ask now, while the click still counts, so autosave doesn't hit a permission prompt later.
-    for (const h of handles) await h.requestPermission({ mode: 'readwrite' }).catch(() => undefined);
+    // Saving permission isn't asked for here: the browser's prompt would pop up the moment a file opens,
+    // even one only being read. The first edit asks instead (a key press counts as the click the
+    // browser needs), so the prompt only shows for files that are changed.
     return Promise.all(handles.map(register));
   },
 
@@ -212,6 +217,33 @@ export const webBackend: Backend = {
       if (isCancel(e)) return '';
       throw e;
     }
+  },
+
+  async newFile(near) {
+    // Start in the folder of the file or folder given, if the browser can still reach it. Otherwise the
+    // browser starts where an Open or New dialog was last used (it remembers that by PICKER_ID).
+    const startIn = near ? await lookup(near).catch(() => undefined) : undefined;
+    let h: FileSystemFileHandle;
+    try {
+      h = await window.showSaveFilePicker({
+        id: PICKER_ID,
+        startIn,
+        suggestedName: 'Untitled.md',
+        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown'] } }],
+      });
+    } catch (e) {
+      if (isCancel(e)) return '';
+      throw e;
+    }
+    // The save dialog gives permission to save, so this file never needs the prompt. The browser may or
+    // may not have created the file yet; an existing one is left as it is.
+    try {
+      await h.getFile();
+    } catch {
+      const w = await h.createWritable();
+      await w.close();
+    }
+    return register(h);
   },
 
   async saveExport(defaultName, content) {
@@ -234,6 +266,12 @@ export const webBackend: Backend = {
       return;
     }
     throw new Error('the browser version can only open Markdown files and web links');
+  },
+
+  copyText: (text) => navigator.clipboard.writeText(text),
+
+  async showInFolder() {
+    throw new Error('the browser version cannot open File Explorer');
   },
 
   getSetting: async (key) => setting(key),

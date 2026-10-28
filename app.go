@@ -194,6 +194,45 @@ func (a *App) PickFolder() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Open folder"})
 }
 
+// NewFile asks where to save a new Markdown file, starting in near's folder (near may be a file or a
+// folder; "" lets Windows choose), and creates it empty. Returns its path, or "" if the user cancelled.
+// If the chosen file already exists it is left unchanged, so it simply opens.
+func (a *App) NewFile(near string) (string, error) {
+	dir := ""
+	if near != "" {
+		if info, err := os.Stat(near); err == nil && info.IsDir() {
+			dir = near
+		} else if info, err := os.Stat(filepath.Dir(near)); err == nil && info.IsDir() {
+			dir = filepath.Dir(near)
+		}
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:            "New Markdown file",
+		DefaultDirectory: dir,
+		DefaultFilename:  "Untitled.md",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Markdown (*.md;*.markdown)", Pattern: "*.md;*.markdown"},
+		},
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	if !isMarkdown(path) {
+		path += ".md"
+	}
+	// O_EXCL: create only if missing, never empty out a file that's already there.
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err == nil {
+		err = f.Close()
+	} else if os.IsExist(err) {
+		err = nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 // SaveExport asks where to save an exported file and writes it. Returns "" if the user cancelled.
 func (a *App) SaveExport(defaultName string, content string) (string, error) {
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
