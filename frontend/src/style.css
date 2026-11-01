@@ -438,7 +438,7 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 }
 @media (max-width: 920px) {
   #toolbar .btn .t { display: none; }
-  #toolbar .btn { padding: 0 9px; }
+  #toolbar .btn:not(#recent-btn, #file-btn) { padding: 0 9px; }
   .sep { display: none; }
 }
 
@@ -598,6 +598,27 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .tab .join svg { width: 14px; height: 14px; }
 #content .tab.joined.active .half:not(.on) { color: var(--ink2); }
 #content .tab.joined.active .half.on { color: var(--accink); }
+/* Recent files: a menu under the Recent button, left-aligned, with each file's folder in small text. */
+#recent-btn { gap: 3px; padding: 0 7px 0 9px; }
+#file-btn { padding-right: 8px; }
+#app .btn .chev { width: 13px; height: 13px; transition: transform .15s ease; }
+#app .btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+/* File: New, Open file and Open folder, each with its shortcut on the right. */
+.menu.file-menu { left: 0; right: auto; width: 260px; max-width: calc(100vw - 24px); }
+.file-menu .opt { width: 100%; border: 0; background: transparent; font-family: inherit; text-align: left; box-shadow: none; }
+.file-menu .opt:hover, .file-menu .opt:focus-visible { background: var(--hover); }
+.file-menu .opt:focus-visible { box-shadow: inset 0 0 0 2px var(--acc); }
+.file-menu .opt .ic { color: var(--ink2); }
+.file-menu .opt .key { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--ink2); }
+.menu.recent-menu { left: 0; right: auto; width: 360px; max-width: calc(100vw - 24px); }
+.recent-menu .opt { flex: none; height: auto; min-height: 44px; padding: 6px 12px; gap: 10px; }
+.recent-menu .opt .num { flex: none; width: 1.2em; color: var(--ink2); font-family: var(--mono); font-size: 12px; text-align: right; }
+.recent-menu .opt .txt { min-width: 0; display: flex; flex-direction: column; }
+.recent-menu .opt .nm, .recent-menu .opt .wh, .empty-recent .wh { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.recent-menu .opt .wh, .empty-recent .wh { font-size: 11.5px; font-weight: 400; color: var(--ink2); }
+.recent-menu .none { padding: 8px 12px 10px; font-size: 13px; color: var(--ink2); }
+.recent-menu .opt.clear { min-height: 40px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; margin-top: 2px; color: var(--ink2); }
+
 /* The split button's menu: the other open files and "Open file…". main.ts sets top and right. */
 .menu.split-menu { position: fixed; z-index: 35; width: 240px; max-height: 60vh; overflow-y: auto; }
 .split-menu .opt { flex: none; display: block; line-height: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -764,6 +785,15 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .drop h2 { margin: 0; font-family: var(--disp); font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
 .drop p { margin: 0; color: var(--ink2); font-size: 13.5px; }
 .drop .acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 2px; }
+/* Recent files under the buttons, as a start screen shows them. */
+.empty-recent { width: 100%; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); text-align: left; }
+.empty-recent[hidden] { display: none; }
+.empty-recent .menu-h { padding: 0 8px 6px; }
+.empty-recent ul { list-style: none; margin: 0; padding: 0; }
+.empty-recent button { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; text-align: left; min-width: 0; }
+.empty-recent button:hover { background: var(--hover); }
+.empty-recent .nm { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
+.empty-recent .wh { max-width: 100%; }
 .drop :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
 #toast {

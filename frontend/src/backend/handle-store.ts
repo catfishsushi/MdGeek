@@ -1,9 +1,8 @@
-// Keeps the left pane's files and folders between sessions. They're saved as the browser's file and
+// Keeps the left pane's files and folders, and the Recent files list, between sessions. They're saved as the browser's file and
 // folder handles, which IndexedDB can store but localStorage (strings only) can't. If storage is
 // blocked or broken, MdGeek just starts with an empty left pane.
 const DB = 'mdgeek';
 const STORE = 'handles';
-const KEY = 'sidebar';
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -27,19 +26,22 @@ async function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => I
   }
 }
 
-/** The saved handles, in left pane order. [] if there are none or storage isn't available. */
-export async function loadHandles(): Promise<FileSystemHandle[]> {
+/** Which saved list: the left pane's items, or the Recent files. */
+export type ListKey = 'sidebar' | 'recent';
+
+/** The saved handles, in order. [] if there are none or storage isn't available. */
+export async function loadHandles(key: ListKey): Promise<FileSystemHandle[]> {
   try {
-    const list = await run<unknown>('readonly', (s) => s.get(KEY));
+    const list = await run<unknown>('readonly', (s) => s.get(key));
     return Array.isArray(list) ? list : [];
   } catch {
     return [];
   }
 }
 
-export async function saveHandles(list: FileSystemHandle[]): Promise<void> {
+export async function saveHandles(key: ListKey, list: FileSystemHandle[]): Promise<void> {
   try {
-    await run('readwrite', (s) => s.put(list, KEY));
+    await run('readwrite', (s) => s.put(list, key));
   } catch {
     // Not remembered next time; nothing else is affected.
   }

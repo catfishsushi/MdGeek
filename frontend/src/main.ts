@@ -14,8 +14,8 @@ import '@fontsource-variable/jetbrains-mono/wght.css';
 import './style.css';
 import './mdgeek-dark-slate.css'; // the Dark theme and the .mdGeek wordmark
 
-import { backend } from './backend';
-import { NeedsPermission } from './backend/errors';
+import { backend, RECENT_MAX, type RecentFile } from './backend';
+import { NeedsPermission, NoAccess } from './backend/errors';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle, SourceLook } from './editors';
 import { showDiff, Resolution } from './diffview';
 import { basename, dirname, isMarkdownPath, resolveLink } from './paths';
@@ -778,6 +778,207 @@ async function newFile(): Promise<void> {
   else if (!tree.shows(path)) await tree.add([{ path, isDir: false }]);
 }
 
+// ---------- recent files ----------
+// The Recent button lists the last RECENT_MAX files opened, newest first, the way File > Open Recent
+// works in most apps: opening a file (or switching to it from the left pane, a link, or this list)
+// moves it to the top; picking one that was moved or deleted takes it off the list with a message; and
+// "Clear recent files" empties it. In the menu, keys 1 to 9 and 0 pick by number. The start screen
+// shows the same list.
+
+const recentBtn = $<HTMLButtonElement>('recent-btn');
+const recentMenu = $('recent-menu');
+const emptyRecent = $('empty-recent');
+
+/**
+ * Changes to the list run one after another: each reads the saved list and writes it back, so two at
+ * once (opening several files) would otherwise lose one. Afterwards the start screen's copy is redrawn.
+ */
+let recentQueue: Promise<unknown> = Promise.resolve();
+function changeRecent(fn: () => Promise<void>): Promise<void> {
+  const run = recentQueue.then(fn).catch(() => {}); // not remembered; nothing else is affected
+  recentQueue = run;
+  return run.then(renderEmptyRecent);
+}
+const listRecent = (): Promise<RecentFile[]> => recentQueue.then(() => backend.recentFiles()).catch(() => []);
+
+function noteRecent(path: string): void {
+  void changeRecent(() => backend.addRecent(path));
+}
+
+/** Opens a file from the list, as Open file does. A file that's no longer there is taken off the list. */
+async function openRecent(path: string): Promise<void> {
+  try {
+    await backend.statFile(path);
+  } catch (e) {
+    // The browser version asks for access again after a restart; turning that down isn't a missing file.
+    if (e instanceof NoAccess) {
+      toast(`MdGeek needs your OK to open ${basename(path)}.`);
+      return;
+    }
+    await changeRecent(() => backend.removeRecent(path));
+    toast(`${basename(path)} was moved or deleted, so it's been taken off the Recent files list.`);
+    return;
+  }
+  await openPaths([path]);
+}
+
+/** The name, with its folder in small text under it. */
+function recentLabel(r: RecentFile): HTMLElement {
+  const txt = document.createElement('span');
+  txt.className = 'txt';
+  const nm = document.createElement('span');
+  nm.className = 'nm';
+  nm.textContent = r.name;
+  txt.append(nm);
+  if (r.where) {
+    const wh = document.createElement('span');
+    wh.className = 'wh';
+    wh.textContent = r.where;
+    txt.append(wh);
+  }
+  return txt;
+}
+
+/** Fills the Recent menu with the current list, each file numbered 1 to 9 then 0. */
+async function fillRecentMenu(): Promise<void> {
+  const list = await listRecent();
+  const head = document.createElement('div');
+  head.className = 'menu-h';
+  head.setAttribute('aria-hidden', 'true');
+  head.textContent = 'Recent files';
+  const items: HTMLElement[] = list.slice(0, RECENT_MAX).map((r, i) => {
+    const opt = document.createElement('div');
+    opt.className = 'opt';
+    opt.setAttribute('role', 'menuitem');
+    opt.tabIndex = -1;
+    opt.title = r.where ? r.path : r.name;
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.setAttribute('aria-hidden', 'true');
+    num.textContent = String((i + 1) % 10);
+    opt.append(num, recentLabel(r));
+    opt.addEventListener('click', () => void openRecent(r.path));
+    return opt;
+  });
+  const rest: HTMLElement[] = [];
+  if (items.length) {
+    const clear = document.createElement('div');
+    clear.className = 'opt clear';
+    clear.setAttribute('role', 'menuitem');
+    clear.tabIndex = -1;
+    clear.textContent = 'Clear recent files';
+    clear.addEventListener('click', () => void changeRecent(() => backend.clearRecent()));
+    rest.push(clear);
+  } else {
+    const none = document.createElement('div');
+    none.className = 'none';
+    none.textContent = 'Files you open will be listed here.';
+    rest.push(none);
+  }
+  recentMenu.replaceChildren(head, ...items, ...rest);
+}
+
+// ---------- toolbar menus ----------
+// File and Recent each open a menu under their button. Both follow the menu button pattern: Enter, Space
+// or the arrow keys open it; arrow keys, Home and End move through it; Enter or Space picks; Esc or Tab
+// closes it, as does a click anywhere else.
+
+/** Wires a button to the menu under it. fill, if given, rebuilds the menu's items each time it opens. */
+function dropdown(btn: HTMLButtonElement, menu: HTMLElement, fill?: () => Promise<void>): void {
+  // Bumped on every open and close, so a slow fill that finishes after the menu was closed is dropped.
+  let token = 0;
+  const items = () =>
+    Array.from(menu.querySelectorAll<HTMLElement>('.opt')).filter((o) => !(o as HTMLButtonElement).disabled);
+  const close = (refocus: boolean) => {
+    token++;
+    if (menu.hidden) return;
+    menu.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    if (refocus) btn.focus();
+  };
+  const open = async (focus: 'first' | 'last') => {
+    const t = ++token;
+    await fill?.();
+    if (t !== token) return;
+    menu.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    const opts = items();
+    (opts.length ? opts[focus === 'first' ? 0 : opts.length - 1] : menu).focus();
+  };
+
+  btn.addEventListener('click', () => (menu.hidden ? void open('first') : close(true)));
+  btn.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      void open(e.key === 'ArrowDown' ? 'first' : 'last');
+    }
+  });
+  menu.tabIndex = -1; // so focus has somewhere to go when the menu has no items
+  menu.addEventListener('keydown', (e) => {
+    const opts = items();
+    const i = opts.indexOf(document.activeElement as HTMLElement);
+    const n = opts.length;
+    const go = (j: number) => {
+      e.preventDefault();
+      if (n) opts[(j + n) % n].focus();
+    };
+    if (e.key === 'ArrowDown') go(i + 1);
+    else if (e.key === 'ArrowUp') go(i - 1);
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(n - 1);
+    else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      opts[i]?.click();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      close(true);
+    } else if (e.key === 'Tab') {
+      close(false);
+    }
+  });
+  // Picking an item closes the menu first (in the capture phase, before the item's own click handler),
+  // so a dialog the item opens starts with the menu already gone and focus back on the button.
+  menu.addEventListener(
+    'click',
+    (e) => {
+      if ((e.target as Element).closest('.opt')) close(true);
+    },
+    true,
+  );
+  document.addEventListener('pointerdown', (e) => {
+    if (!btn.parentElement!.contains(e.target as Node)) close(false);
+  });
+}
+
+dropdown($<HTMLButtonElement>('file-btn'), $('file-menu'));
+dropdown(recentBtn, recentMenu, fillRecentMenu);
+// In the Recent menu, keys 1 to 9 and 0 open the file with that number.
+recentMenu.addEventListener('keydown', (e) => {
+  if (!/^[0-9]$/.test(e.key) || e.ctrlKey || e.altKey || e.metaKey) return;
+  e.preventDefault();
+  recentMenu.querySelectorAll<HTMLElement>('.opt:not(.clear)')[(Number(e.key) + 9) % 10]?.click();
+});
+
+/** The list on the start screen (shown when no file is open). Hidden while it's empty. */
+async function renderEmptyRecent(): Promise<void> {
+  const list = await listRecent();
+  const ul = emptyRecent.querySelector('ul');
+  if (!ul) return; // removed: this browser can't open files
+  ul.replaceChildren(
+    ...list.map((r) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.title = r.where ? r.path : r.name;
+      b.append(...recentLabel(r).childNodes);
+      b.addEventListener('click', () => void openRecent(r.path));
+      li.append(b);
+      return li;
+    }),
+  );
+  emptyRecent.hidden = !list.length;
+}
+
 /** Joins a single file's tab with the current one. The current file stays on the left. */
 function joinWith(tab: Tab): void {
   const cur = current;
@@ -958,6 +1159,7 @@ function switchView(view: View): void {
 async function loadTab(path: string): Promise<Tab | null> {
   try {
     const data = await backend.readFile(path);
+    noteRecent(path);
     return {
       path,
       content: data.content,
@@ -981,6 +1183,7 @@ async function openFile(path: string): Promise<void> {
   const existing = allTabs().find((t) => t.path === path);
   if (existing) {
     activate(existing);
+    noteRecent(path);
     return;
   }
   const tab = await loadTab(path);
@@ -1382,13 +1585,16 @@ for (const type of ['click', 'auxclick'] as const) {
   });
 }
 // Browsers keep Ctrl+N for a new window, so only the desktop app offers it.
-if (isWeb) $('btn-new-file').title = 'New file';
+if (isWeb) $('btn-new-file').querySelector('.key')?.remove();
 // The browser version needs the File System Access API, which only Edge and Chrome on a computer have.
 if (import.meta.env.MODE === 'web' && !('showDirectoryPicker' in window)) {
   emptyEl.querySelector('h2')!.textContent = 'MdGeek needs Edge or Chrome on a computer.';
   emptyEl.querySelector('.hint')?.remove();
   emptyEl.querySelector('.acts')?.remove();
-  for (const id of ['btn-new-file', 'btn-open-file', 'btn-open-folder']) $<HTMLButtonElement>(id).disabled = true;
+  for (const id of ['file-btn', 'recent-btn']) $<HTMLButtonElement>(id).disabled = true;
+  emptyRecent.remove();
+} else {
+  void renderEmptyRecent();
 }
 
 // ---------- version panel ----------

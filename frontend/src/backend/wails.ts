@@ -1,7 +1,21 @@
 // The desktop build: every call goes to the Go code in app.go, links.go, and settings.go.
 import { ClipboardSetText, EventsEmit, EventsOn, OnFileDrop } from '../../wailsjs/runtime/runtime';
 import * as Go from '../../wailsjs/go/main/App';
-import type { Backend } from './index';
+import { basename, dirname } from '../paths';
+import { RECENT_MAX, type Backend } from './index';
+
+// The Recent files list is a JSON array of paths in settings.json, newest first.
+async function recentPaths(): Promise<string[]> {
+  try {
+    const list: unknown = JSON.parse((await Go.GetSetting('recentFiles')) || '[]');
+    return Array.isArray(list) ? list.filter((p): p is string => typeof p === 'string') : [];
+  } catch {
+    return []; // a damaged setting just means an empty list
+  }
+}
+const saveRecent = (paths: string[]) => Go.SetSetting('recentFiles', JSON.stringify(paths.slice(0, RECENT_MAX)));
+// Windows paths ignore case, so "C:/Notes/a.md" and "c:/notes/A.md" are the same file.
+const samePath = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 export const wailsBackend: Backend = {
   startupPaths: () => Go.StartupPaths(),
@@ -44,4 +58,13 @@ export const wailsBackend: Backend = {
   // The desktop app starts with an empty left pane, as it always has.
   rememberedItems: async () => [],
   rememberItems: async () => {},
+
+  recentFiles: async () => (await recentPaths()).map((path) => ({ path, name: basename(path), where: dirname(path) })),
+  async addRecent(path) {
+    await saveRecent([path, ...(await recentPaths()).filter((p) => !samePath(p, path))]);
+  },
+  async removeRecent(path) {
+    await saveRecent((await recentPaths()).filter((p) => !samePath(p, path)));
+  },
+  clearRecent: () => saveRecent([]),
 };
