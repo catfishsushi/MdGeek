@@ -4,7 +4,7 @@
 // the user picks or drops. The rest of the app works with path strings, so each picked item gets a
 // made-up top-level path ("/notes" for a folder called notes) and everything inside it is reached
 // by walking down from that handle ("/notes/sub/todo.md").
-import type { Backend, Entry } from './index';
+import { RECENT_MAX, type Backend, type Entry, type RecentFile } from './index';
 import { NeedsPermission, NoAccess } from './errors';
 import { loadHandles, saveHandles } from './handle-store';
 
@@ -132,6 +132,13 @@ async function fileForWrite(path: string): Promise<FileSystemFileHandle> {
     await ensureWritable(dir);
     return dir.getFileHandle(name, { create: true });
   }
+}
+
+/** The saved Recent files, minus the one given. */
+async function recentWithout(h: Handle): Promise<Handle[]> {
+  const out: Handle[] = [];
+  for (const r of (await loadHandles('recent')) as Handle[]) if (!(await r.isSameEntry(h))) out.push(r);
+  return out;
 }
 
 /** Images shown in the editor, kept so the same image isn't read again on every redraw. */
@@ -361,7 +368,7 @@ export const webBackend: Backend = {
   async rememberedItems() {
     const items: { path: string; isDir: boolean }[] = [];
     let dropped = false;
-    for (const h of (await loadHandles()) as Handle[]) {
+    for (const h of (await loadHandles('sidebar')) as Handle[]) {
       // Deleted or moved since last time: quietly left out.
       if (await isGone(h)) {
         dropped = true;
@@ -375,8 +382,35 @@ export const webBackend: Backend = {
 
   async rememberItems(items) {
     const handles = items.map((it) => registered.get(it.path)).filter((h): h is Handle => !!h);
-    await saveHandles(handles);
+    await saveHandles('sidebar', handles);
   },
+
+  // The browser has no real folder paths to show, so each file is listed by name only.
+  async recentFiles() {
+    const out: RecentFile[] = [];
+    const saved = (await loadHandles('recent')) as Handle[];
+    const kept: Handle[] = [];
+    for (const h of saved) {
+      if (h.kind !== 'file' || (await isGone(h))) continue; // deleted or moved since: quietly left out
+      kept.push(h);
+      out.push({ path: await register(h), name: h.name, where: '' });
+    }
+    if (kept.length < saved.length) await saveHandles('recent', kept);
+    return out;
+  },
+
+  async addRecent(path) {
+    const h = registered.get(path) ?? (await lookupFile(path).catch(() => null));
+    if (!h || h.kind !== 'file') return;
+    await saveHandles('recent', [h, ...(await recentWithout(h))].slice(0, RECENT_MAX));
+  },
+
+  async removeRecent(path) {
+    const h = registered.get(path) ?? (await lookupFile(path).catch(() => null));
+    if (h) await saveHandles('recent', await recentWithout(h));
+  },
+
+  clearRecent: () => saveHandles('recent', []),
 
   onUpdateReady(fn) {
     updateReady = fn;

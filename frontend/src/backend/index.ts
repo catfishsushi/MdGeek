@@ -17,6 +17,17 @@ export interface FileData {
   modTime: number;
 }
 
+/** One file in the Recent files list. */
+export interface RecentFile {
+  path: string;
+  name: string;
+  /** The folder it's in, shown under the name. "" when unknown (the browser version can't tell). */
+  where: string;
+}
+
+/** How many files the Recent files list keeps. */
+export const RECENT_MAX = 10;
+
 export interface Backend {
   /** Files or folders the app was started with ("Open with"). */
   startupPaths(): Promise<string[]>;
@@ -74,6 +85,13 @@ export interface Backend {
   rememberedItems(): Promise<{ path: string; isDir: boolean }[]>;
   /** Saves the left pane's top-level files and folders for next session. */
   rememberItems(items: { path: string; isDir: boolean }[]): Promise<void>;
+  /** Files opened lately, newest first, at most RECENT_MAX. Kept between sessions. */
+  recentFiles(): Promise<RecentFile[]>;
+  /** Puts a file at the top of the Recent files list (moving it there if it's already listed). */
+  addRecent(path: string): Promise<void>;
+  /** Takes one file off the Recent files list. */
+  removeRecent(path: string): Promise<void>;
+  clearRecent(): Promise<void>;
 }
 
 // Vite replaces import.meta.env.MODE with a fixed string at build time, so each build keeps only one.
