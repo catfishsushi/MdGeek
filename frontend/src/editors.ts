@@ -40,6 +40,9 @@ export interface EditorHandle {
   selectMatch(i: number): void;
 }
 
+/** The languages a code block can be tagged with, for colouring and the code block's language list. */
+const codeLanguages = [...languages.filter((l) => l.name !== 'Brainfuck'), mermaidLanguage];
+
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 /** Where text appears in a string, ignoring case, as [start, end) pairs. */
@@ -163,7 +166,7 @@ export function createSourceEditor(
         history(),
         drawSelection(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        markdown({ codeLanguages: [...languages, mermaidLanguage] }),
+        markdown({ codeLanguages }),
         ...lookExtensions(look),
         EditorView.lineWrapping,
         findMarks,
@@ -423,7 +426,7 @@ export async function createWysiwygEditor(
     featureConfigs: {
       // Mermaid code blocks show the drawn diagram; the toggle button in the block's corner shows the code.
       [Crepe.Feature.CodeMirror]: {
-        languages: [...languages, mermaidLanguage],
+        languages: codeLanguages,
         renderPreview: diagramPreview,
         previewOnlyByDefault: true,
         previewLabel: 'Diagram',
