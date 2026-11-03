@@ -708,7 +708,7 @@ async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
     handle =
       tab.view === 'source'
         ? createSourceEditor(host, tab.content, sourceLook(), onChange)
-        : await createWysiwygEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href));
+        : await createWysiwygEditor(host, tab.content, tab.path, sourceLook(), onChange, (href) => void followLink(tab, href));
   } catch (e) {
     toast('Could not open editor: ' + e);
     return;
@@ -1436,7 +1436,7 @@ async function exportHtml(): Promise<void> {
   const active = focused.active;
   if (!active) return;
   const name = basename(active.path).replace(/\.(md|markdown)$/i, '');
-  const html = renderStandalone(active.content, name);
+  const html = await renderStandalone(active.content, name);
   try {
     const saved = await backend.saveExport(name + '.html', html);
     if (saved) toast('Exported to ' + saved);

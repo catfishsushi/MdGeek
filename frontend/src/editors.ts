@@ -9,7 +9,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { Crepe } from '@milkdown/crepe';
-import { editorViewCtx, editorViewOptionsCtx, remarkCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { commandsCtx, editorViewCtx, editorViewOptionsCtx, remarkCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { clearTextInCurrentBlockCommand, codeBlockSchema, setBlockTypeCommand } from '@milkdown/kit/preset/commonmark';
 import type { Fragment, Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { $remark } from '@milkdown/kit/utils';
@@ -17,6 +18,8 @@ import crepeCommon from '@milkdown/crepe/theme/common/style.css?inline';
 import crepeLight from '@milkdown/crepe/theme/frame.css?inline';
 import crepeDark from '@milkdown/crepe/theme/frame-dark.css?inline';
 import { backend } from './backend';
+import { drawDiagram, escapeHtml, isMermaid, mermaidLanguage, setDiagramDark } from './diagram';
+import { STARTER_DIAGRAM, openDiagramEditor } from './diagram-editor';
 import { keepFormatting } from './keep-format';
 import { dirname, localImagePath } from './paths';
 
@@ -129,7 +132,7 @@ const themedChrome = EditorView.theme({
   '.cm-activeLine': { background: 'var(--curline)' },
 });
 
-function lookExtensions(look: SourceLook) {
+export function lookExtensions(look: SourceLook) {
   if (look === 'themed') return [syntaxHighlighting(themedHighlight), themedChrome, highlightActiveLine()];
   return [syntaxHighlighting(defaultHighlightStyle, { fallback: true }), ...(look === 'dark' ? [oneDark] : [])];
 }
@@ -143,6 +146,7 @@ export function applyCrepeTheme(dark: boolean): void {
     document.head.appendChild(el);
   }
   el.textContent = crepeCommon + '\n' + (dark ? crepeDark : crepeLight);
+  setDiagramDark(dark);
 }
 
 export function createSourceEditor(
@@ -159,7 +163,7 @@ export function createSourceEditor(
         history(),
         drawSelection(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        markdown({ codeLanguages: languages }),
+        markdown({ codeLanguages: [...languages, mermaidLanguage] }),
         ...lookExtensions(look),
         EditorView.lineWrapping,
         findMarks,
@@ -378,10 +382,32 @@ function tablePlainText(content: Fragment): string {
 
 type MdBlock = { type: string; position?: { start: { line: number }; end: { line: number } } };
 
+const EDIT_DIAGRAM = '<button class="mdg-diagram-edit" type="button">Edit diagram</button>';
+const DIAGRAM_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="16" width="7" height="5" rx="1"/><path d="M6.5 8v5.5h11V16"/></svg>';
+
+/**
+ * What a Mermaid code block shows in place of its code: the drawn diagram and an Edit button. Crepe
+ * cleans this HTML before showing it, so the button's click is caught in createWysiwygEditor.
+ */
+function diagramPreview(language: string, content: string, apply: (html: string) => void): undefined | null | string {
+  if (!isMermaid(language)) return null;
+  if (!content.trim()) return `<div class="mdg-diagram-msg">Empty diagram</div>${EDIT_DIAGRAM}`;
+  void drawDiagram(content).then((r) =>
+    apply(
+      'svg' in r
+        ? `<div class="mdg-diagram">${r.svg}</div>${EDIT_DIAGRAM}`
+        : `<div class="mdg-diagram-msg mdg-bad">${escapeHtml(r.error)}</div>${EDIT_DIAGRAM}`,
+    ),
+  );
+  return undefined; // drawing is under way; apply() shows it
+}
+
 export async function createWysiwygEditor(
   parent: HTMLElement,
   text: string,
   filePath: string,
+  look: SourceLook,
   onChange: (text: string) => void,
   onLink: (href: string) => void,
 ): Promise<EditorHandle> {
@@ -395,6 +421,33 @@ export async function createWysiwygEditor(
       [Crepe.Feature.AI]: false,
     },
     featureConfigs: {
+      // Mermaid code blocks show the drawn diagram; the toggle button in the block's corner shows the code.
+      [Crepe.Feature.CodeMirror]: {
+        languages: [...languages, mermaidLanguage],
+        renderPreview: diagramPreview,
+        previewOnlyByDefault: true,
+        previewLabel: 'Diagram',
+      },
+      // "Diagram" in the / menu (and the + beside each block) starts a new flowchart.
+      [Crepe.Feature.BlockEdit]: {
+        buildMenu: (builder) =>
+          builder.getGroup('advanced').addItem('diagram', {
+            label: 'Diagram',
+            icon: DIAGRAM_ICON,
+            onRun: (ctx) => {
+              const commands = ctx.get(commandsCtx);
+              commands.call(clearTextInCurrentBlockCommand.key);
+              commands.call(setBlockTypeCommand.key, { nodeType: codeBlockSchema.type(ctx), attrs: { language: 'mermaid' } });
+              const view = ctx.get(editorViewCtx);
+              view.dispatch(view.state.tr.insertText(STARTER_DIAGRAM.trimEnd()));
+              const at = view.state.selection.$from.before();
+              requestAnimationFrame(() => {
+                const dom = view.nodeDOM(at);
+                if (dom instanceof HTMLElement) editDiagram(dom);
+              });
+            },
+          }),
+      },
       // Show images that the file refers to by relative path.
       [Crepe.Feature.ImageBlock]: {
         proxyDomURL: (url: string) => {
@@ -445,6 +498,50 @@ export async function createWysiwygEditor(
     });
     return out;
   }
+  /** Opens the diagram editor for a code block on screen, and writes the result back into it. */
+  function editDiagram(block: HTMLElement): void {
+    const view = crepe.editor.ctx.get(editorViewCtx);
+    const find = (): number => {
+      let at = -1;
+      view.state.doc.descendants((node, pos) => {
+        if (at >= 0) return false;
+        if (node.type.name === 'code_block' && view.nodeDOM(pos) === block) at = pos;
+        return node.type.name !== 'code_block';
+      });
+      return at;
+    };
+    const pos = find();
+    if (pos < 0) return;
+    openDiagramEditor({
+      code: view.state.doc.nodeAt(pos)!.textContent,
+      look: lookExtensions(look),
+      onSave: (code) => {
+        const p = find();
+        if (p < 0) return;
+        const node = view.state.doc.nodeAt(p)!;
+        const text = code.replace(/\n+$/, '');
+        const tr = view.state.tr;
+        if (text) tr.replaceWith(p + 1, p + 1 + node.content.size, view.state.schema.text(text));
+        else tr.delete(p + 1, p + 1 + node.content.size);
+        view.dispatch(tr);
+      },
+    });
+  }
+
+  // The Edit button under a diagram, or a double-click on the diagram, opens the diagram editor.
+  // Code blocks keep their clicks from the editor, so these are caught on the way down.
+  parent.addEventListener('click', (e) => {
+    const block = (e.target as Element).closest('.mdg-diagram-edit')?.closest<HTMLElement>('.milkdown-code-block');
+    if (!block) return;
+    e.preventDefault();
+    e.stopPropagation();
+    editDiagram(block);
+  }, true);
+  parent.addEventListener('dblclick', (e) => {
+    const block = (e.target as Element).closest('.preview .mdg-diagram')?.closest<HTMLElement>('.milkdown-code-block');
+    if (block) editDiagram(block);
+  });
+
   await crepe.create();
   written = crepe.getMarkdown();
   labelTopBar(parent);
