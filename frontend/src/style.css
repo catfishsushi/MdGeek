@@ -1317,3 +1317,93 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
   #print-root { display: block; }
   html, body { height: auto; background: #fff; color: #000; }
 }
+
+/* ---------- Mermaid diagrams ---------- */
+
+/* In the document: the drawing in place of the code, with an Edit button under it. The app's rule for
+   its small icons (#app svg) would otherwise shrink the drawing to 16px and strip its colours. */
+#app .mdg-diagram svg, .dg svg.dg-plain { width: 100%; height: auto; fill: initial; stroke: none; stroke-width: initial; }
+.mdg-diagram { display: flex; justify-content: center; overflow-x: auto; cursor: zoom-in; }
+.mdg-diagram-msg { padding: 12px; color: var(--ink2); font-size: 13px; white-space: pre-wrap; }
+.mdg-bad { color: var(--ink); background: var(--del-bg); border-radius: 6px; font-family: var(--mono); }
+/* Crepe resets buttons inside the editor, so this rule names the editor to win. */
+.milkdown .milkdown-code-block .preview .mdg-diagram-edit {
+  display: block; margin: 8px 0 0 auto; padding: 4px 10px; font: 500 12.5px var(--ui); color: var(--ink);
+  background: var(--btn); border: 1px solid var(--btnline); border-radius: 6px; cursor: pointer;
+}
+.milkdown .milkdown-code-block .preview .mdg-diagram-edit:hover { background: var(--btnh); }
+
+/* The editor dialog. It sits in the browser's top layer, above every menu and toolbar. */
+.dg {
+  width: min(1180px, calc(100vw - 32px));
+  height: min(820px, calc(100vh - 32px));
+  max-width: none; max-height: none;
+  padding: 0;
+  border: 1px solid var(--menuline);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--menushadow);
+  font-family: var(--ui);
+  font-size: 14px;
+}
+.dg[open] { display: flex; flex-direction: column; }
+.dg::backdrop { background: rgba(10, 12, 16, .45); }
+.dg :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.dg svg:not(.dg-rubber):not([id^="mdg-diagram"]) { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.dg-head { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--line); }
+.dg-title { font-weight: 600; font-size: 15px; flex: 1; }
+.dg-actions { flex: 1; display: flex; justify-content: flex-end; gap: 8px; }
+.dg-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.dg-pane[hidden] { display: none; }
+.dg-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.dg-k { color: var(--ink2); font-size: 12.5px; margin-right: 4px; }
+.dg-gap { flex: 1; }
+.dg-tb { width: 34px; height: 34px; padding: 0; display: inline-grid; place-items: center; border-radius: 8px; }
+.dg-dir { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
+.dg select, .dg input { font: inherit; color: var(--ink); background: var(--btn); border: 1px solid var(--btnline); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+.dg-work { flex: 1; min-height: 0; display: flex; }
+.dg-canvas { flex: 1; min-width: 0; overflow: auto; padding: 24px; background: var(--panel, var(--bg)); position: relative; outline: none; }
+.dg-canvas > svg, .dg-preview > svg { display: block; margin: 0 auto; width: 100%; height: auto; }
+.dg-props { width: 260px; flex: none; overflow-y: auto; padding: 14px 16px; border-left: 1px solid var(--line); }
+.dg-props h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink2); }
+.dg-props p { margin: 0 0 10px; color: var(--ink2); line-height: 1.45; font-size: 13px; }
+.dg-f { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 12.5px; color: var(--ink2); }
+.dg-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.dg-id { font-size: 12px; }
+.dg-msg { margin: 0 auto 16px; max-width: 640px; padding: 10px 12px; border-radius: 8px; background: var(--warn-bg); color: #3b2e00; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.dg-msg.dg-bad { background: var(--del-bg); color: #4a1010; font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; }
+
+/* Shapes and lines you can click. */
+.dg-node { cursor: pointer; }
+.dg-node:focus { outline: none; }
+.dg-node.dg-sel :is(rect, polygon, circle, ellipse, path), .dg-node:focus-visible :is(rect, polygon, circle, ellipse, path) { stroke: var(--acc) !important; stroke-width: 3px !important; }
+.dg-node.dg-target :is(rect, polygon, circle, ellipse, path) { stroke: var(--ok) !important; stroke-width: 3px !important; }
+.dg-hit { fill: none !important; stroke: transparent !important; stroke-width: 16px !important; cursor: pointer; pointer-events: stroke; }
+.dg-hit.dg-sel { stroke: var(--acc) !important; stroke-opacity: .35; }
+.dg [data-edge-index] { cursor: pointer; }
+.dg-rubber { position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; pointer-events: none; display: none; }
+.dg-rubber.on { display: block; }
+.dg-rubber line { stroke: var(--acc); stroke-width: 2; stroke-dasharray: 6 4; }
+
+/* The code tab: Mermaid text beside its drawing. */
+.dg-code { flex-direction: row; }
+.dg-cm { flex: 1; min-width: 0; overflow: auto; border-right: 1px solid var(--line); background: var(--panel, var(--bg)); }
+.dg-cm .cm-editor { min-height: 100%; font-family: var(--mono); font-size: 13.5px; }
+.dg-cm .cm-editor.cm-focused { outline: none; }
+.dg-side { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dg-preview { flex: 1; overflow: auto; padding: 24px; }
+.dg-preview.dg-stale { opacity: .35; }
+.dg-error { flex: none; max-height: 40%; overflow: auto; padding: 10px 14px; background: var(--del-bg); color: #4a1010; font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; }
+.dg-error[hidden] { display: none; }
+
+/* Phones and narrow windows: full screen, with the side panel and the preview below. */
+@media (max-width: 720px) {
+  .dg { width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
+  .dg-head { flex-wrap: wrap; padding: 8px 16px; }
+  .dg-title { display: none; }
+  .dg-tools { padding: 8px 16px; }
+  .dg-work, .dg-code { flex-direction: column; }
+  .dg-props { width: auto; max-height: 40%; border-left: 0; border-top: 1px solid var(--line); }
+  .dg-cm { border-right: 0; border-bottom: 1px solid var(--line); }
+}

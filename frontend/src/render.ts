@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import hljsCss from 'highlight.js/styles/github.css?inline';
 import { backend } from './backend';
+import { drawDiagram, escapeHtml, isMermaid } from './diagram';
 import { dirname, localImagePath } from './paths';
 
 const md = new MarkdownIt({
@@ -18,6 +19,25 @@ const md = new MarkdownIt({
     return ''; // markdown-it escapes it
   },
 }).use(taskLists, { enabled: false });
+
+// Mermaid code blocks are marked here and swapped for their drawings by withDiagrams.
+const plainFence = md.renderer.rules.fence!;
+md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+  const t = tokens[idx];
+  if (isMermaid(t.info.trim().split(/\s+/)[0])) return `<pre class="mermaid-src"><code>${escapeHtml(t.content)}</code></pre>\n`;
+  return plainFence(tokens, idx, options, env, self);
+};
+
+/** Replaces each Mermaid code block with its drawing, in light colours. Ones that can't be drawn stay as code. */
+async function withDiagrams(html: string): Promise<string> {
+  if (!html.includes('mermaid-src')) return html;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  for (const pre of Array.from(doc.querySelectorAll('pre.mermaid-src'))) {
+    const r = await drawDiagram(pre.textContent ?? '', false);
+    if ('svg' in r) pre.outerHTML = `<div class="diagram">${r.svg}</div>`;
+  }
+  return doc.body.innerHTML;
+}
 
 export const documentCss = `
 ${hljsCss}
@@ -36,6 +56,8 @@ img { max-width: 100%; }
 hr { border: 0; border-top: 1px solid #d0d7de; }
 .task-list-item { list-style: none; }
 .task-list-item input { margin: 0 .4em 0 -1.4em; }
+.diagram { margin: 16px 0; text-align: center; }
+.diagram svg { max-width: 100%; height: auto; }
 `;
 
 /**
@@ -48,7 +70,7 @@ export function renderBody(markdown: string): string {
 
 /** Renders Markdown for printing inside the app, with local images made loadable. */
 export async function renderPrintable(markdown: string, filePath: string): Promise<string> {
-  const doc = new DOMParser().parseFromString(renderBody(markdown), 'text/html');
+  const doc = new DOMParser().parseFromString(await withDiagrams(renderBody(markdown)), 'text/html');
   const base = dirname(filePath);
   for (const img of Array.from(doc.querySelectorAll('img'))) {
     const local = localImagePath(base, img.getAttribute('src') ?? '');
@@ -58,7 +80,7 @@ export async function renderPrintable(markdown: string, filePath: string): Promi
 }
 
 /** A complete standalone HTML file. */
-export function renderStandalone(markdown: string, title: string): string {
+export async function renderStandalone(markdown: string, title: string): Promise<string> {
   const esc = title.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
   return `<!DOCTYPE html>
 <html lang="en">
@@ -69,7 +91,7 @@ export function renderStandalone(markdown: string, title: string): string {
 <style>${documentCss}</style>
 </head>
 <body>
-${renderBody(markdown)}
+${await withDiagrams(renderBody(markdown))}
 </body>
 </html>
 `;
