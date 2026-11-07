@@ -1407,3 +1407,34 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
   .dg-props { width: auto; max-height: 40%; border-left: 0; border-top: 1px solid var(--line); }
   .dg-cm { border-right: 0; border-bottom: 1px solid var(--line); }
 }
+
+/* The HTML view: a formatting bar over the page itself, which shows in its own frame with its own
+   styles. The frame is white unless the page sets a colour, as a browser would show it. */
+#content .editor .host.html-host { display: flex; flex-direction: column; overflow: hidden; }
+.html-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid var(--line); color: var(--ink); }
+.html-bar .html-b { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px; border: 0; border-radius: 6px; background: none; color: inherit; font: 15px/1 var(--read, serif); cursor: pointer; }
+.html-bar .html-b:hover { background: var(--sel); }
+.html-bar .html-b:focus-visible, .html-bar select:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.html-bar .html-b svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.html-bar .html-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--line); }
+.html-bar select { height: 30px; margin-right: 4px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font: inherit; font-size: 13px; }
+.html-bar .html-ask { display: flex; flex: 1 1 260px; gap: 4px; min-width: 0; }
+.html-bar .html-ask[hidden] { display: none; }
+.html-bar .html-ask input { flex: 1; min-width: 0; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font-size: 13px; }
+.html-bar .html-ask button { height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: inherit; font-size: 13px; cursor: pointer; }
+.html-frame { flex: 1; min-height: 0; width: 100%; border: 0; background: #fff; color-scheme: light; }
+/* Export PDF for an HTML file prints it from an unseen frame. */
+.html-print { position: fixed; left: -10000px; top: 0; width: 900px; height: 1200px; }
+.html-print iframe { width: 100%; height: 100%; border: 0; }
+@media (max-width: 600px) { .html-bar { padding: 4px 6px; } .html-bar .html-sep { display: none; } }
+/* The Table button's grid picker. */
+.html-bar { position: relative; z-index: 2; }
+.html-bar .html-pick { position: relative; display: inline-flex; }
+.html-bar .html-grid { position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+.html-bar .html-grid[hidden] { display: none; }
+.html-bar .html-grid:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.html-bar .html-grid-cells { display: grid; gap: 3px; }
+.html-bar .html-grid-cells span { width: 18px; height: 18px; border: 1px solid var(--line); border-radius: 2px; background: var(--bg); cursor: pointer; }
+.html-bar .html-grid-cells span.on { background: color-mix(in srgb, var(--acc) 30%, transparent); border-color: var(--acc); }
+.html-bar .html-grid-label { margin-top: 6px; font-size: 13px; text-align: center; }
+@media (pointer: coarse) { .html-bar .html-grid-cells span { width: 24px; height: 24px; } }

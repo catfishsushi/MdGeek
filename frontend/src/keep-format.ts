@@ -40,12 +40,25 @@ const compact = (line: string) => `| ${cellsOf(line).join(' | ')} |`;
 
 /**
  * A stretch both sides changed: the original formatted it differently, and the user edited it too.
- * Usually that's a table with a cell edited, which has the same number of rows in all three versions.
+ * Often that's a Markdown table with a cell edited, which has the same number of rows in all three versions.
  * Then rows the user didn't change keep their original text, and a changed row follows the original's
  * style if that was unpadded. Anything else takes the editor's version.
  */
 function mergeChanged(b: string[], o: string[], n: string[]): string[] {
-  if (b.length !== o.length || b.length !== n.length) return n;
+  if (b.length !== o.length) return n;
+  // Lines were added or removed (say, a new table in an HTML file). The original and the editor's
+  // version line up one to one here, so lines the user left alone keep the original's text.
+  if (b.length !== n.length) {
+    const out: string[] = [];
+    let x = 0;
+    for (const part of diffArrays(b, n)) {
+      const len = part.count ?? part.value.length;
+      if (part.added) out.push(...part.value);
+      else if (!part.removed) out.push(...o.slice(x, x + len));
+      if (!part.added) x += len;
+    }
+    return out;
+  }
   return n.map((line, x) => {
     if (loose(line) === loose(b[x])) return o[x];
     if (isRow(line) && isRow(o[x]) && o[x].trim() === compact(o[x])) return compact(line);

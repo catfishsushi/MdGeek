@@ -5,6 +5,7 @@ import { Decoration, DecorationSet, EditorView, drawSelection, highlightActiveLi
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { HighlightStyle, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
+import { html } from '@codemirror/lang-html';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -21,7 +22,7 @@ import { backend } from './backend';
 import { drawDiagram, escapeHtml, isMermaid, mermaidLanguage, setDiagramDark } from './diagram';
 import { STARTER_DIAGRAM, openDiagramEditor } from './diagram-editor';
 import { keepFormatting } from './keep-format';
-import { dirname, localImagePath } from './paths';
+import { dirname, localImagePath, type DocKind } from './paths';
 
 export interface EditorHandle {
   destroy(): void;
@@ -157,6 +158,7 @@ export function createSourceEditor(
   text: string,
   look: SourceLook,
   onChange: (text: string) => void,
+  kind: DocKind = 'markdown',
 ): EditorHandle {
   const view = new EditorView({
     parent,
@@ -166,7 +168,7 @@ export function createSourceEditor(
         history(),
         drawSelection(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        markdown({ codeLanguages }),
+        kind === 'html' ? html() : markdown({ codeLanguages }),
         ...lookExtensions(look),
         EditorView.lineWrapping,
         findMarks,

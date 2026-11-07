@@ -18,7 +18,8 @@ import { backend, RECENT_MAX, type RecentFile } from './backend';
 import { NeedsPermission, NoAccess } from './backend/errors';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle, SourceLook } from './editors';
 import { showDiff, Resolution } from './diffview';
-import { basename, dirname, isMarkdownPath, resolveLink } from './paths';
+import { basename, dirname, docKind, isEditablePath, resolveLink } from './paths';
+import { createHtmlEditor, printHtml } from './html-editor';
 import { documentCss, renderPrintable, renderStandalone } from './render';
 import { Tree, TreeItem } from './tree';
 
@@ -446,6 +447,7 @@ function renderDocHead(pane: Pane): void {
     el.textContent = part;
     crumb.append(el);
   });
+  pane.docHeadEl.querySelector('.doc-kind')!.textContent = kindOf(tab) === 'html' ? 'HTML' : 'Markdown';
   renderStatus(pane);
 }
 
@@ -667,7 +669,8 @@ function renderFocus(): void {
   for (const pane of panes) pane.el.classList.toggle('focused', pane === focused);
   const active = focused.active;
   tabsEl.querySelectorAll<HTMLElement>('.half').forEach((h) => h.classList.toggle('on', h.dataset.path === active?.path));
-  $('btn-export-html').toggleAttribute('disabled', !active);
+  // An HTML file is already HTML, so it has nothing to export as HTML.
+  $('btn-export-html').toggleAttribute('disabled', !active || kindOf(active) === 'html');
   $('btn-export-pdf').toggleAttribute('disabled', !active);
   document.querySelectorAll<HTMLElement>('#view-toggle button').forEach((b) => {
     b.classList.toggle('active', !!active && b.dataset.view === active.view);
@@ -683,6 +686,11 @@ function focusPane(pane: Pane): void {
   focused = pane;
   renderFocus();
   rememberWorkPath(pane.active.path);
+}
+
+/** Whether a tab holds Markdown or HTML. Files with any other extension are edited as Markdown. */
+function kindOf(tab: Tab) {
+  return docKind(tab.path) ?? 'markdown';
 }
 
 /** (Re)creates a side's editor for its file. Each mount gets a fresh host element. */
@@ -707,8 +715,10 @@ async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
   try {
     handle =
       tab.view === 'source'
-        ? createSourceEditor(host, tab.content, sourceLook(), onChange)
-        : await createWysiwygEditor(host, tab.content, tab.path, sourceLook(), onChange, (href) => void followLink(tab, href));
+        ? createSourceEditor(host, tab.content, sourceLook(), onChange, kindOf(tab))
+        : kindOf(tab) === 'html'
+          ? await createHtmlEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href))
+          : await createWysiwygEditor(host, tab.content, tab.path, sourceLook(), onChange, (href) => void followLink(tab, href));
   } catch (e) {
     toast('Could not open editor: ' + e);
     return;
@@ -1197,7 +1207,7 @@ async function pickFileBeside(): Promise<void> {
   const beside = current;
   let paths: string[];
   try {
-    paths = (await backend.pickFiles()).filter((p) => isMarkdownPath(p));
+    paths = (await backend.pickFiles()).filter((p) => isEditablePath(p));
   } catch (e) {
     toast('Could not open: ' + e);
     return;
@@ -1218,11 +1228,11 @@ async function pickFileBeside(): Promise<void> {
   else activate(tab);
 }
 
-/** Ctrl+Click on a link: Markdown files open in a tab, anything else in its default app. */
+/** Ctrl+Click on a link: Markdown and HTML files open in a tab, anything else in its default app. */
 async function followLink(tab: Tab, href: string): Promise<void> {
   const target = resolveLink(dirname(tab.path), href);
   if (!target) return;
-  if (target.kind === 'local' && isMarkdownPath(target.path)) {
+  if (target.kind === 'local' && isEditablePath(target.path)) {
     await openFile(target.path);
     return;
   }
@@ -1241,23 +1251,23 @@ async function openPaths(paths: string[]): Promise<void> {
     } else {
       await openFile(p);
       const opened = allTabs().some((t) => t.path === p);
-      if (opened && isMarkdownPath(p) && !tree.shows(p)) await tree.add([{ path: p, isDir: false }]);
+      if (opened && isEditablePath(p) && !tree.shows(p)) await tree.add([{ path: p, isDir: false }]);
     }
   }
 }
 
-/** Files and folders dropped on the left pane are listed there. Only Markdown files can be listed. */
+/** Files and folders dropped on the left pane are listed there. Only Markdown and HTML files can be listed. */
 async function addToSidebar(paths: string[]): Promise<void> {
   const items: TreeItem[] = [];
   let skipped = 0;
   for (const p of paths) {
     const isDir = await backend.isDir(p);
-    if (isDir || isMarkdownPath(p)) items.push({ path: p, isDir });
+    if (isDir || isEditablePath(p)) items.push({ path: p, isDir });
     else skipped++;
   }
   await tree.add(items);
   if (items.length) showSidebar(true);
-  if (skipped) toast(`Skipped ${skipped} file${skipped > 1 ? 's' : ''}: only Markdown files and folders can be listed.`);
+  if (skipped) toast(`Skipped ${skipped} file${skipped > 1 ? 's' : ''}: only Markdown and HTML files and folders can be listed.`);
 }
 
 /** Closes a file. Closing half of a split leaves the other file as an ordinary tab in the same place. */
@@ -1436,6 +1446,7 @@ async function exportHtml(): Promise<void> {
   const active = focused.active;
   if (!active) return;
   const name = basename(active.path).replace(/\.(md|markdown)$/i, '');
+  if (kindOf(active) === 'html') return;
   const html = await renderStandalone(active.content, name);
   try {
     const saved = await backend.saveExport(name + '.html', html);
@@ -1448,6 +1459,10 @@ async function exportHtml(): Promise<void> {
 async function exportPdf(): Promise<void> {
   const active = focused.active;
   if (!active) return;
+  if (kindOf(active) === 'html') {
+    await printHtml(active.content, active.path).catch((e) => toast('Export failed: ' + e));
+    return;
+  }
   const root = $('print-root');
   root.innerHTML = `<style>${documentCss}</style>` + (await renderPrintable(active.content, active.path));
   // Wait for images so they appear in the PDF (but not forever).
