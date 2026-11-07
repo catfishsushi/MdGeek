@@ -20,6 +20,13 @@ const SWAPPED = 'data-mdg-swap'; // marks an element with attributes to put back
 const WAS = 'data-mdg-was-'; // + attribute name: the original value
 const UI = 'data-mdg-ui'; // marks elements MdGeek added, which are left out when writing
 
+/**
+ * The element a selection point is in. Checked by node type, not `instanceof Element`: nodes in the
+ * frame belong to the frame's own copy of Element, so instanceof is always false for them.
+ */
+const elementOf = (node: Node | null | undefined): Element | null =>
+  !node ? null : node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const isScriptUrl = (url: string) => /^\s*(javascript|vbscript|data:text\/html)/i.test(url);
@@ -200,6 +207,8 @@ const BUTTONS: [string, string, string][] = [
   ['redo', 'Redo (Ctrl+Y)', 'M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3'],
 ];
 
+type TableOp = 'row-above' | 'row-below' | 'col-left' | 'col-right' | 'delete-row' | 'delete-col' | 'delete-table';
+
 const BLOCKS: [string, string][] = [
   ['p', 'Paragraph'],
   ['h1', 'Heading 1'],
@@ -232,7 +241,10 @@ export async function createHtmlEditor(
   ui.setAttribute(UI, '');
   ui.textContent =
     '::highlight(find-match){background-color:rgba(255,196,0,.35)}' +
-    '::highlight(find-current){background-color:rgba(255,140,0,.75)}';
+    '::highlight(find-current){background-color:rgba(255,140,0,.75)}' +
+    // Empty table cells get some room while editing, so there's something to click. Only this view
+    // has this rule; it isn't saved, and cells with anything in them size as the page says.
+    ':is(td,th):is(:empty,:has(>br:only-child)){min-width:3em;height:1.5em}';
   doc.head.appendChild(ui);
   doc.designMode = 'on';
   doc.execCommand('styleWithCSS', false, 'false'); // <b> and <i>, not <span style="…">
@@ -280,7 +292,7 @@ export async function createHtmlEditor(
   bar.appendChild(blockSel);
   function syncBlock(): void {
     const node = sel()?.anchorNode;
-    const el = node instanceof Element ? node : node?.parentElement;
+    const el = elementOf(node);
     const block = el?.closest(BLOCKS.map(([t]) => t).join(','));
     blockSel.value = block ? block.tagName.toLowerCase() : '';
   }
@@ -454,12 +466,17 @@ export async function createHtmlEditor(
     return wrap;
   }
 
+  /** The table cell the cursor is in, if any. */
+  const cellAtCursor = (): HTMLTableCellElement | null => {
+    const node = sel()?.anchorNode;
+    const el = elementOf(node);
+    return el?.closest<HTMLTableCellElement>('td, th') ?? null;
+  };
+
   // Tab and Shift+Tab move between table cells, as in Word.
   doc.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey) return;
-    const node = sel()?.anchorNode;
-    const el = node instanceof Element ? node : node?.parentElement;
-    const cell = el?.closest('td, th');
+    const cell = cellAtCursor();
     const table = cell?.closest('table');
     if (!cell || !table) return;
     const all = Array.from(table.querySelectorAll('td, th')).filter((c) => c.closest('table') === table);
@@ -468,12 +485,278 @@ export async function createHtmlEditor(
     if (next) placeCaret(next);
   });
 
+  // ---- the table menu ----
+  // Right-click in a table (or press the Menu key or Shift+F10 there) for row and column commands,
+  // as in Word and TinyMCE. Each change is made on a copy of the table, which then takes the table's
+  // place, so the file's line breaks and indents inside the table stay as they were. (The browser's own
+  // "replace" command drops some of them.) These changes keep their own undo list, below.
+  const tableMenu = makeTableMenu();
+
+  // Undo and redo for table changes. Each entry is a pair of tables, of which one is on the page; undo
+  // and redo swap them. The table taken out is the very one that was there, so the browser's own undo
+  // list, which points at its rows and cells, still works for older edits once the swap is undone.
+  // Typing or any other edit starts a new history, so these entries are cleared then.
+  type Swap = { before: Element; after: Element };
+  let undoTables: Swap[] = [];
+  let redoTables: Swap[] = [];
+  doc.addEventListener('input', () => {
+    undoTables = [];
+    redoTables = [];
+  });
+  function swapTables(from: Swap[], to: Swap[], undo: boolean): boolean {
+    const entry = from.pop();
+    if (!entry) return false;
+    const [out, back] = undo ? [entry.after, entry.before] : [entry.before, entry.after];
+    if (!out.isConnected) return false;
+    out.replaceWith(back);
+    to.push(entry);
+    const first = back.querySelector('td, th');
+    if (first) placeCaret(first);
+    changed();
+    return true;
+  }
+  const undo = () => swapTables(undoTables, redoTables, true) || (run('undo'), true);
+  const redo = () => swapTables(redoTables, undoTables, false) || (run('redo'), true);
+  doc.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    const isUndo = k === 'z' && !e.shiftKey;
+    const isRedo = k === 'y' || (k === 'z' && e.shiftKey);
+    if ((isUndo && undoTables.length) || (isRedo && redoTables.length)) {
+      e.preventDefault();
+      (isUndo ? undo : redo)();
+    }
+  });
+
+  /** Rows and the cell's place in them. Tables with merged cells only get the commands that are safe for them. */
+  function tableEdit(cell: HTMLTableCellElement, op: TableOp): void {
+    const table = cell.closest('table')!;
+    const r = (cell.parentElement as HTMLTableRowElement).rowIndex;
+    const c = cell.cellIndex;
+    if (op === 'delete-table') {
+      selectNode(table);
+      doc.execCommand('delete');
+      changed();
+      return;
+    }
+    const copy = table.cloneNode(true) as HTMLTableElement;
+    const rows = Array.from(copy.rows);
+    let focus: Element | null = null;
+    /** An empty copy of a cell or row: same tag and look, no content, no id. */
+    const blank = <T extends Element>(like: T): T => {
+      const n = like.cloneNode(like.tagName === 'TR') as T;
+      n.removeAttribute('id');
+      n.removeAttribute('rowspan');
+      const cells = n.tagName === 'TR' ? Array.from((n as unknown as HTMLTableRowElement).cells) : [n];
+      for (const c of cells) {
+        c.removeAttribute('id');
+        c.removeAttribute('rowspan');
+        c.replaceChildren(doc.createElement('br'));
+      }
+      return n;
+    };
+    if (op === 'row-above' || op === 'row-below') {
+      const row = rows[r];
+      const fresh = blank(row);
+      insertNear(row, fresh, op === 'row-below');
+      focus = fresh.cells[Math.min(c, fresh.cells.length - 1)];
+    } else if (op === 'col-left' || op === 'col-right') {
+      for (const row of rows) {
+        const at = row.cells[Math.min(c, row.cells.length - 1)];
+        if (!at) continue;
+        const n = blank(at);
+        insertNear(at, n, op === 'col-right');
+        if (row === rows[r]) focus = n;
+      }
+    } else if (op === 'delete-row') {
+      if (isBlankText(rows[r].previousSibling)) rows[r].previousSibling!.remove();
+      rows[r].remove();
+      const left = Array.from(copy.rows);
+      focus = left[Math.min(r, left.length - 1)]?.cells[c] ?? null;
+    } else if (op === 'delete-col') {
+      for (const row of rows) {
+        const at = row.cells[c];
+        if (!at) continue;
+        if (isBlankText(at.previousSibling)) at.previousSibling!.remove();
+        at.remove();
+      }
+      const row = copy.rows[r];
+      focus = row?.cells[Math.min(c, row.cells.length - 1)] ?? null;
+    }
+    // Rows or columns all gone: the table goes too.
+    if (!Array.from(copy.rows).some((row) => row.cells.length)) return tableEdit(cell, 'delete-table');
+    table.replaceWith(copy);
+    undoTables.push({ before: table, after: copy });
+    redoTables = [];
+    win.focus();
+    if (focus) placeCaret(focus);
+    changed();
+  }
+
+  const isBlankText = (n: Node | null) => n?.nodeType === Node.TEXT_NODE && !n.textContent!.trim();
+  /**
+   * Puts a new row or cell beside `like`, with the same indent before it, so the file stays tidy:
+   * each row or cell in the file has its line break and spaces just before it.
+   */
+  function insertNear(like: Element, node: Element, after: boolean): void {
+    const parentEl = like.parentNode!;
+    // The browser files the space before a table's first row outside the row group, so for that row the
+    // space after it (before the next row) is copied instead.
+    const near = isBlankText(like.previousSibling)
+      ? like.previousSibling
+      : isBlankText(like.nextSibling) && like.nextSibling!.nextSibling
+        ? like.nextSibling
+        : null;
+    const indent = near ? near.cloneNode() : null;
+    if (after) {
+      const next = like.nextSibling;
+      if (indent) parentEl.insertBefore(indent, next);
+      parentEl.insertBefore(node, next);
+    } else {
+      parentEl.insertBefore(node, like);
+      if (indent) parentEl.insertBefore(indent, like);
+    }
+  }
+
+  function selectNode(node: Node): void {
+    win.focus();
+    const r = doc.createRange();
+    r.selectNode(node);
+    const s = sel();
+    s?.removeAllRanges();
+    s?.addRange(r);
+  }
+
+  function makeTableMenu() {
+    const menu = document.createElement('div');
+    menu.className = 'html-menu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'Table');
+    menu.hidden = true;
+    let cell: HTMLTableCellElement | null = null;
+    const ITEMS: [TableOp | '|', string][] = [
+      ['row-above', 'Insert row above'],
+      ['row-below', 'Insert row below'],
+      ['col-left', 'Insert column left'],
+      ['col-right', 'Insert column right'],
+      ['|', ''],
+      ['delete-row', 'Delete row'],
+      ['delete-col', 'Delete column'],
+      ['delete-table', 'Delete table'],
+    ];
+    const buttons: HTMLButtonElement[] = [];
+    for (const [op, label] of ITEMS) {
+      if (op === '|') {
+        const sep = document.createElement('div');
+        sep.className = 'html-menu-sep';
+        sep.setAttribute('role', 'separator');
+        menu.appendChild(sep);
+        continue;
+      }
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      b.textContent = label;
+      b.dataset.op = op;
+      b.tabIndex = -1;
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => {
+        if (b.getAttribute('aria-disabled') === 'true' || !cell) return;
+        const target = cell;
+        close();
+        tableEdit(target, op);
+      });
+      buttons.push(b);
+      menu.appendChild(b);
+    }
+    document.body.appendChild(menu);
+
+    const enabled = () => buttons.filter((b) => b.getAttribute('aria-disabled') !== 'true');
+    menu.addEventListener('keydown', (e) => {
+      const list = enabled();
+      const i = list.indexOf(document.activeElement as HTMLButtonElement);
+      if (e.key === 'ArrowDown') list[(i + 1) % list.length]?.focus();
+      else if (e.key === 'ArrowUp') list[(i - 1 + list.length) % list.length]?.focus();
+      else if (e.key === 'Home') list[0]?.focus();
+      else if (e.key === 'End') list[list.length - 1]?.focus();
+      else if (e.key === 'Escape' || e.key === 'Tab') close(true);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    const outside = (e: Event) => {
+      if (!menu.contains(e.target as Node)) close();
+    };
+    const onScroll = () => close();
+
+    function open(at: HTMLTableCellElement, x: number, y: number, fromKey: boolean): void {
+      cell = at;
+      // Merged cells (colspan or rowspan) make rows and columns uneven, so those commands are left off.
+      const table = at.closest('table')!;
+      const cells = Array.from(table.querySelectorAll<HTMLTableCellElement>('td, th')).filter((c) => c.closest('table') === table);
+      const rowSpans = cells.some((c) => c.rowSpan > 1);
+      const colSpans = cells.some((c) => c.colSpan > 1);
+      for (const b of buttons) {
+        const op = b.dataset.op as TableOp;
+        const off = (op.startsWith('col') || op === 'delete-col') ? colSpans || rowSpans : op.startsWith('row') || op === 'delete-row' ? rowSpans : false;
+        b.setAttribute('aria-disabled', String(off));
+      }
+      menu.hidden = false;
+      const box = menu.getBoundingClientRect();
+      menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - box.width - 4))}px`;
+      menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - box.height - 4))}px`;
+      document.addEventListener('mousedown', outside, true);
+      doc.addEventListener('mousedown', outside, true);
+      win.addEventListener('scroll', onScroll);
+      window.addEventListener('resize', onScroll);
+      if (fromKey) enabled()[0]?.focus();
+      else menu.focus();
+    }
+    function close(refocus = false): void {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      document.removeEventListener('mousedown', outside, true);
+      doc.removeEventListener('mousedown', outside, true);
+      win.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (refocus) restore();
+    }
+    menu.tabIndex = -1;
+    return { open, close, remove: () => (close(), menu.remove()) };
+  }
+
+  doc.addEventListener('contextmenu', (e) => {
+    const cell = (e.target as Element).closest?.<HTMLTableCellElement>('td, th');
+    if (!cell) return; // outside a table: the browser's own menu (spelling and so on)
+    e.preventDefault();
+    // Put the cursor where the click was, so the menu acts on that cell.
+    const at = doc.caretRangeFromPoint?.(e.clientX, e.clientY);
+    if (at && cell.contains(at.startContainer)) {
+      const s = sel();
+      s?.removeAllRanges();
+      s?.addRange(at);
+    } else placeCaret(cell);
+    const f = frame.getBoundingClientRect();
+    tableMenu.open(cell, f.left + e.clientX, f.top + e.clientY, false);
+  });
+  doc.addEventListener('keydown', (e) => {
+    if (!(e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) return;
+    const cell = cellAtCursor();
+    if (!cell) return;
+    e.preventDefault();
+    const f = frame.getBoundingClientRect();
+    const r = cell.getBoundingClientRect();
+    tableMenu.open(cell, f.left + r.left, f.top + r.bottom, true);
+  });
+
   const linkAtSelection = () => {
     const node = saved?.commonAncestorContainer;
-    const el = node instanceof Element ? node : node?.parentElement;
+    const el = elementOf(node);
     return el?.closest('a[href]') ?? null;
   };
   const actions: Record<string, () => void> = {
+    undo: () => void undo(),
+    redo: () => void redo(),
     link: () =>
       openAsk('Link address', linkAtSelection()?.getAttribute('href') ?? 'https://', (url) => {
         if (saved && !saved.collapsed) run('createLink', url);
@@ -593,6 +876,7 @@ export async function createHtmlEditor(
   return {
     destroy: () => {
       clearFound();
+      tableMenu.remove();
       doc.removeEventListener('input', changed);
     },
     focus: () => win.focus(),

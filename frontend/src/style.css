@@ -1438,3 +1438,12 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .html-bar .html-grid-cells span.on { background: color-mix(in srgb, var(--acc) 30%, transparent); border-color: var(--acc); }
 .html-bar .html-grid-label { margin-top: 6px; font-size: 13px; text-align: center; }
 @media (pointer: coarse) { .html-bar .html-grid-cells span { width: 24px; height: 24px; } }
+/* The right-click menu inside a table in the HTML view. */
+.html-menu { position: fixed; z-index: 1000; min-width: 190px; padding: 4px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .2); outline: none; }
+.html-menu[hidden] { display: none; }
+.html-menu button { display: block; width: 100%; padding: 7px 12px; border: 0; border-radius: 5px; background: none; color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.html-menu button:hover, .html-menu button:focus-visible { background: var(--sel); outline: none; }
+.html-menu button[aria-disabled="true"] { opacity: .45; cursor: default; }
+.html-menu button[aria-disabled="true"]:hover { background: none; }
+.html-menu .html-menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+@media (pointer: coarse) { .html-menu button { padding: 11px 14px; font-size: 15px; } }
