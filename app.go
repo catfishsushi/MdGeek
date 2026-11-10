@@ -89,12 +89,17 @@ func absExisting(args []string, baseDir string) []string {
 	return out
 }
 
-func isMarkdown(name string) bool {
-	ext := strings.ToLower(filepath.Ext(name))
-	return ext == ".md" || ext == ".markdown"
+// isEditable reports whether MdGeek edits this kind of file: Markdown or HTML.
+// Matches docKind in frontend/src/paths.ts.
+func isEditable(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".md", ".markdown", ".html", ".htm":
+		return true
+	}
+	return false
 }
 
-// ListDir returns the subfolders and Markdown files directly inside dir.
+// ListDir returns the subfolders and Markdown and HTML files directly inside dir.
 func (a *App) ListDir(dir string) ([]Entry, error) {
 	items, err := os.ReadDir(dir)
 	if err != nil {
@@ -109,7 +114,7 @@ func (a *App) ListDir(dir string) ([]Entry, error) {
 		full := filepath.Join(dir, name)
 		if it.IsDir() {
 			entries = append(entries, Entry{Name: name, Path: full, IsDir: true})
-		} else if isMarkdown(name) {
+		} else if isEditable(name) {
 			entries = append(entries, Entry{Name: name, Path: full})
 		}
 	}
@@ -181,9 +186,11 @@ func (a *App) WriteFile(path string, content string) (int64, error) {
 // PickFiles shows the "open file" dialog.
 func (a *App) PickFiles() ([]string, error) {
 	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Open Markdown file",
+		Title: "Open file",
 		Filters: []runtime.FileFilter{
+			{DisplayName: "Markdown and HTML (*.md;*.markdown;*.html;*.htm)", Pattern: "*.md;*.markdown;*.html;*.htm"},
 			{DisplayName: "Markdown (*.md;*.markdown)", Pattern: "*.md;*.markdown"},
+			{DisplayName: "HTML (*.html;*.htm)", Pattern: "*.html;*.htm"},
 			{DisplayName: "All files", Pattern: "*.*"},
 		},
 	})
@@ -194,7 +201,7 @@ func (a *App) PickFolder() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Open folder"})
 }
 
-// NewFile asks where to save a new Markdown file, starting in near's folder (near may be a file or a
+// NewFile asks where to save a new Markdown or HTML file, starting in near's folder (near may be a file or a
 // folder; "" lets Windows choose), and creates it empty. Returns its path, or "" if the user cancelled.
 // If the chosen file already exists it is left unchanged, so it simply opens.
 func (a *App) NewFile(near string) (string, error) {
@@ -207,17 +214,18 @@ func (a *App) NewFile(near string) (string, error) {
 		}
 	}
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title:            "New Markdown file",
+		Title:            "New file",
 		DefaultDirectory: dir,
 		DefaultFilename:  "Untitled.md",
 		Filters: []runtime.FileFilter{
 			{DisplayName: "Markdown (*.md;*.markdown)", Pattern: "*.md;*.markdown"},
+			{DisplayName: "HTML (*.html;*.htm)", Pattern: "*.html;*.htm"},
 		},
 	})
 	if err != nil || path == "" {
 		return "", err
 	}
-	if !isMarkdown(path) {
+	if !isEditable(path) {
 		path += ".md"
 	}
 	// O_EXCL: create only if missing, never empty out a file that's already there.
@@ -248,14 +256,15 @@ func (a *App) SaveExport(defaultName string, content string) (string, error) {
 	return path, nil
 }
 
-// localFiles serves images that Markdown files reference by relative path.
-// The frontend rewrites such image links to /localfile?p=<absolute path>.
-// Only image types are served, so this can't be used to read other files.
+// localFiles serves images that Markdown and HTML files reference by relative path, and the
+// stylesheets HTML files link to. The frontend rewrites such links to /localfile?p=<absolute path>.
+// Only these types are served, so this can't be used to read other files.
 type localFiles struct{}
 
 var imageTypes = map[string]bool{
 	".png": true, ".jpg": true, ".jpeg": true, ".gif": true,
 	".webp": true, ".svg": true, ".bmp": true, ".ico": true, ".avif": true,
+	".css": true,
 }
 
 func (localFiles) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +275,7 @@ func (localFiles) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := filepath.Clean(r.URL.Query().Get("p"))
 	ext := strings.ToLower(filepath.Ext(p))
 	if !filepath.IsAbs(p) || !imageTypes[ext] {
-		http.Error(w, "not an image", http.StatusForbidden)
+		http.Error(w, "not an image or stylesheet", http.StatusForbidden)
 		return
 	}
 	if ct := mime.TypeByExtension(ext); ct != "" {

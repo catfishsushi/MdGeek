@@ -44,6 +44,7 @@ function installable(): Plugin {
  * Adds a Content-Security-Policy to the page, so a script slipped into a document can't run. GitHub
  * Pages can't send it as a header, so it goes in a <meta> tag. The app's one inline script is allowed
  * by its hash; inline styles are allowed because the editors set them; fonts come as data: URLs.
+ * blob: stylesheets are the ones an HTML file links to, which the HTML view loads from the file's folder.
  */
 function addContentSecurityPolicy(html: string): string {
   const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script/gi)].map((m) => m[1]);
@@ -52,7 +53,7 @@ function addContentSecurityPolicy(html: string): string {
   const policy = [
     "default-src 'self'",
     `script-src 'self' 'sha256-${hash}'`,
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' blob:",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self'",

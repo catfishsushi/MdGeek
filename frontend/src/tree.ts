@@ -134,7 +134,7 @@ export class Tree {
     if (this.roots.length === 0) {
       const msg = document.createElement('div');
       msg.className = 'side-empty';
-      msg.textContent = 'Open a folder to browse its Markdown files here. You can also drop files and folders on this pane.';
+      msg.textContent = 'Open a folder to browse its Markdown and HTML files here. You can also drop files and folders on this pane.';
       this.container.appendChild(msg);
     } else if (this.isSingleFolder()) {
       await this.fill(this.container, this.roots[0].path, 0);
@@ -187,7 +187,7 @@ export class Tree {
     if (entries.length === 0 && depth === 0) {
       const msg = document.createElement('div');
       msg.className = 'tree-empty';
-      msg.textContent = 'No Markdown files here.';
+      msg.textContent = 'No Markdown or HTML files here.';
       parent.appendChild(msg);
       return;
     }
