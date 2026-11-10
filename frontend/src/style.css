@@ -1422,7 +1422,9 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .html-bar .html-ask[hidden] { display: none; }
 .html-bar .html-ask input { flex: 1; min-width: 0; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font-size: 13px; }
 .html-bar .html-ask button { height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: inherit; font-size: 13px; cursor: pointer; }
-.html-frame { flex: 1; min-height: 0; width: 100%; border: 0; background: #fff; color-scheme: light; }
+.html-frame { flex: 1; min-height: 0; min-width: 0; width: 100%; border: 0; background: #fff; color-scheme: light; }
+/* The page, with the Edit styles panel to its right when it's open. */
+.html-main { flex: 1; min-height: 0; display: flex; position: relative; }
 /* Export PDF for an HTML file prints it from an unseen frame. */
 .html-print { position: fixed; left: -10000px; top: 0; width: 900px; height: 1200px; }
 .html-print iframe { width: 100%; height: 100%; border: 0; }
@@ -1447,3 +1449,40 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .html-menu button[aria-disabled="true"]:hover { background: none; }
 .html-menu .html-menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 @media (pointer: coarse) { .html-menu button { padding: 11px 14px; font-size: 15px; } }
+/* The Table design panel. */
+.html-bar .html-b:disabled { opacity: .4; cursor: default; }
+.html-bar .html-b:disabled:hover { background: none; }
+.html-bar .html-design { position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; width: 300px; max-width: calc(100vw - 32px); max-height: min(70vh, 560px); overflow: auto; padding: 10px 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); font-size: 13px; }
+.html-bar .html-design[hidden] { display: none; }
+.html-bar .html-design:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.html-design .hd-sec + .hd-sec { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.html-design .hd-h { margin-bottom: 6px; font-weight: 600; }
+.html-design .hd-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.html-design .hd-style { padding: 5px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; }
+.html-design .hd-style:hover, .html-design .hd-style:focus-visible { border-color: var(--acc); outline: none; }
+.html-design .hd-mini { display: flex; flex-direction: column; border: 1px solid; }
+.html-design .hd-mini span { display: block; height: 7px; border-top: 1px solid; }
+.html-design .hd-mini span:first-child { height: 9px; border-top: 0; }
+.html-design .hd-check { display: flex; align-items: center; gap: 6px; margin: 4px 0; cursor: pointer; }
+.html-design .hd-grid { display: grid; gap: 6px; }
+.html-design .hd-grid label { display: flex; align-items: center; gap: 8px; }
+.html-design input[type=color] { width: 34px; height: 24px; padding: 0 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); cursor: pointer; }
+.html-design select { height: 26px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: inherit; font: inherit; }
+.html-design .hd-foot { display: flex; justify-content: space-between; margin-top: 12px; }
+.html-design .hd-foot button { height: 28px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font: inherit; cursor: pointer; }
+.html-design .hd-foot button:hover { border-color: var(--acc); }
+/* Edit styles: the page's CSS beside the page. On a narrow window it covers the page instead. */
+.html-css { flex: 0 0 clamp(300px, 40%, 560px); display: flex; flex-direction: column; min-height: 0; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line); }
+.html-css[hidden] { display: none; }
+.html-css .hc-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--line); }
+.html-css .hc-title { font-weight: 600; font-size: 13px; }
+.html-css select { flex: 1; min-width: 0; height: 28px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font-size: 12px; }
+.html-css .hc-close { margin-left: auto; display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: none; color: inherit; cursor: pointer; }
+.html-css .hc-close:hover { background: var(--sel); }
+.html-css .hc-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.html-css .hc-editor { flex: 1; min-height: 0; overflow: auto; }
+.html-css .hc-editor .cm-editor { min-height: 100%; font-size: 13px; }
+.html-css .hc-editor .cm-editor.cm-focused { outline: none; }
+.html-css .hc-foot { padding: 8px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink2, inherit); }
+.html-bar .html-b[aria-pressed="true"] { background: var(--sel); color: var(--acc); }
+@media (max-width: 700px) { .html-css { position: absolute; inset: 0; z-index: 5; border-left: 0; } }

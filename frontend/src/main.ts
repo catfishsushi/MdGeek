@@ -717,7 +717,7 @@ async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
       tab.view === 'source'
         ? createSourceEditor(host, tab.content, sourceLook(), onChange, kindOf(tab))
         : kindOf(tab) === 'html'
-          ? await createHtmlEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href))
+          ? await createHtmlEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href), sourceLook())
           : await createWysiwygEditor(host, tab.content, tab.path, sourceLook(), onChange, (href) => void followLink(tab, href));
   } catch (e) {
     toast('Could not open editor: ' + e);

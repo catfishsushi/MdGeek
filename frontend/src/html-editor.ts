@@ -12,9 +12,15 @@
 //   merged into the original text line by line (keep-format.ts), so lines the user didn't touch keep
 //   their exact text, and nothing is written at all until the user edits in this view.
 import { backend } from './backend';
-import type { EditorHandle } from './editors';
+import DOMPurify from 'dompurify';
+import type { EditorHandle, SourceLook } from './editors';
+import { makeCssPanel, type CssPanel } from './html-css-panel';
+import { headStyleBlocks, mergeStyleBlocks } from './html-stylesheet';
 import { keepFormatting } from './keep-format';
 import { dirname, localImagePath } from './paths';
+import {
+  attachResize, basicStyle, columnAdded, columnRemoved, dropRulesForMissingTables, ensureSheet, fixedWidths, makeDesignPanel, retag, type Styler,
+} from './html-table-design';
 
 const SWAPPED = 'data-mdg-swap'; // marks an element with attributes to put back
 const WAS = 'data-mdg-was-'; // + attribute name: the original value
@@ -64,11 +70,21 @@ async function prepare(doc: Document, baseDir: string): Promise<void> {
   await Promise.all(jobs);
 }
 
+const IMPLIED = 'data-mdg-implied';
+
 /** A copy of the page with everything MdGeek changed put back. `restore` false keeps the changes, for showing it. */
 function cleanCopy(doc: Document, restore = true): HTMLElement {
   const root = doc.documentElement.cloneNode(true) as HTMLElement;
   if (!restore) return root;
+  // A <tbody> the browser added to the file's tables (marked on loading) is left out again here.
+  // That keeps the browser's text in line with the file's (the page means the same either way).
+  // A table added in MdGeek keeps the <tbody> it was written with.
+  root.querySelectorAll(`tbody[${IMPLIED}]`).forEach((b) => {
+    b.removeAttribute(IMPLIED);
+    if (!b.attributes.length) b.replaceWith(...Array.from(b.childNodes));
+  });
   root.querySelectorAll(`[${UI}]`).forEach((el) => el.remove());
+  dropRulesForMissingTables(root, Array.from(root.querySelectorAll<HTMLStyleElement>(':scope > head > style')));
   root.querySelectorAll(`[${SWAPPED}]`).forEach((el) => {
     for (const a of Array.from(el.attributes)) {
       if (!a.name.startsWith(WAS)) continue;
@@ -149,6 +165,8 @@ function mergeEdit(original: string, base: Written, now: Written): string {
 async function framedHtml(text: string, filePath: string): Promise<string> {
   const doc = new DOMParser().parseFromString(text, 'text/html');
   await prepare(doc, dirname(filePath));
+  // A file that never writes <tbody> relies on the browser adding it; those are marked so saving leaves them out.
+  if (!/<tbody[\s>]/i.test(text)) doc.querySelectorAll('tbody').forEach((b) => b.setAttribute(IMPLIED, ''));
   const page = writeOut(doc, text, false).whole;
   return isWholePage(text) ? page : `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
 }
@@ -200,14 +218,17 @@ const BUTTONS: [string, string, string][] = [
   ['unlink', 'Remove link', 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7M4 4l16 16'],
   ['image', 'Picture', 'M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15 9h.01'],
   ['table', 'Table', 'M4 5h16v14H4zM4 10h16M4 15h16M10 5v14M15 5v14'],
+  ['table-design', 'Table design: header row, colours and borders', 'M4 4h12v5H4zM16 6.5h3V12h-8v3M10 15h2v5h-2z'],
   ['insertHorizontalRule', 'Divider', 'M4 12h16'],
   ['|', '', ''],
   ['removeFormat', 'Clear formatting', 'M6 5h12M12 5l-3 14M4 20l16-16'],
   ['undo', 'Undo (Ctrl+Z)', 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3'],
   ['redo', 'Redo (Ctrl+Y)', 'M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3'],
+  ['|', '', ''],
+  ['styles', "Edit styles: the page's CSS, beside the page", 'M8 4c-2 0-2 1-2 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 0 3 2 3M16 4c2 0 2 1 2 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2 0 3-2 3'],
 ];
 
-type TableOp = 'row-above' | 'row-below' | 'col-left' | 'col-right' | 'delete-row' | 'delete-col' | 'delete-table';
+type TableOp = 'row-above' | 'row-below' | 'col-left' | 'col-right' | 'delete-row' | 'delete-col' | 'delete-table' | 'design';
 
 const BLOCKS: [string, string][] = [
   ['p', 'Paragraph'],
@@ -225,6 +246,7 @@ export async function createHtmlEditor(
   filePath: string,
   onChange: (text: string) => void,
   onLink: (href: string) => void,
+  look: SourceLook = 'light',
 ): Promise<EditorHandle> {
   parent.classList.add('html-host');
   const bar = document.createElement('div');
@@ -233,7 +255,11 @@ export async function createHtmlEditor(
   bar.setAttribute('aria-label', 'Formatting');
   parent.appendChild(bar);
 
-  const frame = await makeFrame(parent, await framedHtml(text, filePath), 'allow-same-origin');
+  // The page, and beside it the "Edit styles" panel when that's open.
+  const main = document.createElement('div');
+  main.className = 'html-main';
+  parent.appendChild(main);
+  const frame = await makeFrame(main, await framedHtml(text, filePath), 'allow-same-origin');
   const win = frame.contentWindow!;
   const doc = frame.contentDocument!;
 
@@ -258,6 +284,16 @@ export async function createHtmlEditor(
   };
   doc.addEventListener('input', changed);
 
+  // Pasted content is cleaned first: no scripts or on… handlers (they'd be saved into the file), and no
+  // style attributes, since the page's styling lives in its CSS. Plain text pastes as it is.
+  doc.addEventListener('paste', (e) => {
+    const html = e.clipboardData?.getData('text/html');
+    if (!html) return;
+    e.preventDefault();
+    const clean = DOMPurify.sanitize(html, { FORBID_ATTR: ['style'], FORBID_TAGS: ['style', 'font', 'meta', 'link'] });
+    doc.execCommand('insertHTML', false, clean);
+  });
+
   // The selection is remembered, because using the block list or the address box moves focus away.
   let saved: Range | null = null;
   const sel = () => win.getSelection();
@@ -265,6 +301,11 @@ export async function createHtmlEditor(
     const s = sel();
     if (s && s.rangeCount) saved = s.getRangeAt(0).cloneRange();
     syncBlock();
+    if (designButton) designButton.disabled = !cellAtCursor();
+    // Outside a list, the browser indents with an inline-styled <blockquote>; styling belongs in the
+    // page's CSS, so indenting is for lists only (where it nests the list).
+    const inList = !!elementOf(sel()?.anchorNode)?.closest('li');
+    for (const cmd of ['indent', 'outdent']) if (buttons[cmd]) buttons[cmd].disabled = !inList;
   });
   const restore = () => {
     win.focus();
@@ -350,18 +391,25 @@ export async function createHtmlEditor(
   const GRID_COLS = 10;
   const GRID_ROWS = 8;
 
-  /** A new table with an empty, clickable cell in each place. Borders show so the cells can be seen. */
+  /** A new table with a header row (as Word starts one) and an empty, clickable cell in each place. */
   function tableHtml(rows: number, cols: number): string {
-    const row = '    <tr>\n' + '      <td><br></td>\n'.repeat(cols) + '    </tr>\n';
-    return `<table data-mdg-new border="1" style="border-collapse: collapse">\n  <tbody>\n${row.repeat(rows)}  </tbody>\n</table>`;
+    const row = (tag: string) => '    <tr>\n' + `      <${tag}><br></${tag}>\n`.repeat(cols) + '    </tr>\n';
+    const body = rows > 1 ? `  <tbody>\n${row('td').repeat(rows - 1)}  </tbody>\n` : '';
+    return `<table data-mdg-new>\n  <thead>\n${row('th')}  </thead>\n${body}</table>`;
   }
 
   function insertTable(rows: number, cols: number): void {
     restore();
     doc.execCommand('insertHTML', false, tableHtml(rows, cols));
-    const table = doc.querySelector('table[data-mdg-new]');
+    const table = doc.querySelector<HTMLTableElement>('table[data-mdg-new]');
     table?.removeAttribute('data-mdg-new');
-    const first = table?.querySelector('td');
+    // Borders, as rules in the page's style block, so the cells can be seen.
+    if (table) {
+      gatherStyles();
+      basicStyle(table, { win, sheet: () => ensureSheet(doc) });
+    }
+    stylesChanged();
+    const first = table?.querySelector('th, td');
     if (first) placeCaret(first);
     changed();
   }
@@ -492,31 +540,113 @@ export async function createHtmlEditor(
   // "replace" command drops some of them.) These changes keep their own undo list, below.
   const tableMenu = makeTableMenu();
 
-  // Undo and redo for table changes. Each entry is a pair of tables, of which one is on the page; undo
-  // and redo swap them. The table taken out is the very one that was there, so the browser's own undo
-  // list, which points at its rows and cells, still works for older edits once the swap is undone.
-  // Typing or any other edit starts a new history, so these entries are cleared then.
-  type Swap = { before: Element; after: Element };
+  // Undo and redo for table changes. Each entry holds pairs of elements (a table, and the page's
+  // MdGeek style block when its rules changed); of each pair one is on the page, and undo and redo swap
+  // them. The element taken out is the very one that was there, so the browser's own undo list, which
+  // points at its rows and cells, still works for older edits once the swap is undone.
+  // Typing, or editing the page's CSS, starts a new history, so these entries are cleared then.
+  type Pair = { before: Element; after: Element };
+  type Swap = { pairs: Pair[] };
   let undoTables: Swap[] = [];
   let redoTables: Swap[] = [];
-  doc.addEventListener('input', () => {
+  const forgetTableHistory = () => {
     undoTables = [];
     redoTables = [];
-  });
+    session = null;
+  };
+  doc.addEventListener('input', forgetTableHistory);
   function swapTables(from: Swap[], to: Swap[], undo: boolean): boolean {
     const entry = from.pop();
     if (!entry) return false;
-    const [out, back] = undo ? [entry.after, entry.before] : [entry.before, entry.after];
-    if (!out.isConnected) return false;
-    out.replaceWith(back);
+    session = null;
+    const pairs = undo ? [...entry.pairs].reverse() : entry.pairs;
+    let table: Element | null = null;
+    for (const p of pairs) {
+      const [out, back] = undo ? [p.after, p.before] : [p.before, p.after];
+      if (out.isConnected) out.replaceWith(back);
+      if (back.tagName === 'TABLE') table = back;
+    }
     to.push(entry);
-    const first = back.querySelector('td, th');
+    const first = table?.querySelector('td, th');
     if (first) placeCaret(first);
     changed();
+    stylesChanged();
     return true;
+  }
+  /** Shows the page's CSS again in the Edit styles panel after table styling or undo changed it. */
+  let cssPanelRef: CssPanel | null = null;
+  function stylesChanged(): void {
+    cssPanelRef?.refresh();
   }
   const undo = () => swapTables(undoTables, redoTables, true) || (run('undo'), true);
   const redo = () => swapTables(redoTables, undoTables, false) || (run('redo'), true);
+
+  // A change made over time (a border being dragged, or the design panel open) is one undo step: the
+  // first change to an element swaps in a copy of it, and later ones change that same copy.
+  let session: Swap | null = null;
+  function gatherStyles(): void {
+    if (!mergeStyleBlocks(doc)) return;
+    forgetTableHistory();
+    stylesChanged();
+  }
+  function beginChange<T extends Element>(el: T): T {
+    if (session?.pairs.some((p) => p.after === el) && el.isConnected) return el;
+    if (!session) {
+      // A page whose CSS is spread over several blocks has it moved into one first. That step
+      // can't be undone, like an edit in the styles panel.
+      gatherStyles();
+      session = { pairs: [] };
+      undoTables.push(session);
+      redoTables = [];
+    }
+    const copy = el.cloneNode(true) as T;
+    el.replaceWith(copy);
+    session.pairs.push({ before: el, after: copy });
+    return copy;
+  }
+  function beginTableChange(table: HTMLTableElement): HTMLTableElement {
+    if (session?.pairs.some((p) => p.after === table) && table.isConnected) return table;
+    // The cursor goes to the same cell in the copy.
+    const cell = cellAtCursor();
+    const at = cell ? Array.from(table.querySelectorAll('td, th')).indexOf(cell) : -1;
+    const copy = beginChange(table);
+    const same = at >= 0 ? copy.querySelectorAll('td, th')[at] : null;
+    if (same) placeCaret(same);
+    return copy;
+  }
+  function endTableChange(): void {
+    session = null;
+  }
+  function cancelTableChange(): void {
+    if (!session) return;
+    for (const p of [...session.pairs].reverse()) if (p.after.isConnected) p.after.replaceWith(p.before);
+    undoTables = undoTables.filter((x) => x !== session);
+    session = null;
+  }
+  // Table styling is written to the page's MdGeek style block, as part of the same undo step.
+  const styler: Styler = {
+    win,
+    sheet: () => {
+      const sheet = beginChange(ensureSheet(doc));
+      queueMicrotask(stylesChanged);
+      return sheet;
+    },
+  };
+
+  // Dragging column borders resizes columns, and the table's right edge resizes the table.
+  const cursorStyle = doc.createElement('style');
+  cursorStyle.setAttribute(UI, '');
+  doc.head.appendChild(cursorStyle);
+  attachResize({
+    doc,
+    styler,
+    begin: beginTableChange,
+    end: endTableChange,
+    cancel: cancelTableChange,
+    changed,
+    setCursor: (on) => (cursorStyle.textContent = on ? '*{cursor:col-resize!important}' : ''),
+  });
+
   doc.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const k = e.key.toLowerCase();
@@ -539,7 +669,8 @@ export async function createHtmlEditor(
       changed();
       return;
     }
-    const copy = table.cloneNode(true) as HTMLTableElement;
+    const widths = fixedWidths(table, win);
+    const copy = beginTableChange(table);
     const rows = Array.from(copy.rows);
     let focus: Element | null = null;
     /** An empty copy of a cell or row: same tag and look, no content, no id. */
@@ -558,7 +689,13 @@ export async function createHtmlEditor(
     if (op === 'row-above' || op === 'row-below') {
       const row = rows[r];
       const fresh = blank(row);
-      insertNear(row, fresh, op === 'row-below');
+      const body = copy.tBodies[0];
+      if (op === 'row-below' && row.parentElement?.tagName === 'THEAD' && body) {
+        // Below the header row is the first ordinary row, not a second header row.
+        for (const cellOf of Array.from(fresh.cells)) retag(cellOf, 'td');
+        if (body.rows[0]) insertNear(body.rows[0], fresh, false);
+        else body.appendChild(fresh);
+      } else insertNear(row, fresh, op === 'row-below');
       focus = fresh.cells[Math.min(c, fresh.cells.length - 1)];
     } else if (op === 'col-left' || op === 'col-right') {
       for (const row of rows) {
@@ -568,6 +705,7 @@ export async function createHtmlEditor(
         insertNear(at, n, op === 'col-right');
         if (row === rows[r]) focus = n;
       }
+      columnAdded(copy, op === 'col-left' ? c : c + 1, widths, styler);
     } else if (op === 'delete-row') {
       if (isBlankText(rows[r].previousSibling)) rows[r].previousSibling!.remove();
       rows[r].remove();
@@ -580,14 +718,16 @@ export async function createHtmlEditor(
         if (isBlankText(at.previousSibling)) at.previousSibling!.remove();
         at.remove();
       }
+      columnRemoved(copy, c, widths, styler);
       const row = copy.rows[r];
       focus = row?.cells[Math.min(c, row.cells.length - 1)] ?? null;
     }
     // Rows or columns all gone: the table goes too.
-    if (!Array.from(copy.rows).some((row) => row.cells.length)) return tableEdit(cell, 'delete-table');
-    table.replaceWith(copy);
-    undoTables.push({ before: table, after: copy });
-    redoTables = [];
+    if (!Array.from(copy.rows).some((row) => row.cells.length)) {
+      cancelTableChange();
+      return tableEdit(cell, 'delete-table');
+    }
+    endTableChange();
     win.focus();
     if (focus) placeCaret(focus);
     changed();
@@ -643,6 +783,8 @@ export async function createHtmlEditor(
       ['delete-row', 'Delete row'],
       ['delete-col', 'Delete column'],
       ['delete-table', 'Delete table'],
+      ['|', ''],
+      ['design', 'Table design…'],
     ];
     const buttons: HTMLButtonElement[] = [];
     for (const [op, label] of ITEMS) {
@@ -664,7 +806,9 @@ export async function createHtmlEditor(
         if (b.getAttribute('aria-disabled') === 'true' || !cell) return;
         const target = cell;
         close();
-        tableEdit(target, op);
+        // The right-clicked table, since a right-click doesn't move the cursor in every browser.
+        if (op === 'design') designPanel?.open(target.closest('table') ?? undefined);
+        else tableEdit(target, op);
       });
       buttons.push(b);
       menu.appendChild(b);
@@ -771,6 +915,9 @@ export async function createHtmlEditor(
       }),
   };
 
+  const buttons: Record<string, HTMLButtonElement> = {};
+  let designButton: HTMLButtonElement | null = null;
+  let designPanel: ReturnType<typeof makeDesignPanel> | null = null;
   for (const [cmd, label, content] of BUTTONS) {
     if (cmd === '|') {
       const sep = document.createElement('span');
@@ -788,7 +935,25 @@ export async function createHtmlEditor(
     // Pressing a button mustn't take the selection out of the page.
     b.addEventListener('mousedown', (e) => e.preventDefault());
     b.addEventListener('click', () => (actions[cmd] ?? (() => run(cmd)))());
-    bar.appendChild(cmd === 'table' ? tablePicker(b) : b);
+    buttons[cmd] = b;
+    if (cmd === 'table') bar.appendChild(tablePicker(b));
+    else if (cmd === 'table-design') {
+      designButton = b;
+      b.disabled = true; // until the cursor is in a table
+      designPanel = makeDesignPanel(
+        {
+          styler,
+          currentTable: () => cellAtCursor()?.closest('table') ?? null,
+          begin: beginTableChange,
+          end: endTableChange,
+          changed,
+          restore,
+        },
+        b,
+      );
+      actions['table-design'] = () => designPanel!.open();
+      bar.appendChild(designPanel.wrap);
+    } else bar.appendChild(b);
   }
   bar.appendChild(ask);
 
@@ -870,6 +1035,34 @@ export async function createHtmlEditor(
     return [...groups.values()];
   }
 
+  // ---- Edit styles ----
+  const cssPanel: CssPanel = makeCssPanel(
+    {
+      doc,
+      look,
+      edited: () => {
+        forgetTableHistory();
+        changed();
+      },
+      gather: () => {
+        const before = headStyleBlocks(doc).map((b) => b.textContent).join('\0');
+        mergeStyleBlocks(doc);
+        dropRulesForMissingTables(doc, headStyleBlocks(doc));
+        if (headStyleBlocks(doc).map((b) => b.textContent).join('\0') === before) return;
+        forgetTableHistory();
+        changed();
+      },
+    },
+    (open) => {
+      buttons.styles?.setAttribute('aria-pressed', String(open));
+      main.classList.toggle('with-css', open);
+    },
+  );
+  main.appendChild(cssPanel.el);
+  cssPanelRef = cssPanel;
+  buttons.styles?.setAttribute('aria-pressed', 'false');
+  actions.styles = () => (cssPanel.isOpen() ? cssPanel.close() : cssPanel.open());
+
   const lineCount = () => fileText.split('\n').length;
   const scroller = () => doc.scrollingElement ?? doc.documentElement;
 
@@ -877,6 +1070,7 @@ export async function createHtmlEditor(
     destroy: () => {
       clearFound();
       tableMenu.remove();
+      cssPanel.destroy();
       doc.removeEventListener('input', changed);
     },
     focus: () => win.focus(),
