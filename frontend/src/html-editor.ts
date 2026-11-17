@@ -959,9 +959,11 @@ export async function createHtmlEditor(
 
   // ---- keys, links ----
   // Keys pressed in the frame don't reach the app's window, so the app's shortcuts (Ctrl+S, Ctrl+E,
-  // Ctrl+F and the rest) are passed on. Any the app doesn't use carry on as usual (Ctrl+B, Ctrl+Z).
+  // Ctrl+F and the rest, plus F11 and Esc for full screen) are passed on. Any the app doesn't use carry
+  // on as usual (Ctrl+B, Ctrl+Z).
   doc.addEventListener('keydown', (e) => {
-    if (!(e.ctrlKey || e.metaKey)) return;
+    if (!(e.ctrlKey || e.metaKey) && e.key !== 'F11' && e.key !== 'Escape') return;
+    if (e.defaultPrevented) return;
     const copy = new KeyboardEvent('keydown', {
       key: e.key, code: e.code, ctrlKey: e.ctrlKey, metaKey: e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey,
       bubbles: true, cancelable: true,

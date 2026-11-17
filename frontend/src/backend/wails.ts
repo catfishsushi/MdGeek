@@ -1,5 +1,12 @@
 // The desktop build: every call goes to the Go code in app.go, links.go, and settings.go.
-import { ClipboardSetText, EventsEmit, EventsOn, OnFileDrop } from '../../wailsjs/runtime/runtime';
+import {
+  ClipboardSetText,
+  EventsEmit,
+  EventsOn,
+  OnFileDrop,
+  WindowFullscreen,
+  WindowUnfullscreen,
+} from '../../wailsjs/runtime/runtime';
 import * as Go from '../../wailsjs/go/main/App';
 import { basename, dirname } from '../paths';
 import { RECENT_MAX, type Backend } from './index';
@@ -53,6 +60,12 @@ export const wailsBackend: Backend = {
   },
   // The desktop app is updated by installing a new version.
   onUpdateReady() {},
+  async setFullScreen(on) {
+    if (on) WindowFullscreen();
+    else WindowUnfullscreen();
+  },
+  // The window only leaves full screen when the app asks it to.
+  onFullScreenExit() {},
   checkForUpdate: async () => 'latest',
   allowSaving: async () => true,
   // The desktop app starts with an empty left pane, as it always has.

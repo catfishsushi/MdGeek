@@ -537,6 +537,33 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 #sidebar-count { flex: none; }
 #sidebar-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ---------- Full screen ---------- */
+
+/* F11: the toolbar and tab row hide; a small button in the top right corner brings them back. */
+#app.full #toolbar, #app.full #content .tabs { display: none; }
+#app.full #content .dochead { padding-right: 56px; } /* room for the button */
+.exit-full {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 35; /* above the editors' floating bars, below dialogs */
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--btnline);
+  background: var(--btn);
+  color: var(--ink2);
+  box-shadow: var(--btnshadow);
+  opacity: .45;
+  transition: opacity .15s;
+}
+.exit-full[hidden] { display: none; }
+.exit-full:hover, .exit-full:focus-visible { opacity: 1; color: var(--ink); }
+.exit-full:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
 /* ---------- Editor area ---------- */
 
 /* Light and Dark: a rounded panel inset 8px from the window edges. */
