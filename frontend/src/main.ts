@@ -37,6 +37,11 @@ interface Tab {
   saving: boolean;
   needsPermission: boolean; // the browser must be asked, from a click, before this file can be saved
   scroll: number; // the file line at the top of the editor when this tab was last hidden (see EditorHandle)
+  /** Split into an upper and a lower view of this same file, each scrolling on its own. */
+  stacked: boolean;
+  stackRatio: number; // the upper view's share of the height
+  halfScroll: number[] | null; // each view's place when the editors were last rebuilt, top first
+  halfInUse: number; // which view was last clicked or typed in: 0 upper, 1 lower
 }
 
 /** Two files shown side by side. In the tab bar they're one joined tab. */
@@ -48,6 +53,14 @@ interface Split {
 /** One entry in the tab bar: a single file, or a split pair. */
 type Entry = Tab | Split;
 
+/** A find bar, and its search in one view of a file. */
+interface Find {
+  el: HTMLElement;
+  input: HTMLInputElement;
+  index: number; // the current match, counting from 0
+  total: number;
+}
+
 /**
  * One side of the editing area. The right one shows only while a split tab is the current one.
  * A file is open in at most one entry, so it can never show on both sides.
@@ -57,13 +70,11 @@ interface Pane {
   docHeadEl: HTMLElement;
   bannerEl: HTMLElement;
   editorEl: HTMLElement;
-  findEl: HTMLElement;
-  findInput: HTMLInputElement;
-  findIndex: number; // the current match, counting from 0
-  findTotal: number;
+  finds: Find[]; // a find bar for each view: the upper (or only) one, then the lower one
   active: Tab | null; // the file this side should show
   shown: Tab | null; // the file the editor was last built for; differs from active until it's rebuilt
-  editor: EditorHandle | null;
+  editor: EditorHandle | null; // the editor in use; in an upper/lower split, the half last clicked or typed in
+  halves: EditorHandle[]; // every editor in this side, top first: one, or two when the file is split
   mountToken: number;
 }
 
@@ -87,34 +98,42 @@ function makePane(): Pane {
     docHeadEl: part('.dochead'),
     bannerEl: part('.banner'),
     editorEl: part('.editor'),
-    findEl: part('.findbar'),
-    findInput: part('.find-input') as HTMLInputElement,
-    findIndex: 0,
-    findTotal: 0,
+    finds: [],
     active: null,
     shown: null,
     editor: null,
+    halves: [],
     mountToken: 0,
   };
   // Clicking or typing in a side makes it the one the toolbar and shortcuts act on.
   el.addEventListener('pointerdown', () => focusPane(pane), true);
   el.addEventListener('focusin', () => focusPane(pane));
 
-  part('.doc-find').addEventListener('click', () => openFind(pane));
-  pane.findInput.addEventListener('input', () => runFind(pane, true));
-  pane.findInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      stepFind(pane, e.shiftKey ? -1 : 1);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      closeFind(pane);
-    }
+  part('.doc-find').addEventListener('click', () => openFind(pane, halfInUse(pane)));
+  part('.doc-stack').addEventListener('click', () => toggleStacked(pane));
+  // The template's find bar is the upper view's; a copy serves the lower one. mountEditor puts each one
+  // above its view.
+  const bar = part('.findbar');
+  bar.remove();
+  pane.finds = [bar, bar.cloneNode(true) as HTMLElement].map((el, i) => {
+    const q = <T extends HTMLElement>(cls: string) => el.querySelector<T>(cls)!;
+    const find: Find = { el, input: q<HTMLInputElement>('.find-input'), index: 0, total: 0 };
+    find.input.addEventListener('input', () => runFind(pane, i, true));
+    find.input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        stepFind(pane, i, e.shiftKey ? -1 : 1);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeFind(pane, i);
+      }
+    });
+    q('.find-prev').addEventListener('click', () => stepFind(pane, i, -1));
+    q('.find-next').addEventListener('click', () => stepFind(pane, i, 1));
+    q('.find-close').addEventListener('click', () => closeFind(pane, i));
+    return find;
   });
-  part('.find-prev').addEventListener('click', () => stepFind(pane, -1));
-  part('.find-next').addEventListener('click', () => stepFind(pane, 1));
-  part('.find-close').addEventListener('click', () => closeFind(pane));
 
   // The browser version never learns where files really are, so it can't copy the path or open Explorer.
   const reveal = part('.doc-reveal');
@@ -448,6 +467,7 @@ function renderDocHead(pane: Pane): void {
     crumb.append(el);
   });
   pane.docHeadEl.querySelector('.doc-kind')!.textContent = kindOf(tab) === 'html' ? 'HTML' : 'Markdown';
+  pane.docHeadEl.querySelector('.doc-stack')!.setAttribute('aria-pressed', String(tab.stacked));
   renderStatus(pane);
 }
 
@@ -693,46 +713,190 @@ function kindOf(tab: Tab) {
   return docKind(tab.path) ?? 'markdown';
 }
 
-/** (Re)creates a side's editor for its file. Each mount gets a fresh host element. */
+/** Notes where each editor in a side is scrolled to, before the editors are rebuilt. */
+function noteScroll(pane: Pane): void {
+  const tab = pane.shown;
+  if (!tab || !pane.editor) return;
+  tab.scroll = pane.editor.getScroll();
+  if (pane.halves.length === 2) {
+    tab.halfScroll = pane.halves.map((h) => h.getScroll());
+    tab.halfInUse = pane.halves.indexOf(pane.editor);
+  }
+}
+
+/**
+ * (Re)creates a side's editor for its file. Each mount gets a fresh host element. A file split into
+ * upper and lower views gets two editors; an edit in either is copied into the other.
+ */
 async function mountEditor(pane: Pane, scroll?: number): Promise<void> {
   const token = ++pane.mountToken;
-  if (pane.shown && pane.editor) pane.shown.scroll = pane.editor.getScroll();
-  pane.editor?.destroy();
+  noteScroll(pane);
+  for (const h of pane.halves) h.destroy();
   pane.editor = null;
+  pane.halves = [];
   pane.editorEl.replaceChildren();
+  pane.editorEl.classList.remove('stacked');
   const tab = pane.active;
   pane.shown = tab;
-  if (!tab) pane.findEl.hidden = true;
+  const count = tab ? (tab.stacked ? 2 : 1) : 0;
+  // A view that's gone takes its search with it.
+  pane.finds.forEach((f, i) => {
+    if (i >= count) {
+      f.el.hidden = true;
+      f.total = 0;
+    }
+  });
   renderChrome();
   if (!tab) return;
 
-  const host = document.createElement('div');
-  host.className = 'host';
-  pane.editorEl.appendChild(host);
-  const onChange = (text: string) => onEdit(tab, text);
+  // Each view is its find bar above its editor host.
+  const halfEls: HTMLElement[] = [];
+  const hosts: HTMLElement[] = [];
+  for (let i = 0; i < count; i++) {
+    const half = document.createElement('div');
+    half.className = 'half';
+    const host = document.createElement('div');
+    host.className = 'host';
+    const find = pane.finds[i];
+    const label = !tab.stacked ? 'Find in this file' : i === 0 ? 'Find in the upper view' : 'Find in the lower view';
+    find.input.placeholder = label;
+    find.input.setAttribute('aria-label', label);
+    find.el.setAttribute('aria-label', label);
+    half.append(find.el, host);
+    halfEls.push(half);
+    hosts.push(host);
+  }
+  if (tab.stacked) {
+    pane.editorEl.classList.add('stacked');
+    pane.editorEl.append(halfEls[0], stackDivider(pane, tab, halfEls), halfEls[1]);
+  } else {
+    pane.editorEl.append(halfEls[0]);
+  }
 
-  let handle: EditorHandle;
+  const built: (EditorHandle | null)[] = hosts.map(() => null);
+  const build = (host: HTMLElement, i: number): Promise<EditorHandle> | EditorHandle => {
+    const onChange = (text: string) => {
+      if (text === tab.content) return; // already known: the other half's edit coming back
+      onEdit(tab, text);
+      built.forEach((h, j) => {
+        if (j !== i) h?.setText(text);
+      });
+    };
+    const link = (href: string) => void followLink(tab, href);
+    return tab.view === 'source'
+      ? createSourceEditor(host, tab.content, sourceLook(), onChange, kindOf(tab))
+      : kindOf(tab) === 'html'
+        ? createHtmlEditor(host, tab.content, tab.path, onChange, link, sourceLook())
+        : createWysiwygEditor(host, tab.content, tab.path, sourceLook(), onChange, link);
+  };
   try {
-    handle =
-      tab.view === 'source'
-        ? createSourceEditor(host, tab.content, sourceLook(), onChange, kindOf(tab))
-        : kindOf(tab) === 'html'
-          ? await createHtmlEditor(host, tab.content, tab.path, onChange, (href) => void followLink(tab, href), sourceLook())
-          : await createWysiwygEditor(host, tab.content, tab.path, sourceLook(), onChange, (href) => void followLink(tab, href));
+    for (let i = 0; i < hosts.length; i++) built[i] = await build(hosts[i], i);
   } catch (e) {
+    for (const h of built) h?.destroy();
     toast('Could not open editor: ' + e);
     return;
   }
+  const halves = built as EditorHandle[];
   if (token !== pane.mountToken) {
-    handle.destroy(); // another mount started while this one was loading
+    for (const h of halves) h.destroy(); // another mount started while this one was loading
     return;
   }
-  pane.editor = handle;
+  // An edit made while the second editor was loading isn't in it yet.
+  for (const h of halves) h.setText(tab.content);
+  pane.halves = halves;
+  const inUse = halves.length === 2 ? tab.halfInUse : 0;
+  pane.editor = halves[inUse];
+  // Clicking or typing in a view (or its find bar) makes it the one Ctrl+F and the toolbar act on.
+  halfEls.forEach((el, i) => el.addEventListener('focusin', () => (pane.editor = halves[i])));
+
+  // The half in use goes back to the place asked for; the other one to where it was.
   const at = scroll ?? tab.scroll;
-  if (at) requestAnimationFrame(() => handle.setScroll(at));
-  // Mark the matches again in the new editor, without moving away from the place just restored.
-  if (!pane.findEl.hidden) runFind(pane, false);
-  if (pane === focused) (pane.findEl.hidden ? handle : pane.findInput).focus();
+  const places = halves.map((_, i) => (i === inUse ? at : (tab.halfScroll?.[i] ?? at)));
+  requestAnimationFrame(() => halves.forEach((h, i) => places[i] && h.setScroll(places[i])));
+  // Mark the matches again in the new editors, without moving away from the places just restored.
+  halves.forEach((_, i) => {
+    if (!pane.finds[i].el.hidden) runFind(pane, i, false);
+  });
+  const find = pane.finds[inUse];
+  if (pane === focused) (find.el.hidden ? pane.editor : find.input).focus();
+}
+
+/** Which view is in use: 0 for the upper (or only) one, 1 for the lower one. */
+function halfInUse(pane: Pane): number {
+  return Math.max(0, pane.halves.indexOf(pane.editor!));
+}
+
+/** The Split button in the path bar: shows the file as an upper and a lower view, or back as one. */
+function toggleStacked(pane: Pane): void {
+  const tab = pane.active;
+  if (!tab) return;
+  noteScroll(pane);
+  tab.stacked = !tab.stacked;
+  // Turning it on starts both views at the current place, half and half, with the upper one in use.
+  // Turning it off keeps the place of the view that was in use.
+  tab.stackRatio = 0.5;
+  tab.halfScroll = null;
+  tab.halfInUse = 0;
+  void mountEditor(pane, tab.scroll);
+}
+
+// ---------- upper/lower divider ----------
+// The bar between the upper and lower views follows the separator pattern, like the one between two
+// files: drag it, or focus it and use the up and down arrow keys (Shift for bigger steps), Home and End.
+// Double-click or Enter puts it back in the middle. Each view keeps at least 80px.
+
+function stackDivider(pane: Pane, tab: Tab, views: HTMLElement[]): HTMLElement {
+  const bar = document.createElement('div');
+  bar.className = 'stack-divider';
+  bar.tabIndex = 0;
+  bar.title = 'Drag to resize. Double-click to make both views equal.';
+  bar.setAttribute('role', 'separator');
+  bar.setAttribute('aria-label', 'Resize the upper and lower views');
+  bar.setAttribute('aria-orientation', 'horizontal');
+  bar.setAttribute('aria-valuemin', '0');
+  bar.setAttribute('aria-valuemax', '100');
+  const box = pane.editorEl;
+  const apply = (ratio: number) => {
+    const height = box.clientHeight;
+    const min = height > 0 ? Math.min(0.5, 80 / height) : 0;
+    tab.stackRatio = Math.min(1 - min, Math.max(min, ratio));
+    views[0].style.flexGrow = String(tab.stackRatio);
+    views[1].style.flexGrow = String(1 - tab.stackRatio);
+    bar.setAttribute('aria-valuenow', String(Math.round(tab.stackRatio * 100)));
+  };
+  apply(tab.stackRatio);
+
+  bar.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    bar.setPointerCapture(e.pointerId);
+    bar.classList.add('dragging');
+    box.classList.add('resizing');
+  });
+  bar.addEventListener('pointermove', (e) => {
+    if (!bar.hasPointerCapture(e.pointerId)) return;
+    const r = box.getBoundingClientRect();
+    apply((e.clientY - r.top) / r.height);
+  });
+  bar.addEventListener('lostpointercapture', () => {
+    bar.classList.remove('dragging');
+    box.classList.remove('resizing');
+  });
+  bar.addEventListener('dblclick', () => apply(0.5));
+  bar.addEventListener('keydown', (e) => {
+    const step = e.shiftKey ? 0.1 : 0.02;
+    const moves: Record<string, number> = {
+      ArrowUp: tab.stackRatio - step,
+      ArrowDown: tab.stackRatio + step,
+      Home: 0,
+      End: 1,
+      Enter: 0.5,
+    };
+    if (!(e.key in moves)) return;
+    e.preventDefault();
+    apply(moves[e.key]);
+  });
+  return bar;
 }
 
 /** Shows the current tab bar entry: one file across the whole width, or a split pair side by side. */
@@ -742,7 +906,7 @@ function refresh(): void {
   panes[1].active = right ?? null;
   if (!focused.active) focused = panes[0];
   // Note every place in a document before any editor is rebuilt, since a file can move between sides.
-  for (const p of panes) if (p.shown !== p.active && p.shown && p.editor) p.shown.scroll = p.editor.getScroll();
+  for (const p of panes) if (p.shown !== p.active) noteScroll(p);
   for (const p of panes) if (p.shown !== p.active) void mountEditor(p);
   renderChrome();
 }
@@ -1107,51 +1271,55 @@ document.addEventListener('pointerdown', (e) => {
 window.addEventListener('resize', () => closeSplitMenu(false));
 
 // ---------- find ----------
-// Each side has its own find bar under its path bar, so in a split each file is searched on its own.
-// Ctrl+F opens it in the side in use.
+// Each view has its own find bar above it: each side of a two-file split, and each of the upper and
+// lower views of one file, so each is searched on its own. Ctrl+F opens the one for the view in use.
 
-function openFind(pane: Pane): void {
-  if (!pane.active) return;
-  const wasOpen = !pane.findEl.hidden;
-  pane.findEl.hidden = false;
-  pane.findInput.focus();
-  pane.findInput.select();
-  if (!wasOpen) runFind(pane, true);
+function openFind(pane: Pane, i: number): void {
+  const find = pane.finds[i];
+  if (!pane.active || !pane.halves[i]) return;
+  const wasOpen = !find.el.hidden;
+  find.el.hidden = false;
+  find.input.focus();
+  find.input.select();
+  if (!wasOpen) runFind(pane, i, true);
 }
 
 /** Searches again for what's in the box. Starts from the first match if restart, else keeps the place. */
-function runFind(pane: Pane, restart: boolean): void {
-  const text = pane.findInput.value;
-  pane.findTotal = pane.editor?.find(text) ?? 0;
-  pane.findIndex = restart ? 0 : Math.min(pane.findIndex, Math.max(0, pane.findTotal - 1));
-  if (pane.findTotal) pane.editor?.showMatch(pane.findIndex, restart);
-  renderFindCount(pane);
+function runFind(pane: Pane, i: number, restart: boolean): void {
+  const find = pane.finds[i];
+  const editor = pane.halves[i];
+  find.total = editor?.find(find.input.value) ?? 0;
+  find.index = restart ? 0 : Math.min(find.index, Math.max(0, find.total - 1));
+  if (find.total) editor?.showMatch(find.index, restart);
+  renderFindCount(find);
 }
 
-function stepFind(pane: Pane, step: number): void {
-  if (!pane.findTotal) return;
-  pane.findIndex = (pane.findIndex + step + pane.findTotal) % pane.findTotal;
-  pane.editor?.showMatch(pane.findIndex);
-  renderFindCount(pane);
+function stepFind(pane: Pane, i: number, step: number): void {
+  const find = pane.finds[i];
+  if (!find.total) return;
+  find.index = (find.index + step + find.total) % find.total;
+  pane.halves[i]?.showMatch(find.index);
+  renderFindCount(find);
 }
 
-function renderFindCount(pane: Pane): void {
-  const el = pane.findEl.querySelector('.find-count')!;
-  el.textContent = pane.findTotal
-    ? `${pane.findIndex + 1} of ${pane.findTotal}`
-    : pane.findInput.value
+function renderFindCount(find: Find): void {
+  find.el.querySelector('.find-count')!.textContent = find.total
+    ? `${find.index + 1} of ${find.total}`
+    : find.input.value
       ? 'No results'
       : '';
 }
 
-/** Closes the find bar, leaving the current match selected in the document. */
-function closeFind(pane: Pane): void {
-  if (pane.findEl.hidden) return;
-  pane.findEl.hidden = true;
-  if (pane.findTotal) pane.editor?.selectMatch(pane.findIndex);
-  pane.editor?.find('');
-  pane.findTotal = 0;
-  pane.editor?.focus();
+/** Closes a find bar, leaving the current match selected in its view. */
+function closeFind(pane: Pane, i: number): void {
+  const find = pane.finds[i];
+  const editor = pane.halves[i];
+  if (find.el.hidden) return;
+  find.el.hidden = true;
+  if (find.total) editor?.selectMatch(find.index);
+  editor?.find('');
+  find.total = 0;
+  editor?.focus();
 }
 
 function switchView(view: View): void {
@@ -1181,6 +1349,10 @@ async function loadTab(path: string): Promise<Tab | null> {
       saving: false,
       needsPermission: false,
       scroll: 0,
+      stacked: false,
+      stackRatio: 0.5,
+      halfScroll: null,
+      halfInUse: 0,
     };
   } catch (e) {
     toast(`Could not open ${basename(path)}: ${e}`);
@@ -1301,7 +1473,11 @@ function onEdit(tab: Tab, text: string): void {
   tab.content = text;
   if (wasDirty !== isDirty(tab)) renderTabs();
   // The marks are tied to the old text, so find again; scrolling would pull the view away from typing.
-  for (const p of panes) if (p.shown === tab && !p.findEl.hidden) runFind(p, false);
+  for (const p of panes)
+    if (p.shown === tab)
+      p.finds.forEach((f, i) => {
+        if (!f.el.hidden) runFind(p, i, false);
+      });
   if (tab.saveTimer !== null) window.clearTimeout(tab.saveTimer);
   if (!tab.conflict && !tab.needsPermission) tab.saveTimer = window.setTimeout(() => void saveNow(tab), AUTOSAVE_MS);
 }
@@ -1553,12 +1729,15 @@ window.addEventListener(
       switchView(active.view === 'wysiwyg' ? 'source' : 'wysiwyg');
     } else if (key === 'f' && !e.shiftKey && active) {
       e.preventDefault();
-      openFind(focused);
+      openFind(focused, halfInUse(focused));
     } else if (e.key === 'Tab' && entries.length > 1 && current) {
       e.preventDefault();
       const step = e.shiftKey ? -1 : 1;
       const next = entries[(entries.indexOf(current) + step + entries.length) % entries.length];
       activate(filesOf(next)[0]);
+    } else if (e.code === 'Backslash' && e.shiftKey && active) {
+      e.preventDefault();
+      toggleStacked(focused);
     } else if (e.code === 'Backslash' && current) {
       e.preventDefault();
       splitAction();

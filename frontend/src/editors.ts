@@ -1,6 +1,6 @@
 // The two editors: CodeMirror (source view) and Milkdown Crepe (WYSIWYG view).
 // Both are given the Markdown text and report edits through onChange.
-import { EditorState, StateEffect, StateField } from '@codemirror/state';
+import { Annotation, EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { Decoration, DecorationSet, EditorView, drawSelection, highlightActiveLine, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { HighlightStyle, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
@@ -10,7 +10,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { Crepe } from '@milkdown/crepe';
-import { commandsCtx, editorViewCtx, editorViewOptionsCtx, remarkCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { commandsCtx, editorViewCtx, editorViewOptionsCtx, parserCtx, remarkCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { clearTextInCurrentBlockCommand, codeBlockSchema, setBlockTypeCommand } from '@milkdown/kit/preset/commonmark';
 import type { Fragment, Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
@@ -39,12 +39,35 @@ export interface EditorHandle {
   showMatch(i: number, scroll?: boolean): void;
   /** Selects match i in the document, so the cursor is there when the find bar closes. */
   selectMatch(i: number): void;
+  /**
+   * Replaces the text with an edit made somewhere else (the other half of a split view). Only the part
+   * that changed is redrawn, so the place on screen stays put. Doesn't call onChange, and isn't added
+   * to this editor's undo history.
+   */
+  setText(text: string): void;
 }
 
 /** The languages a code block can be tagged with, for colouring and the code block's language list. */
 const codeLanguages = [...languages.filter((l) => l.name !== 'Brainfuck'), mermaidLanguage];
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/** Marks a source view change that came from setText, so it isn't reported back through onChange. */
+const fromOutside = Annotation.define<boolean>();
+
+/** The changed part of a string: where a and b first differ, and where each one's matching end begins. */
+function changedRange(a: string, b: string): { from: number; toA: number; toB: number } {
+  let from = 0;
+  const max = Math.min(a.length, b.length);
+  while (from < max && a.charCodeAt(from) === b.charCodeAt(from)) from++;
+  let toA = a.length;
+  let toB = b.length;
+  while (toA > from && toB > from && a.charCodeAt(toA - 1) === b.charCodeAt(toB - 1)) {
+    toA--;
+    toB--;
+  }
+  return { from, toA, toB };
+}
 
 /** Where text appears in a string, ignoring case, as [start, end) pairs. */
 function findAll(haystack: string, text: string): [number, number][] {
@@ -173,7 +196,8 @@ export function createSourceEditor(
         EditorView.lineWrapping,
         findMarks,
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) onChange(u.state.doc.toString());
+          if (u.docChanged && !u.transactions.some((tr) => tr.annotation(fromOutside)))
+            onChange(u.state.doc.toString());
         }),
       ],
     }),
@@ -212,6 +236,15 @@ export function createSourceEditor(
     selectMatch: (i) => {
       const m = matches[i];
       if (m) view.dispatch({ selection: { anchor: m[0], head: m[1] } });
+    },
+    setText: (next) => {
+      const old = view.state.doc.toString();
+      if (next === old) return;
+      const { from, toA, toB } = changedRange(old, next);
+      view.dispatch({
+        changes: { from, to: toA, insert: next.slice(from, toB) },
+        annotations: [fromOutside.of(true), Transaction.addToHistory.of(false)],
+      });
     },
   };
 }
@@ -477,8 +510,16 @@ export async function createWysiwygEditor(
   // so lines the user didn't touch keep their formatting (see keep-format.ts).
   let written: string | null = null;
   let fileText = text; // the file as it stands, edits included
+  // What the editor writes just after setText. The editor reports changes a moment late, so this is
+  // how that report of setText's own change is recognised and dropped.
+  let echo: string | null = null;
   crepe.on((listener) => {
     listener.markdownUpdated((_ctx, md, prev) => {
+      if (md === echo) {
+        echo = null;
+        return;
+      }
+      echo = null;
       if (written !== null && md !== prev) onChange((fileText = keepFormatting(text, written, md)));
     });
   });
@@ -618,6 +659,31 @@ export async function createWysiwygEditor(
       if (!at) return;
       const view = crepe.editor.ctx.get(editorViewCtx);
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, ...at)));
+    },
+    setText: (next) => {
+      if (written === null || next === fileText) return;
+      const ctx = crepe.editor.ctx;
+      const view = ctx.get(editorViewCtx);
+      const doc = ctx.get(parserCtx)(next);
+      if (!doc) return;
+      // Replace only the blocks that differ, so the rest (and drawn diagrams) stay as they are.
+      const start = view.state.doc.content.findDiffStart(doc.content);
+      if (start !== null) {
+        let { a: endA, b: endB } = view.state.doc.content.findDiffEnd(doc.content)!;
+        // When text is repeated (typing "aa" after "a"), the end found can fall before the start;
+        // move both ends forward by the same amount.
+        const overlap = start - Math.min(endA, endB);
+        if (overlap > 0) {
+          endA += overlap;
+          endB += overlap;
+        }
+        const top = parent.scrollTop;
+        view.dispatch(view.state.tr.replace(start, endA, doc.slice(start, endB)).setMeta('addToHistory', false));
+        parent.scrollTop = top;
+      }
+      // From now on, edits here are merged into the new text.
+      text = fileText = next;
+      written = echo = crepe.getMarkdown();
     },
     // Through the editor rather than the page element: a plain focus() put the cursor at the start and
     // scrolled there, losing the place kept when switching views.

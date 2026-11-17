@@ -276,7 +276,7 @@ export async function createHtmlEditor(
   doc.execCommand('styleWithCSS', false, 'false'); // <b> and <i>, not <span style="…">
 
   // What the browser writes for the file as loaded; edits are merged into the original against it.
-  const base = writeOut(doc, text);
+  let base = writeOut(doc, text);
   let fileText = text;
   const changed = () => {
     const now = mergeEdit(text, base, writeOut(doc, text));
@@ -1066,14 +1066,42 @@ export async function createHtmlEditor(
   const lineCount = () => fileText.split('\n').length;
   const scroller = () => doc.scrollingElement ?? doc.documentElement;
 
+  // setText prepares the page out of sight first (that waits on image and stylesheet links), so a newer
+  // call can overtake an older one; only the latest is shown.
+  let latest = 0;
+  let destroyed = false;
+
   return {
     destroy: () => {
+      destroyed = true;
       clearFound();
       tableMenu.remove();
       cssPanel.destroy();
       doc.removeEventListener('input', changed);
     },
     focus: () => win.focus(),
+    setText: (next) => {
+      if (next === fileText) return;
+      const ticket = ++latest;
+      void framedHtml(next, filePath).then((html) => {
+        if (ticket !== latest || destroyed) return;
+        const fresh = new DOMParser().parseFromString(html, 'text/html');
+        const s = scroller();
+        const top = s.scrollTop;
+        clearFound();
+        // The page's own head and body are swapped in; the styles MdGeek adds for editing stay, last.
+        const ours = Array.from(doc.head.children).filter((el) => el.hasAttribute(UI));
+        doc.head.replaceChildren(...Array.from(fresh.head.childNodes, (n) => doc.importNode(n, true)), ...ours);
+        doc.body.replaceWith(doc.importNode(fresh.body, true));
+        s.scrollTop = top;
+        saved = null;
+        forgetTableHistory();
+        // From now on, edits here are merged into the new text.
+        text = fileText = next;
+        base = writeOut(doc, next);
+        stylesChanged();
+      });
+    },
     // The source view counts by file line; here the place is the same fraction of the way down.
     getScroll: () => {
       const s = scroller();
