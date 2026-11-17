@@ -1746,6 +1746,62 @@ window.addEventListener(
   true,
 );
 
+// ---------- full screen ----------
+// F11 or the toolbar button gives the screen to the document: the window goes full screen and the
+// toolbar and tab row hide. F11 again, Esc, or the button in the top right corner come back out. Esc
+// only leaves full screen when nothing else wanted it: a menu, the find bar, a dialog, or one of the
+// editor's pop-ups closes first.
+
+let fullScreen = false;
+const exitFullBtn = $<HTMLButtonElement>('btn-exit-full');
+
+function setFullScreen(on: boolean): void {
+  if (fullScreen === on) return;
+  fullScreen = on;
+  $('app').classList.toggle('full', on);
+  exitFullBtn.hidden = !on;
+  void backend.setFullScreen(on);
+  if (isSplit()) applySplit(splitRatio); // the panes just got taller
+  // The button just pressed has gone, so typing carries on in the document.
+  const at = document.activeElement;
+  if (!at || at === document.body || at === exitFullBtn || $('toolbar').contains(at)) focused.editor?.focus();
+}
+
+/**
+ * Something open that Esc should close before it leaves full screen. The WYSIWYG editor's pop-ups
+ * (the / menu, the format bar over a selection, link boxes) are marked data-show; its block handle is
+ * too, whenever the mouse is over the text, but Esc doesn't close that.
+ */
+const escHasWork = () =>
+  !!document.querySelector(
+    'dialog[open], .menu:not([hidden]), #modal:not([hidden]), [data-show="true"]:not(.milkdown-block-handle)',
+  );
+
+$('btn-full').addEventListener('click', () => setFullScreen(true));
+exitFullBtn.addEventListener('click', () => setFullScreen(false));
+backend.onFullScreenExit(() => setFullScreen(false));
+
+// Noted as the key goes down, before a menu or pop-up closes itself and the page no longer shows it was open.
+let escBusy = false;
+window.addEventListener(
+  'keydown',
+  (e) => {
+    if (e.key === 'Escape') escBusy = escHasWork();
+    else if (e.key === 'F11' && !(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)) {
+      e.preventDefault();
+      setFullScreen(!fullScreen);
+    }
+  },
+  true,
+);
+// Find bars and menus stop Esc on their way, so it only gets here when they didn't use it. (The
+// WYSIWYG editor marks every Esc as used, even when it does nothing with it, so that mark isn't checked.)
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !fullScreen || escBusy) return;
+  e.preventDefault();
+  setFullScreen(false);
+});
+
 const tree = new Tree(
   $('tree'),
   { sidebar: $('sidebar'), title: $('sidebar-title'), count: $('sidebar-count'), where: $('sidebar-where') },

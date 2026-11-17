@@ -71,6 +71,10 @@ export interface Backend {
    * so save everything first. The desktop app never calls this.
    */
   onUpdateReady(fn: (apply: () => void) => void): void;
+  /** Makes the window fill the whole screen, or puts it back. Resolves once asked; may do nothing. */
+  setFullScreen(on: boolean): Promise<void>;
+  /** Calls fn when the window leaves full screen by some other way than setFullScreen (the browser's Esc). */
+  onFullScreenExit(fn: () => void): void;
   /**
    * Looks for a new version now. 'found' means the onUpdateReady notice will show (or already has).
    * The desktop app always answers 'latest'.

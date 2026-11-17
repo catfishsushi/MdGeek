@@ -417,6 +417,23 @@ export const webBackend: Backend = {
 
   clearRecent: () => saveHandles('recent', []),
 
+  // The browser's own full screen. It needs a click or key press to start, and the browser may refuse
+  // (some phones, or an embedded page); then only the app's bars are hidden.
+  async setFullScreen(on) {
+    try {
+      if (on && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else if (!on && document.fullscreenElement) await document.exitFullscreen();
+    } catch {
+      // not allowed here; the app's bars still hide
+    }
+  },
+  // The browser takes Esc for itself in full screen and never passes it to the page.
+  onFullScreenExit(fn) {
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) fn();
+    });
+  },
+
   onUpdateReady(fn) {
     updateReady = fn;
     void swRegistration.then((reg) => {
