@@ -84,3 +84,19 @@ from the editor (Milkdown Crepe's image block). Source view is fine. Not yet che
 
 Fixed 2026-10-08 in commit a9cbdea: a missing title now becomes an empty one, which isn't written back,
 so the picture shows and the file stays the same.
+
+## 9. Font color and font face, per word
+
+Requested 2026-11-17. Not started; added to the backlog only.
+
+Markdown has no syntax for color or fonts. The usual way is inline HTML in the file, such as
+`<span style="color:#c0392b">word</span>` or `<span style="font-family:Georgia">word</span>`. Tradeoffs:
+
+- Shows in VS Code's preview, Obsidian, Typora, and MdGeek's HTML/PDF export (if kept), but GitHub strips
+  `style` attributes, so the text shows plain there. In plain text the tags are visible.
+- The WYSIWYG editor (Milkdown) appears to keep inline HTML as raw chunks, so it would need to draw these
+  spans as styled text, plus toolbar buttons to apply and remove them. Check export keeps them.
+- Colors: use a small fixed palette that reads well in both light and dark themes, not a free picker.
+- Fonts: only fonts on the reader's machine show, so offer a short list with fallbacks (for example
+  `Georgia, serif`).
+- Security: allow only `color` and `font-family` in `style`, with listed values, when rendering.
