@@ -20,7 +20,9 @@ specs/               # spec-kit feature specs
 - Desktop app: `wails build` (repo root)
 - Browser build: `cd frontend; npm run build:web` (writes `frontend/dist-web/`); `npm run preview:web`
   serves it at http://localhost:4173 (installing and offline use work there without HTTPS)
-- Wails isn't on the PATH here: run it as `~/go/bin/wails.exe build`
+- On the Windows PC, Wails isn't on the PATH: run it as `~/go/bin/wails.exe build`
+- On the Linux laptop (Linux Mint 22.3), Go is in `~/.local/go/bin` and Wails in `~/go/bin`. Build with
+  `wails build -tags webkit2_41`, because Mint 22 only ships WebKitGTK 4.1 and Wails expects 4.0 without the tag
 - No automated tests or linter yet; `npm run build` runs `tsc` type checks.
 
 ## Code Style

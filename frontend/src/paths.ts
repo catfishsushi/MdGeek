@@ -71,10 +71,18 @@ export function resolveLink(baseDir: string, href: string): LinkTarget | null {
   return { kind: 'local', path: /^[A-Za-z]:/.test(abs) ? abs.replace(/\//g, '\\') : abs };
 }
 
-/** True for the file types MdGeek edits. Matches isMarkdown in app.go. */
-export function isMarkdownPath(p: string): boolean {
-  return /\.(md|markdown)$/i.test(p);
+/** The kinds of file MdGeek edits. */
+export type DocKind = 'markdown' | 'html';
+
+/** Which kind of file a path is, by its extension, or null for a file MdGeek doesn't edit. Matches isEditable in app.go. */
+export function docKind(p: string): DocKind | null {
+  if (/\.(md|markdown)$/i.test(p)) return 'markdown';
+  if (/\.html?$/i.test(p)) return 'html';
+  return null;
 }
+
+/** True for the file types MdGeek edits. */
+export const isEditablePath = (p: string): boolean => docKind(p) !== null;
 
 /** Whether two paths name the same file. Windows paths ignore case, as Windows does. */
 export function samePath(a: string, b: string): boolean {

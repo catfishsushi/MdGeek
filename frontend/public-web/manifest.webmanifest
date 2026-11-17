@@ -1,7 +1,7 @@
 {
   "name": "MdGeek",
   "short_name": "MdGeek",
-  "description": "A Markdown editor with WYSIWYG and source views.",
+  "description": "A Markdown and HTML editor with WYSIWYG and source views.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
@@ -15,7 +15,7 @@
   "file_handlers": [
     {
       "action": "./",
-      "accept": { "text/markdown": [".md", ".markdown"] }
+      "accept": { "text/markdown": [".md", ".markdown"], "text/html": [".html", ".htm"] }
     }
   ],
   "launch_handler": { "client_mode": "focus-existing" }

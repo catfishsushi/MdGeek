@@ -39,7 +39,7 @@ const registered = new Map<string, Handle>();
 /** Open and New share this, so the browser starts both dialogs in the folder either was last used in. */
 const PICKER_ID = 'mdgeek-markdown';
 
-const isMarkdown = (name: string) => /\.(md|markdown)$/i.test(name);
+const isEditable = (name: string) => /\.(md|markdown|html?)$/i.test(name);
 const isCancel = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
 function segments(path: string): string[] {
@@ -164,7 +164,7 @@ export const webBackend: Backend = {
       if (name.startsWith('.') || name === 'node_modules') continue;
       const path = dir.replace(/\/$/, '') + '/' + name;
       if (child.kind === 'directory') entries.push({ name, path, isDir: true });
-      else if (isMarkdown(name)) entries.push({ name, path, isDir: false });
+      else if (isEditable(name)) entries.push({ name, path, isDir: false });
     }
     return entries.sort((a, b) =>
       a.isDir !== b.isDir ? (a.isDir ? -1 : 1) : a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1,
@@ -205,7 +205,9 @@ export const webBackend: Backend = {
       handles = await window.showOpenFilePicker({
         id: PICKER_ID,
         multiple: true,
-        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown'] } }],
+        types: [
+          { description: 'Markdown and HTML', accept: { 'text/markdown': ['.md', '.markdown'], 'text/html': ['.html', '.htm'] } },
+        ],
       });
     } catch (e) {
       if (isCancel(e)) return [];
@@ -236,7 +238,10 @@ export const webBackend: Backend = {
         id: PICKER_ID,
         startIn,
         suggestedName: 'Untitled.md',
-        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown'] } }],
+        types: [
+          { description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown'] } },
+          { description: 'HTML', accept: { 'text/html': ['.html', '.htm'] } },
+        ],
       });
     } catch (e) {
       if (isCancel(e)) return '';
@@ -272,7 +277,7 @@ export const webBackend: Backend = {
       openWindow(target, '_blank', 'noopener,noreferrer');
       return;
     }
-    throw new Error('the browser version can only open Markdown files and web links');
+    throw new Error('the browser version can only open Markdown and HTML files and web links');
   },
 
   copyText: (text) => navigator.clipboard.writeText(text),
@@ -314,7 +319,7 @@ export const webBackend: Backend = {
     });
   },
 
-  // The installed app is registered for .md files (manifest.webmanifest). Files opened with it from
+  // The installed app is registered for .md and .html files (manifest.webmanifest). Files opened with it from
   // File Explorer arrive here, both at startup and while it's already open.
   onOpenPaths(fn) {
     window.launchQueue?.setConsumer(async ({ files }) => {
