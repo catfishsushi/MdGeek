@@ -100,3 +100,26 @@ Markdown has no syntax for color or fonts. The usual way is inline HTML in the f
 - Fonts: only fonts on the reader's machine show, so offer a short list with fallbacks (for example
   `Georgia, serif`).
 - Security: allow only `color` and `font-family` in `style`, with listed values, when rendering.
+
+## 10. Bug: dropping a file sometimes passes an empty path (Linux)
+
+Found 2026-11-19 on Linux Mint. Dragging `/home/ted/Documents/Computers/AI/Home Network/kitty-cheat-sheet.md`
+into MdGeek failed. "Open file" opened the same file fine.
+
+- Dropped on the left pane: an error that it isn't an md file.
+- Dropped on the content area: "file not found".
+
+Both messages fit MdGeek receiving an empty path. In Wails v2.16.0 (`internal/frontend/desktop/linux/window.c`,
+`onDragDataReceived`), a dropped item that `g_filename_from_uri` can't turn into a local path is skipped,
+which leaves an empty path string. The space in "Home Network" is not the cause: GLib handles it, checked
+2026-11-19.
+
+Still to find out:
+
+- Dragged from a file manager window (Nemo, the Linux Mint default) showing
+  `/home/ted/Documents/Computers/AI/Home Network`, not from a desktop icon.
+- Whether dropping any other `.md` file works.
+- What `OnFileDrop` actually receives: log `paths` in the handler in `frontend/src/main.ts`.
+
+Possible fixes: ignore empty paths and show "couldn't read the dropped file" instead of the misleading
+messages, and if the source sends something other than a `file://` link, read that format too.
