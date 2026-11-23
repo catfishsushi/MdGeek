@@ -429,6 +429,8 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .exp button + button { border-left: 1px solid var(--btnline); }
 .exp button:hover:not(:disabled) { background: var(--btnh); }
 .exp button:disabled { opacity: .4; }
+/* Text size: A−, the current size (click to reset), A+. Same look as the Export group. */
+.zoom #btn-zoom-reset { min-width: 54px; padding: 0 8px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink2); }
 
 #toolbar :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
@@ -440,6 +442,7 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
   #toolbar .btn .t { display: none; }
   #toolbar .btn:not(#recent-btn, #file-btn) { padding: 0 9px; }
   .sep { display: none; }
+  .zoom #btn-zoom-reset { display: none; }
 }
 
 /* Theme drop-down: a button and a menu that opens 8px below it, right-aligned. */
@@ -784,19 +787,20 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 }
 #content .editor .milkdown .milkdown-top-bar { background: var(--panel); border-bottom: 1px solid var(--line); }
 
-/* The document: centred, at most 925px wide. */
-#content .editor .milkdown .ProseMirror { max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; font-size: 16px; line-height: 1.7; }
+/* The document: centred, at most 925px wide. Document text sizes are multiplied by --doc-zoom, which
+   the toolbar's A− / A+ buttons (or Ctrl + = / - / 0) change; see "text size" in main.ts. */
+#content .editor .milkdown .ProseMirror { max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; font-size: calc(16px * var(--doc-zoom, 1)); line-height: 1.7; }
 /* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
 #content .editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
 /* Raw HTML anchors like <a name="setup"></a> or <a id="setup"></a> only mark a place for links to jump
    to, so they're hidden here. They stay in the file, and the Source view still shows them. */
 #content .editor .milkdown .ProseMirror span[data-type="html"]:is([data-value^="<a name=" i], [data-value^="<a id=" i], [data-value="</a>" i]) { display: none; }
 #content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { font-family: var(--disp); padding: 0; }
-#content .editor .milkdown .ProseMirror h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.025em; font-weight: 700; margin: 32px 0 12px; }
-#content .editor .milkdown .ProseMirror h2 { font-size: 21px; line-height: 1.3; letter-spacing: -.01em; font-weight: 600; margin: 32px 0 10px; }
-#content .editor .milkdown .ProseMirror h3 { font-size: 17px; line-height: 1.4; font-weight: 600; margin: 24px 0 8px; }
-#content .editor .milkdown .ProseMirror :is(h4, h5) { font-size: 15px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; }
-#content .editor .milkdown .ProseMirror h6 { font-size: 12px; line-height: 1.4; font-weight: 600; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
+#content .editor .milkdown .ProseMirror h1 { font-size: calc(34px * var(--doc-zoom, 1)); line-height: 1.15; letter-spacing: -.025em; font-weight: 700; margin: 32px 0 12px; }
+#content .editor .milkdown .ProseMirror h2 { font-size: calc(21px * var(--doc-zoom, 1)); line-height: 1.3; letter-spacing: -.01em; font-weight: 600; margin: 32px 0 10px; }
+#content .editor .milkdown .ProseMirror h3 { font-size: calc(17px * var(--doc-zoom, 1)); line-height: 1.4; font-weight: 600; margin: 24px 0 8px; }
+#content .editor .milkdown .ProseMirror :is(h4, h5) { font-size: calc(15px * var(--doc-zoom, 1)); line-height: 1.4; font-weight: 600; margin: 20px 0 6px; }
+#content .editor .milkdown .ProseMirror h6 { font-size: calc(12px * var(--doc-zoom, 1)); line-height: 1.4; font-weight: 600; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
 #content .editor .milkdown .ProseMirror p { line-height: 1.7; padding: 0; }
 #content .editor .milkdown .ProseMirror > p { margin: 0 0 14px; }
 #content .editor .milkdown .ProseMirror .milkdown-list-item-block li .label-wrapper { color: var(--acc); }
@@ -806,13 +810,13 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 #content .editor .milkdown .milkdown-code-block { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 6px 16px 14px; margin: 0 0 16px; }
 #content .editor .milkdown .milkdown-code-block .cm-editor,
 #content .editor .milkdown .milkdown-code-block .cm-gutters { background: transparent; }
-#content .editor .milkdown .milkdown-code-block .cm-scroller { font-size: 13px; line-height: 1.65; }
+#content .editor .milkdown .milkdown-code-block .cm-scroller { font-size: calc(13px * var(--doc-zoom, 1)); line-height: 1.65; }
 #content .editor .milkdown .milkdown-code-block .cm-activeLineGutter { background: transparent; color: var(--ink); }
 #content .editor .milkdown .milkdown-code-block .cm-activeLine { background: var(--hover); }
 #content .editor .milkdown .ProseMirror blockquote { margin: 0 0 16px; padding: 12px 16px; border-radius: 10px; background: var(--accsoft); color: var(--ink); }
 #content .editor .milkdown .ProseMirror blockquote::before { display: none; }
 #content .editor .milkdown .ProseMirror blockquote p { margin: 0; }
-#content .editor .milkdown .milkdown-table-block { margin: 0 0 16px; font-size: 14px; }
+#content .editor .milkdown .milkdown-table-block { margin: 0 0 16px; font-size: calc(14px * var(--doc-zoom, 1)); }
 /* Crepe gives every column the same width and hides what doesn't fit. Instead, each column takes the
    width its content needs, so short ones (a "P1", an empty column) stay narrow. Long code names wrap
    inside their cell only when there's no other room, and a table that still can't fit scrolls sideways. */
@@ -820,13 +824,13 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 #content .editor .milkdown .milkdown-table-block table { table-layout: auto; }
 #content .editor .milkdown .milkdown-table-block :is(th, td) code { overflow-wrap: anywhere; }
 #content .editor .milkdown .milkdown-table-block :is(th, td) { border: 0; border-bottom: 1px solid var(--line); padding: 9px 10px; }
-#content .editor .milkdown .milkdown-table-block th { padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
+#content .editor .milkdown .milkdown-table-block th { padding: 8px 10px; text-align: left; font-weight: 600; font-size: calc(11.5px * var(--doc-zoom, 1)); text-transform: uppercase; letter-spacing: .07em; color: var(--ink2); }
 
 /* Source view: the same centred column, in the code font. */
 .cm-editor { height: 100%; }
 .cm-editor.cm-focused { outline: none; }
 .cm-editor, .cm-editor .cm-gutters { background: transparent; }
-.cm-scroller { font-family: var(--mono); font-size: 13.5px; line-height: 1.8; }
+.cm-scroller { font-family: var(--mono); font-size: calc(13.5px * var(--doc-zoom, 1)); line-height: 1.8; }
 #content .editor .host > .cm-editor .cm-content { flex: 0 1 925px; max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; }
 
 /* Nothing open: a dashed drop-zone card. */
@@ -898,7 +902,7 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
   padding: 10px 14px;
   border-top: 1px solid var(--btnline);
 }
-.diff { flex: 1; overflow: auto; font-family: var(--mono); font-size: 13px; }
+.diff { flex: 1; overflow: auto; font-family: var(--mono); font-size: calc(13px * var(--doc-zoom, 1)); }
 .diff-cols { display: grid; grid-template-columns: 1fr 1fr; position: sticky; top: 0; background: var(--btn); border-bottom: 1px solid var(--btnline); font-family: inherit; font-weight: 600; }
 .diff-cols div { padding: 4px 10px; }
 .diff-row { display: grid; grid-template-columns: 1fr 1fr; }
@@ -1140,9 +1144,9 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
   border: 1px solid rgba(63, 208, 240, .28);
 }
 .th-scifi #content .editor .host > .cm-editor .cm-content { flex-basis: 950px; }
-.th-scifi #content .editor .milkdown .ProseMirror { font-size: 15.5px; }
-.th-scifi #content .editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: 38px; }
-.th-scifi #content .editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: 20px; }
+.th-scifi #content .editor .milkdown .ProseMirror { font-size: calc(15.5px * var(--doc-zoom, 1)); }
+.th-scifi #content .editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: calc(38px * var(--doc-zoom, 1)); }
+.th-scifi #content .editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: calc(20px * var(--doc-zoom, 1)); }
 .th-scifi #content .editor .milkdown :is(.milkdown-code-block, code, blockquote) { border-radius: 0; }
 /* The format bar that pops up over selected text: solid, so the heading under it doesn't show through. */
 .th-scifi #content .editor .milkdown .milkdown-toolbar { background: #060F17; border: 1px solid var(--menuline); border-radius: 0; box-shadow: var(--menushadow); }
@@ -1278,17 +1282,17 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
   box-shadow: 0 6px 22px rgba(60, 38, 18, .3);
 }
 .th-fantasy #content .editor .host > .cm-editor .cm-content { flex-basis: 950px; }
-.th-fantasy #content .editor .milkdown .ProseMirror { font-size: 18px; line-height: 1.65; }
+.th-fantasy #content .editor .milkdown .ProseMirror { font-size: calc(18px * var(--doc-zoom, 1)); line-height: 1.65; }
 .th-fantasy #content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { letter-spacing: .04em; color: var(--ink); }
 .th-fantasy #content .editor .milkdown .ProseMirror h1 {
   color: var(--acc);
-  font-size: 36px;
+  font-size: calc(36px * var(--doc-zoom, 1));
   letter-spacing: .06em;
   font-weight: 700;
   padding-bottom: 26px;
   background: url("./assets/fantasy-flourish.svg") left bottom / 240px 18px no-repeat;
 }
-.th-fantasy #content .editor .milkdown .ProseMirror h2 { font-size: 23px; color: var(--accink); }
+.th-fantasy #content .editor .milkdown .ProseMirror h2 { font-size: calc(23px * var(--doc-zoom, 1)); color: var(--accink); }
 /* An illuminated capital opens the first paragraph after a title, as at the start of a chapter. */
 .th-fantasy #content .editor .milkdown .ProseMirror h1 + p::first-letter {
   float: left;
