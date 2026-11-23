@@ -374,7 +374,7 @@ function watchLinks(parent: HTMLElement, onLink: (href: string) => void): void {
   });
 }
 
-type MdNode = { type: string; title?: string | null; children?: MdNode[] };
+type MdNode = { type: string; title?: string | null; value?: string; children?: MdNode[] };
 
 /**
  * Works around a Milkdown 7.22 bug. A picture on a line of its own with no title, like `![x](pic.png)`,
@@ -389,6 +389,27 @@ const imageTitleFix = $remark('mdgeek-image-title-fix', () => () => (tree: unkno
   };
   walk(tree as MdNode);
 });
+
+/**
+ * Line breaks inside table cells. A Markdown table row has to stay on one line, so a break in a cell is
+ * written as `<br>`, which GitHub, VS Code and most viewers show as a line break. When a file is read,
+ * a `<br>` in a cell becomes a real line break again, so it shows as one in the WYSIWYG view.
+ */
+const cellBreaks = $remark('mdgeek-cell-breaks', () => () => (tree: unknown) => {
+  const walk = (node: MdNode, inCell: boolean) => {
+    if (inCell && node.type === 'html' && /^<br\s*\/?>$/i.test(String(node.value ?? '').trim())) {
+      node.type = 'break';
+      delete node.value;
+    }
+    node.children?.forEach((c) => walk(c, inCell || node.type === 'tableCell'));
+  };
+  walk(tree as MdNode, false);
+});
+
+/** Writes a line break as `<br>` inside a table cell, and as usual (a backslash at the line end) elsewhere. */
+function writeBreak(_node: unknown, _parent: unknown, state: { stack: string[] }): string {
+  return state.stack.includes('tableCell') ? '<br>' : '\\\n';
+}
 
 /**
  * Copied text for "paste as plain text". Crepe copies Markdown, so a few words copied from a table cell
@@ -496,13 +517,32 @@ export async function createWysiwygEditor(
     },
   });
 
-  crepe.editor.use(imageTitleFix);
+  crepe.editor.use(imageTitleFix).use(cellBreaks);
   const bullet = detectBullet(text);
   crepe.editor.config((ctx) => {
-    ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet }));
+    ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+      ...prev,
+      bullet,
+      handlers: { ...prev.handlers, break: writeBreak as never },
+    }));
     ctx.update(editorViewOptionsCtx, (prev) => ({
       ...prev,
       clipboardTextSerializer: (slice) => tablePlainText(slice.content),
+      // Enter in a table cell adds a line break in the cell. Crepe's own Enter leaves the table instead.
+      // These view options are checked before any plugin's keys, so this runs ahead of Crepe's table keys.
+      handleKeyDown: (view, event) => {
+        if (event.key !== 'Enter' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return false;
+        const { $from } = view.state.selection;
+        let inCell = false;
+        for (let d = $from.depth; d > 0; d--) {
+          const name = $from.node(d).type.name;
+          if (name === 'table_cell' || name === 'table_header') inCell = true;
+        }
+        const br = view.state.schema.nodes.hardbreak;
+        if (!inCell || !br || !$from.parent.isTextblock) return false;
+        view.dispatch(view.state.tr.replaceSelectionWith(br.create()).scrollIntoView());
+        return true;
+      },
     }));
   });
 
