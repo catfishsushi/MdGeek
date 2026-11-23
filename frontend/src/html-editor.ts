@@ -15,7 +15,7 @@ import { backend } from './backend';
 import DOMPurify from 'dompurify';
 import type { EditorHandle, SourceLook } from './editors';
 import { makeCssPanel, type CssPanel } from './html-css-panel';
-import { headStyleBlocks, mergeStyleBlocks } from './html-stylesheet';
+import { appendLines, headStyleBlocks, mergeStyleBlocks, topRules } from './html-stylesheet';
 import { keepFormatting } from './keep-format';
 import { dirname, localImagePath } from './paths';
 import {
@@ -211,6 +211,7 @@ const BUTTONS: [string, string, string][] = [
   ['|', '', ''],
   ['insertUnorderedList', 'Bulleted list', 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01'],
   ['insertOrderedList', 'Numbered list', 'M10 6h10M10 12h10M10 18h10M4 4v4M3 8h2M3 14h2l-2 3h2'],
+  ['checklist', 'Checklist: a list with a checkbox on each item', 'M3 4h5v5H3zM3 15h5v5H3zM11 6.5h10M11 17.5h10M4.3 6.6l1.2 1.2 2-2.3'],
   ['outdent', 'Decrease indent', 'M20 6H10M20 12H10M20 18H10M7 9l-3 3 3 3'],
   ['indent', 'Increase indent', 'M20 6H10M20 12H10M20 18H10M4 9l3 3-3 3'],
   ['|', '', ''],
@@ -893,12 +894,153 @@ export async function createHtmlEditor(
     tableMenu.open(cell, f.left + r.left, f.top + r.bottom, true);
   });
 
+  // ---- checklists ----
+  // A checklist is a <ul class="checklist"> whose items each start with <input type="checkbox">, the
+  // same shape as GitHub's task lists. The Checklist button turns the paragraphs or list items at the
+  // cursor into one, or, when they all have checkboxes already, takes the checkboxes off again.
+  // Clicking a checkbox ticks it; the tick is saved as the checkbox's `checked` attribute.
+  const boxOf = (li: Element) => li.querySelector<HTMLInputElement>(':scope > input[type="checkbox"]');
+  const isChecklist = (li: Element | null | undefined) => !!li?.parentElement?.classList.contains('checklist');
+  const newBox = () => {
+    const box = doc.createElement('input');
+    box.type = 'checkbox';
+    return box;
+  };
+  /** The innermost list items the selection touches. */
+  const itemsInSelection = (): Element[] => {
+    const r = sel()?.rangeCount ? sel()!.getRangeAt(0) : null;
+    if (!r) return [];
+    if (r.collapsed) {
+      const li = elementOf(r.startContainer)?.closest('li');
+      return li ? [li] : [];
+    }
+    const hit = Array.from(doc.querySelectorAll('li')).filter((li) => r.intersectsNode(li));
+    return hit.filter((li) => !hit.some((other) => other !== li && li.contains(other)));
+  };
+  /** Where a node sits under `root`, as child numbers, so the same place can be found in a copy. */
+  const pathTo = (node: Node, root: Node): number[] | null => {
+    const path: number[] = [];
+    for (let n: Node | null = node; n !== root; n = n.parentNode) {
+      if (!n || !n.parentNode) return null;
+      path.unshift(Array.prototype.indexOf.call(n.parentNode.childNodes, n));
+    }
+    return path;
+  };
+  const nodeAt = (root: Node, path: number[]): Node | null =>
+    path.reduce<Node | null>((n, i) => n?.childNodes[i] ?? null, root);
+
+  /** Bullets off, and a little room after each checkbox. Added to the page's style block the first time. */
+  function ensureChecklistCss(): void {
+    if (topRules(ensureSheet(doc).textContent ?? '').some((r) => r.selector === 'ul.checklist')) return;
+    const sheet = styler.sheet(); // part of the same undo step as the checkboxes
+    sheet.textContent = appendLines(sheet.textContent ?? '', [
+      'ul.checklist { list-style: none; padding-left: 1.2em; }',
+      'ul.checklist > li > input[type="checkbox"] { margin: 0 .5em 0 0; vertical-align: middle; }',
+    ]);
+  }
+
+  // Adding or taking off checkboxes is one undo step, like a table change: each list changed is
+  // swapped for a changed copy, which undo swaps back.
+  function toggleChecklist(): void {
+    restore();
+    if (!itemsInSelection().length) doc.execCommand('insertUnorderedList'); // a paragraph becomes a list first
+    const items = itemsInSelection();
+    if (!items.length) return;
+    const removing = items.every((li) => boxOf(li));
+    const s = sel();
+    const caret = s?.rangeCount ? s.getRangeAt(0) : null;
+    let caretNode: Node | null = null;
+    const caretOffset = caret?.startOffset ?? 0;
+
+    const lists = [...new Set(items.map((li) => li.parentElement!))];
+    for (const list of lists) {
+      const path = caret && list.contains(caret.startContainer) ? pathTo(caret.startContainer, list) : null;
+      const index = (li: Element) => Array.prototype.indexOf.call(list.children, li);
+      const mine = items.filter((li) => li.parentElement === list).map(index);
+      const copy = beginChange(list);
+      // Found before the checkboxes change, while the copy still matches the original exactly.
+      if (path) caretNode = nodeAt(copy, path);
+      for (const i of mine) {
+        const li = copy.children[i];
+        if (removing) boxOf(li)?.remove();
+        else if (!boxOf(li)) li.prepend(newBox());
+      }
+      if (copy.tagName === 'UL') {
+        if (!removing) copy.classList.add('checklist');
+        else if (!Array.from(copy.children).some((c) => boxOf(c))) {
+          copy.classList.remove('checklist');
+          if (!copy.classList.length) copy.removeAttribute('class');
+        }
+      }
+    }
+    if (!removing) ensureChecklistCss();
+    endTableChange();
+
+    // The cursor goes back to the same place in the copy. When it sat directly in an item, its offset
+    // counts the item's children, so it moves one along for a checkbox added in front of it (which also
+    // puts a cursor at the item's start after the checkbox), and one back for one taken away.
+    if (caretNode && caretNode.isConnected && s) {
+      let o = caretOffset;
+      if (caretNode.nodeType === Node.ELEMENT_NODE && (caretNode as Element).tagName === 'LI') {
+        o = removing ? Math.max(0, o - 1) : o + 1;
+      }
+      const max = caretNode.nodeType === Node.TEXT_NODE ? (caretNode as Text).length : caretNode.childNodes.length;
+      const r = doc.createRange();
+      r.setStart(caretNode, Math.min(o, max));
+      s.removeAllRanges();
+      s.addRange(r);
+    }
+    changed();
+  }
+
+  // In design mode the browser doesn't tick checkboxes itself, so a click does it here, as its own
+  // undo step. The tick goes on just after the browser has finished with the click, so the browser
+  // can't put it back.
+  doc.addEventListener('click', (e) => {
+    const box = (e.target as Element).closest?.('input[type="checkbox"]') as HTMLInputElement | null;
+    if (!box) return;
+    e.preventDefault();
+    const on = !box.hasAttribute('checked');
+    setTimeout(() => {
+      if (!box.isConnected) return;
+      const copy = beginChange(box);
+      copy.toggleAttribute('checked', on);
+      copy.checked = on;
+      endTableChange();
+      changed();
+    });
+  });
+
+  // Enter in a checklist item starts the next item with its own checkbox. Enter in an empty item ends
+  // the list there, as in other editors. Both use the browser's own editing commands, so Ctrl+Z undoes them.
+  doc.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    const li = elementOf(sel()?.anchorNode)?.closest('li');
+    if (!li || !isChecklist(li) || !boxOf(li)) return;
+    e.preventDefault();
+    if (!li.textContent?.trim()) {
+      const box = boxOf(li)!;
+      const r = doc.createRange();
+      r.selectNode(box);
+      sel()?.removeAllRanges();
+      sel()?.addRange(r);
+      doc.execCommand('delete');
+      doc.execCommand('insertUnorderedList');
+    } else {
+      doc.execCommand('insertParagraph');
+      const next = elementOf(sel()?.anchorNode)?.closest('li');
+      if (next && next !== li && !boxOf(next)) doc.execCommand('insertHTML', false, '<input type="checkbox">');
+    }
+    changed();
+  });
+
   const linkAtSelection = () => {
     const node = saved?.commonAncestorContainer;
     const el = elementOf(node);
     return el?.closest('a[href]') ?? null;
   };
   const actions: Record<string, () => void> = {
+    checklist: toggleChecklist,
     undo: () => void undo(),
     redo: () => void redo(),
     link: () =>
