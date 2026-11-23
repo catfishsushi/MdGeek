@@ -25,6 +25,8 @@ import {
 const SWAPPED = 'data-mdg-swap'; // marks an element with attributes to put back
 const WAS = 'data-mdg-was-'; // + attribute name: the original value
 const UI = 'data-mdg-ui'; // marks elements MdGeek added, which are left out when writing
+/** Sent on the app's window when the text size (--doc-zoom on <html>) changes; see "text size" in main.ts. */
+export const DOC_ZOOM_EVENT = 'mdgeek-doc-zoom';
 
 /**
  * The element a selection point is in. Checked by node type, not `instanceof Element`: nodes in the
@@ -272,6 +274,20 @@ export async function createHtmlEditor(
     // has this rule; it isn't saved, and cells with anything in them size as the page says.
     ':is(td,th):is(:empty,:has(>br:only-child)){min-width:3em;height:1.5em}';
   doc.head.appendChild(ui);
+
+  // Text size (the toolbar's A− / A+, or Ctrl + = / - / 0). The page's own CSS sets its sizes, often in
+  // pixels, so instead of changing font sizes the whole page is zoomed, as a browser does. Like the
+  // style above, this is only for this view and isn't saved into the file.
+  const zoomStyle = doc.createElement('style');
+  zoomStyle.setAttribute(UI, '');
+  doc.head.appendChild(zoomStyle);
+  const applyZoom = () => {
+    const z = parseFloat(document.documentElement.style.getPropertyValue('--doc-zoom')) || 1;
+    zoomStyle.textContent = z === 1 ? '' : `:root{zoom:${z}}`;
+  };
+  applyZoom();
+  window.addEventListener(DOC_ZOOM_EVENT, applyZoom);
+
   doc.designMode = 'on';
   doc.execCommand('styleWithCSS', false, 'false'); // <b> and <i>, not <span style="…">
 
@@ -988,12 +1004,22 @@ export async function createHtmlEditor(
     const a = linkAt(e);
     frame.title = a ? `${a.getAttribute('href')}\nCtrl+Click to open` : 'Page';
   });
-  // Dropped files would replace the page; files are opened by dropping them outside it.
+  // Dropped files would replace the page (or the whole app); the desktop app opens them from the
+  // window instead. Some file managers send a dropped file only as a link (text/uri-list), so that counts too.
+  // A drag that starts in the page (moving a link or text) is left to the page.
+  let dragFromPage = false;
+  doc.addEventListener('dragstart', () => (dragFromPage = true));
+  doc.addEventListener('dragend', () => (dragFromPage = false));
+  const fileOrLink = (e: DragEvent) => {
+    if (dragFromPage) return false;
+    const types = e.dataTransfer?.types ?? [];
+    return types.includes('Files') || types.includes('text/uri-list');
+  };
   doc.addEventListener('dragover', (e) => {
-    if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+    if (fileOrLink(e)) e.preventDefault();
   });
   doc.addEventListener('drop', (e) => {
-    if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+    if (fileOrLink(e)) e.preventDefault();
   });
 
   // ---- find ----
@@ -1080,6 +1106,7 @@ export async function createHtmlEditor(
       tableMenu.remove();
       cssPanel.destroy();
       doc.removeEventListener('input', changed);
+      window.removeEventListener(DOC_ZOOM_EVENT, applyZoom);
     },
     focus: () => win.focus(),
     setText: (next) => {

@@ -19,7 +19,7 @@ import { NeedsPermission, NoAccess } from './backend/errors';
 import { applyCrepeTheme, createSourceEditor, createWysiwygEditor, EditorHandle, SourceLook } from './editors';
 import { showDiff, Resolution } from './diffview';
 import { basename, dirname, docKind, isEditablePath, resolveLink } from './paths';
-import { createHtmlEditor, printHtml } from './html-editor';
+import { createHtmlEditor, printHtml, DOC_ZOOM_EVENT } from './html-editor';
 import { documentCss, renderPrintable, renderStandalone } from './render';
 import { Tree, TreeItem } from './tree';
 
@@ -1746,6 +1746,70 @@ window.addEventListener(
   true,
 );
 
+// ---------- text size ----------
+// The toolbar's A− / A+ buttons, or Ctrl + = / Ctrl + - (Ctrl + 0 resets), make the document text
+// bigger or smaller. (Ctrl + mouse wheel was tried and taken out: on Linux, zooming in worked but
+// zooming out just scrolled, and a wheel that behaves differently each way is confusing.)
+// Only the document changes (WYSIWYG, Source, diff and HTML views); the toolbar and Explorer stay as they are. It sets --doc-zoom, which style.css multiplies the document's font sizes by, and
+// the size is saved like the theme so it survives a restart. HTML pages zoom as a whole instead (see
+// DOC_ZOOM_EVENT in html-editor.ts).
+
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.1;
+let docZoom = 1;
+let zoomSaveTimer: number | undefined;
+
+function setDocZoom(z: number, save = true): void {
+  z = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) * 10) / 10;
+  if (z === docZoom) return;
+  docZoom = z;
+  document.documentElement.style.setProperty('--doc-zoom', String(z));
+  window.dispatchEvent(new Event(DOC_ZOOM_EVENT)); // open HTML pages zoom to match
+  showZoom();
+  if (!save) return;
+  if (fullScreen) toast(`Text size ${Math.round(z * 100)}%`); // the toolbar, which shows it, is hidden
+  // Quick clicks or a held key make many changes in a row; only the last one is written to the settings file.
+  window.clearTimeout(zoomSaveTimer);
+  zoomSaveTimer = window.setTimeout(() => {
+    backend.setSetting('docZoom', String(docZoom)).catch(() => toast('Could not save the text size'));
+  }, 400);
+}
+
+// The toolbar's text size group: A− and A+ step the size, and the middle button shows it and resets it.
+const zoomOutBtn = $<HTMLButtonElement>('btn-zoom-out');
+const zoomInBtn = $<HTMLButtonElement>('btn-zoom-in');
+const zoomResetBtn = $<HTMLButtonElement>('btn-zoom-reset');
+function showZoom(): void {
+  zoomResetBtn.textContent = `${Math.round(docZoom * 100)}%`;
+  zoomOutBtn.disabled = docZoom <= ZOOM_MIN;
+  zoomInBtn.disabled = docZoom >= ZOOM_MAX;
+}
+zoomOutBtn.addEventListener('click', () => setDocZoom(docZoom - ZOOM_STEP));
+zoomInBtn.addEventListener('click', () => setDocZoom(docZoom + ZOOM_STEP));
+zoomResetBtn.addEventListener('click', () => setDocZoom(1));
+
+window.addEventListener(
+  'keydown',
+  (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.key === '=' || e.key === '+') setDocZoom(docZoom + ZOOM_STEP);
+    else if (e.key === '-' || e.key === '_') setDocZoom(docZoom - ZOOM_STEP);
+    else if (e.key === '0' && !e.shiftKey) setDocZoom(1);
+    else return;
+    e.preventDefault();
+  },
+  true,
+);
+
+backend
+  .getSetting('docZoom')
+  .then((v) => {
+    const z = parseFloat(v);
+    if (z > 0) setDocZoom(z, false);
+  })
+  .catch(() => {}); // nothing saved; keep 100%
+
 // ---------- full screen ----------
 // F11 or the toolbar button gives the screen to the document: the window goes full screen and the
 // toolbar and tab row hide. F11 again, Esc, or the button in the top right corner come back out. Esc
@@ -1821,6 +1885,23 @@ backend.onFileDrop((x, y, paths) => {
 });
 sidebar.addEventListener('dragover', (e) => {
   if (e.dataTransfer?.types.includes('Files')) sidebar.classList.add('drop-over');
+});
+
+// Backstop: a drop the page doesn't claim is opened by the web view itself, in place of the whole app,
+// which leaves only the dropped page on screen with no toolbar and no way back. The desktop app
+// already gets the dropped paths from the window (above), so the page claims every file or link drop
+// that reaches it here. Drops inside the editors are left alone: they move text and blocks there, and
+// the web view never opens a page for a drop on text being edited.
+const carriesFileOrLink = (e: DragEvent) => {
+  const types = e.dataTransfer?.types ?? [];
+  return types.includes('Files') || types.includes('text/uri-list');
+};
+const outsideEditors = (e: DragEvent) => !(e.target as Element | null)?.closest?.('.ProseMirror, .cm-content');
+window.addEventListener('dragover', (e) => {
+  if (carriesFileOrLink(e) && outsideEditors(e)) e.preventDefault();
+});
+window.addEventListener('drop', (e) => {
+  if (carriesFileOrLink(e) && outsideEditors(e)) e.preventDefault();
 });
 sidebar.addEventListener('dragleave', (e) => {
   if (!sidebar.contains(e.relatedTarget as Node | null)) sidebar.classList.remove('drop-over');
