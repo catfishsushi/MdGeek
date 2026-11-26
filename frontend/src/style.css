@@ -787,9 +787,14 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 }
 #content .editor .milkdown .milkdown-top-bar { background: var(--panel); border-bottom: 1px solid var(--line); }
 
-/* The document: centred, at most 925px wide. Document text sizes are multiplied by --doc-zoom, which
+/* How wide the document is: 75% of its pane, at most 1400px so lines stay readable on big monitors.
+   Phones and narrow panes use the full width. */
+#content { --doc-width: min(75%, 1400px); }
+@media (max-width: 920px) { #content { --doc-width: 100%; } }
+
+/* The document: centred, --doc-width wide. Document text sizes are multiplied by --doc-zoom, which
    the toolbar's A− / A+ buttons (or Ctrl + = / - / 0) change; see "text size" in main.ts. */
-#content .editor .milkdown .ProseMirror { max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; font-size: calc(16px * var(--doc-zoom, 1)); line-height: 1.7; }
+#content .editor .milkdown .ProseMirror { max-width: var(--doc-width); margin: 0 auto; padding: 44px 48px 64px; font-size: calc(16px * var(--doc-zoom, 1)); line-height: 1.7; }
 /* "First block" skips the invisible cursor element Crepe keeps as the editor's first child. */
 #content .editor .milkdown .ProseMirror > :nth-child(1 of :not(.prosemirror-virtual-cursor)) { margin-top: 0; }
 /* Raw HTML anchors like <a name="setup"></a> or <a id="setup"></a> only mark a place for links to jump
@@ -831,7 +836,7 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .cm-editor.cm-focused { outline: none; }
 .cm-editor, .cm-editor .cm-gutters { background: transparent; }
 .cm-scroller { font-family: var(--mono); font-size: calc(13.5px * var(--doc-zoom, 1)); line-height: 1.8; }
-#content .editor .host > .cm-editor .cm-content { flex: 0 1 925px; max-width: 925px; margin: 0 auto; padding: 44px 48px 64px; }
+#content .editor .host > .cm-editor .cm-content { flex: 0 1 var(--doc-width); max-width: var(--doc-width); margin: 0 auto; padding: 44px 48px 64px; }
 
 /* Nothing open: a dashed drop-zone card. */
 #empty { flex: 1; display: grid; place-items: center; padding: 24px; }
@@ -1137,13 +1142,12 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .th-scifi #content .editor .milkdown .ProseMirror,
 .th-scifi #content .editor .host > .cm-editor .cm-content {
   position: relative;
-  max-width: 950px;
+  max-width: var(--doc-width);
   margin: 28px auto 40px;
   padding: 40px 48px 48px;
   background: rgba(4, 11, 18, .8);
   border: 1px solid rgba(63, 208, 240, .28);
 }
-.th-scifi #content .editor .host > .cm-editor .cm-content { flex-basis: 950px; }
 .th-scifi #content .editor .milkdown .ProseMirror { font-size: calc(15.5px * var(--doc-zoom, 1)); }
 .th-scifi #content .editor .milkdown .ProseMirror h1 { text-transform: uppercase; letter-spacing: .06em; color: #7FE9FF; text-shadow: 0 0 18px rgba(63, 208, 240, .45); font-size: calc(38px * var(--doc-zoom, 1)); }
 .th-scifi #content .editor .milkdown .ProseMirror h2 { text-transform: uppercase; letter-spacing: .1em; color: var(--dir); font-size: calc(20px * var(--doc-zoom, 1)); }
@@ -1253,9 +1257,9 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
    left; a carrack, a sea serpent and more islands on the right. Each is about as wide as the gap beside
    the page (at most 300px), so
    they shrink with the window and vanish when the page fills the width. They stay put while the
-   document scrolls. --gap is the space on each side of the 950px page, less the scrollbar. */
+   document scrolls. --gap is the space on each side of the page (see --doc-width), less the scrollbar. */
 .th-fantasy #content .editor {
-  --gap: clamp(0px, calc((100% - 1000px) / 2), 300px);
+  --gap: clamp(0px, calc((100% - var(--doc-width)) / 2 - 25px), 300px);
   background:
     url("./assets/fantasy-dragon.svg") left 14px top 70px / var(--gap) auto no-repeat,
     url("./assets/fantasy-islands-left.svg") left 20px top 52% / calc(var(--gap) * .85) auto no-repeat,
@@ -1274,14 +1278,13 @@ button.brand:hover, button.brand[aria-expanded="true"] { background: var(--hover
 .th-fantasy #content .editor .milkdown .ProseMirror,
 .th-fantasy #content .editor .host > .cm-editor .cm-content {
   position: relative;
-  max-width: 950px;
+  max-width: var(--doc-width);
   margin: 28px auto 40px;
   padding: 48px 56px 56px;
   background: var(--grain), rgba(246, 236, 210, .94);
   border: 3px double var(--panelline);
   box-shadow: 0 6px 22px rgba(60, 38, 18, .3);
 }
-.th-fantasy #content .editor .host > .cm-editor .cm-content { flex-basis: 950px; }
 .th-fantasy #content .editor .milkdown .ProseMirror { font-size: calc(18px * var(--doc-zoom, 1)); line-height: 1.65; }
 .th-fantasy #content .editor .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) { letter-spacing: .04em; color: var(--ink); }
 .th-fantasy #content .editor .milkdown .ProseMirror h1 {
